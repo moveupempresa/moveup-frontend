@@ -1,0 +1,1189 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../config/api_config.dart';
+import '../models/event.dart';
+import '../models/pack.dart';
+import '../models/session.dart' show Session;
+import '../services/auth_service.dart';
+import '../services/event_service.dart';
+import '../services/pack_service.dart';
+import '../services/session_service.dart';
+
+class _SessionDraft {
+  String? id;
+  String name;
+  DateTime startDatetime;
+  DateTime endDatetime;
+  String address;
+  bool isUnlimitedCapacity;
+  int? capacity;
+
+  _SessionDraft({
+    this.id,
+    required this.name,
+    required this.startDatetime,
+    required this.endDatetime,
+    required this.address,
+    required this.isUnlimitedCapacity,
+    this.capacity,
+  });
+
+  factory _SessionDraft.fromSession(Session s) => _SessionDraft(
+        id: s.id,
+        name: s.name,
+        startDatetime: s.startDatetime,
+        endDatetime: s.endDatetime,
+        address: s.address ?? '',
+        isUnlimitedCapacity: s.isUnlimitedCapacity,
+        capacity: s.capacity,
+      );
+}
+
+class _PackDraft {
+  String? id;
+  String name;
+  PaymentType paymentType;
+  double price;
+  ApprovalMode approvalMode;
+  bool isUnlimitedCapacity;
+  int? capacity;
+  PackType packType;
+  int? maxSelectableSessions;
+  List<_SessionDraft> selectedSessions;
+
+  _PackDraft({
+    this.id,
+    required this.name,
+    required this.paymentType,
+    required this.price,
+    required this.approvalMode,
+    required this.isUnlimitedCapacity,
+    this.capacity,
+    required this.packType,
+    this.maxSelectableSessions,
+    required this.selectedSessions,
+  });
+
+  factory _PackDraft.fromPack(Pack p, List<_SessionDraft> allSessions) => _PackDraft(
+        id: p.id,
+        name: p.name,
+        paymentType: p.paymentType,
+        price: p.price,
+        approvalMode: p.approvalMode,
+        isUnlimitedCapacity: p.isUnlimitedCapacity,
+        capacity: p.capacity,
+        packType: p.packType,
+        maxSelectableSessions: p.maxSelectableSessions,
+        selectedSessions:
+            allSessions.where((s) => p.sessionIds.contains(s.id)).toList(),
+      );
+}
+
+class EventFormScreen extends StatefulWidget {
+  final String token;
+  final Event? event;
+
+  const EventFormScreen({super.key, required this.token, this.event});
+
+  @override
+  State<EventFormScreen> createState() => _EventFormScreenState();
+}
+
+class _EventFormScreenState extends State<EventFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _picker = ImagePicker();
+
+  final _titleController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _countryController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _styleInputController = TextEditingController();
+
+  final List<String> _styles = [];
+  final List<_SessionDraft> _sessions = [];
+  final List<_PackDraft> _packs = [];
+  final Set<String> _deletedSessionIds = {};
+  final Set<String> _deletedPackIds = {};
+  File? _coverFile;
+  bool? _reservationChoice;
+  bool _isSubmitting = false;
+
+  EventType _eventType = EventType.specialEvent;
+  LocationType _locationType = LocationType.presential;
+  EventVisibility _visibility = EventVisibility.public;
+  EventStatus _status = EventStatus.published;
+
+  bool get _isEditing => widget.event != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final event = widget.event;
+    if (event != null) {
+      _titleController.text = event.title;
+      _cityController.text = event.city;
+      _countryController.text = event.country;
+      _descriptionController.text = event.description;
+      _styles.addAll(event.style);
+      _reservationChoice = event.reservationEnabled;
+      _eventType = event.eventType;
+      _locationType = event.locationType;
+      _visibility = event.visibility;
+      _status = event.status;
+
+      final sessionDrafts = (event.sessions ?? []).map(_SessionDraft.fromSession).toList();
+      _sessions.addAll(sessionDrafts);
+      _packs.addAll((event.packs ?? []).map((p) => _PackDraft.fromPack(p, sessionDrafts)));
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _cityController.dispose();
+    _countryController.dispose();
+    _descriptionController.dispose();
+    _styleInputController.dispose();
+    super.dispose();
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _addStyle() {
+    final value = _styleInputController.text.trim();
+    if (value.isEmpty) return;
+    if (_styles.contains(value)) {
+      _styleInputController.clear();
+      return;
+    }
+    setState(() {
+      _styles.add(value);
+      _styleInputController.clear();
+    });
+  }
+
+  Future<void> _pickCover() async {
+    final picked = await showModalBottomSheet<XFile?>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image_outlined),
+              title: const Text('Seleccionar imagen'),
+              onTap: () async {
+                final f = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                if (ctx.mounted) Navigator.pop(ctx, f);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: const Text('Seleccionar video'),
+              onTap: () async {
+                final f = await _picker.pickVideo(source: ImageSource.gallery);
+                if (ctx.mounted) Navigator.pop(ctx, f);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    setState(() => _coverFile = File(picked.path));
+  }
+
+  Future<void> _setReservationChoice(bool value) async {
+    if (value == false && _packs.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('¿Eliminar packs?'),
+          content: const Text(
+            'Si desactivas la gestión de reservas, se eliminarán todos los packs de este evento.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Eliminar packs'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      setState(() {
+        for (final p in _packs) {
+          if (p.id != null) _deletedPackIds.add(p.id!);
+        }
+        _packs.clear();
+        _reservationChoice = false;
+      });
+      return;
+    }
+    setState(() => _reservationChoice = value);
+  }
+
+  Future<void> _openSessionSheet({_SessionDraft? existing}) async {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final addressCtrl = TextEditingController(text: existing?.address ?? '');
+    final capacityCtrl = TextEditingController(
+      text: existing?.capacity != null ? existing!.capacity.toString() : '',
+    );
+    DateTime? startDt = existing?.startDatetime;
+    DateTime? endDt = existing?.endDatetime;
+    bool isUnlimited = existing?.isUnlimitedCapacity ?? true;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            Future<void> pickStart() async {
+              final date = await showDatePicker(
+                context: ctx,
+                initialDate: startDt ?? DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                locale: const Locale('es', 'ES'),
+              );
+              if (date == null || !ctx.mounted) return;
+              final time = await showTimePicker(
+                context: ctx,
+                initialTime: TimeOfDay.now(),
+              );
+              if (time == null) return;
+              setSheetState(() => startDt = DateTime(date.year, date.month, date.day, time.hour, time.minute));
+            }
+
+            Future<void> pickEnd() async {
+              final date = await showDatePicker(
+                context: ctx,
+                initialDate: endDt ?? startDt ?? DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                locale: const Locale('es', 'ES'),
+              );
+              if (date == null || !ctx.mounted) return;
+              final time = await showTimePicker(
+                context: ctx,
+                initialTime: TimeOfDay.now(),
+              );
+              if (time == null) return;
+              setSheetState(() => endDt = DateTime(date.year, date.month, date.day, time.hour, time.minute));
+            }
+
+            String fmt(DateTime? dt) {
+              if (dt == null) return 'Seleccionar';
+              return '${dt.day}/${dt.month}/${dt.year}  ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+            }
+
+            final capacityValid = isUnlimited ||
+                (capacityCtrl.text.trim().isNotEmpty &&
+                    int.tryParse(capacityCtrl.text.trim()) != null &&
+                    int.parse(capacityCtrl.text.trim()) > 0);
+
+            final canSave = nameCtrl.text.trim().isNotEmpty &&
+                addressCtrl.text.trim().isNotEmpty &&
+                startDt != null &&
+                endDt != null &&
+                capacityValid;
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(existing == null ? 'Nueva sesión' : 'Editar sesión',
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Nombre de la sesión'),
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: addressCtrl,
+                    decoration: const InputDecoration(labelText: 'Dirección'),
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: pickStart,
+                    icon: const Icon(Icons.play_arrow_outlined),
+                    label: Text('Inicio: ${fmt(startDt)}'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: pickEnd,
+                    icon: const Icon(Icons.stop_outlined),
+                    label: Text('Fin: ${fmt(endDt)}'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Capacidad ilimitada'),
+                    value: isUnlimited,
+                    onChanged: (v) => setSheetState(() {
+                      isUnlimited = v;
+                      if (v) capacityCtrl.clear();
+                    }),
+                  ),
+                  if (!isUnlimited) ...[
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: capacityCtrl,
+                      decoration: const InputDecoration(labelText: 'Capacidad (nº de personas)'),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: canSave
+                        ? () {
+                            setState(() {
+                              if (existing != null) {
+                                existing.name = nameCtrl.text.trim();
+                                existing.startDatetime = startDt!;
+                                existing.endDatetime = endDt!;
+                                existing.address = addressCtrl.text.trim();
+                                existing.isUnlimitedCapacity = isUnlimited;
+                                existing.capacity =
+                                    isUnlimited ? null : int.parse(capacityCtrl.text.trim());
+                              } else {
+                                _sessions.add(_SessionDraft(
+                                  name: nameCtrl.text.trim(),
+                                  startDatetime: startDt!,
+                                  endDatetime: endDt!,
+                                  address: addressCtrl.text.trim(),
+                                  isUnlimitedCapacity: isUnlimited,
+                                  capacity: isUnlimited ? null : int.parse(capacityCtrl.text.trim()),
+                                ));
+                              }
+                            });
+                            Navigator.pop(ctx);
+                          }
+                        : null,
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                    child: Text(existing == null ? 'Añadir sesión' : 'Guardar sesión'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _removeSession(_SessionDraft session) {
+    setState(() {
+      if (session.id != null) _deletedSessionIds.add(session.id!);
+      _sessions.remove(session);
+      for (final pack in _packs) {
+        pack.selectedSessions.remove(session);
+      }
+    });
+  }
+
+  Future<void> _openPackSheet({_PackDraft? existing}) async {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final priceCtrl = TextEditingController(
+      text: existing != null && existing.paymentType != PaymentType.free
+          ? existing.price.toString()
+          : '',
+    );
+    final capacityCtrl = TextEditingController(
+      text: existing?.capacity != null ? existing!.capacity.toString() : '',
+    );
+    final maxSelectableSessionsCtrl = TextEditingController(
+      text: existing?.maxSelectableSessions != null
+          ? existing!.maxSelectableSessions.toString()
+          : '',
+    );
+    PaymentType paymentType = existing?.paymentType ?? PaymentType.online;
+    ApprovalMode approvalMode = existing?.approvalMode ?? ApprovalMode.automatic;
+    PackType packType = existing?.packType ?? PackType.fixed;
+    bool isUnlimited = existing?.isUnlimitedCapacity ?? true;
+    final selectedSessions = <_SessionDraft>{...(existing?.selectedSessions ?? [])};
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final priceValid = paymentType == PaymentType.free ||
+                (priceCtrl.text.trim().isNotEmpty &&
+                    double.tryParse(priceCtrl.text.trim()) != null &&
+                    double.parse(priceCtrl.text.trim()) > 0);
+
+            final capacityValid = isUnlimited ||
+                (capacityCtrl.text.trim().isNotEmpty &&
+                    int.tryParse(capacityCtrl.text.trim()) != null &&
+                    int.parse(capacityCtrl.text.trim()) > 0);
+
+            final maxSelectableSessionsValid = packType != PackType.customizable ||
+                (maxSelectableSessionsCtrl.text.trim().isNotEmpty &&
+                    int.tryParse(maxSelectableSessionsCtrl.text.trim()) != null &&
+                    int.parse(maxSelectableSessionsCtrl.text.trim()) > 0);
+
+            final selectedSessionsValid =
+                packType != PackType.fixed || selectedSessions.isNotEmpty;
+
+            final canSave = nameCtrl.text.trim().isNotEmpty &&
+                priceValid &&
+                capacityValid &&
+                maxSelectableSessionsValid &&
+                selectedSessionsValid;
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(existing == null ? 'Nuevo pack' : 'Editar pack',
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Título del pack'),
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<PaymentType>(
+                    value: paymentType,
+                    decoration: const InputDecoration(labelText: 'Tipo de pago'),
+                    items: PaymentType.values
+                        .map((p) => DropdownMenuItem(value: p, child: Text(p.label)))
+                        .toList(),
+                    onChanged: (v) => setSheetState(() {
+                      if (v != null) {
+                        paymentType = v;
+                        if (v == PaymentType.free) priceCtrl.clear();
+                      }
+                    }),
+                  ),
+                  if (paymentType != PaymentType.free) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: priceCtrl,
+                      decoration: const InputDecoration(labelText: 'Precio'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<ApprovalMode>(
+                    value: approvalMode,
+                    decoration: const InputDecoration(labelText: 'Modo de aprobación'),
+                    items: ApprovalMode.values
+                        .map((a) => DropdownMenuItem(value: a, child: Text(a.label)))
+                        .toList(),
+                    onChanged: (v) => setSheetState(() {
+                      if (v != null) approvalMode = v;
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Capacidad ilimitada'),
+                    value: isUnlimited,
+                    onChanged: (v) => setSheetState(() {
+                      isUnlimited = v;
+                      if (v) capacityCtrl.clear();
+                    }),
+                  ),
+                  if (!isUnlimited) ...[
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: capacityCtrl,
+                      decoration: const InputDecoration(labelText: 'Capacidad (nº de personas)'),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<PackType>(
+                    value: packType,
+                    decoration: const InputDecoration(labelText: 'Tipo de pack'),
+                    items: PackType.values
+                        .map((p) => DropdownMenuItem(value: p, child: Text(p.label)))
+                        .toList(),
+                    onChanged: (v) => setSheetState(() {
+                      if (v != null) {
+                        packType = v;
+                        if (v != PackType.customizable) maxSelectableSessionsCtrl.clear();
+                        if (v != PackType.fixed) selectedSessions.clear();
+                      }
+                    }),
+                  ),
+                  if (packType == PackType.customizable) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: maxSelectableSessionsCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Nº de sesiones que puede elegir el estudiante',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                  ],
+                  if (packType == PackType.fixed) ...[
+                    const SizedBox(height: 16),
+                    Text('Sesiones incluidas', style: Theme.of(ctx).textTheme.titleSmall),
+                    ..._sessions.map((s) => CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: Text(s.name),
+                          subtitle: Text(
+                            '${_formatDatetime(s.startDatetime)} → ${_formatDatetime(s.endDatetime)}',
+                            style: Theme.of(ctx).textTheme.bodySmall,
+                          ),
+                          value: selectedSessions.contains(s),
+                          onChanged: (checked) => setSheetState(() {
+                            if (checked == true) {
+                              selectedSessions.add(s);
+                            } else {
+                              selectedSessions.remove(s);
+                            }
+                          }),
+                        )),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: canSave
+                        ? () {
+                            setState(() {
+                              final price = paymentType == PaymentType.free
+                                  ? 0.0
+                                  : double.parse(priceCtrl.text.trim());
+                              final capacity =
+                                  isUnlimited ? null : int.parse(capacityCtrl.text.trim());
+                              final maxSelectable = packType == PackType.customizable
+                                  ? int.parse(maxSelectableSessionsCtrl.text.trim())
+                                  : null;
+                              final sessions = packType == PackType.fixed
+                                  ? selectedSessions.toList()
+                                  : <_SessionDraft>[];
+
+                              if (existing != null) {
+                                existing.name = nameCtrl.text.trim();
+                                existing.paymentType = paymentType;
+                                existing.price = price;
+                                existing.approvalMode = approvalMode;
+                                existing.isUnlimitedCapacity = isUnlimited;
+                                existing.capacity = capacity;
+                                existing.packType = packType;
+                                existing.maxSelectableSessions = maxSelectable;
+                                existing.selectedSessions = sessions;
+                              } else {
+                                _packs.add(_PackDraft(
+                                  name: nameCtrl.text.trim(),
+                                  paymentType: paymentType,
+                                  price: price,
+                                  approvalMode: approvalMode,
+                                  isUnlimitedCapacity: isUnlimited,
+                                  capacity: capacity,
+                                  packType: packType,
+                                  maxSelectableSessions: maxSelectable,
+                                  selectedSessions: sessions,
+                                ));
+                              }
+                            });
+                            Navigator.pop(ctx);
+                          }
+                        : null,
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                    child: Text(existing == null ? 'Añadir pack' : 'Guardar pack'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _removePack(_PackDraft pack) {
+    setState(() {
+      if (pack.id != null) _deletedPackIds.add(pack.id!);
+      _packs.remove(pack);
+    });
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_styles.isEmpty) {
+      _showError('Añade al menos un estilo');
+      return;
+    }
+    if (_sessions.isEmpty) {
+      _showError('Añade al menos una sesión');
+      return;
+    }
+    if (_coverFile == null && !_isEditing) {
+      _showError('Selecciona una portada para el evento');
+      return;
+    }
+    if (_reservationChoice == null) {
+      _showError('Indica si necesitas gestionar reservas');
+      return;
+    }
+    if (_reservationChoice == true && _packs.isEmpty) {
+      _showError('Añade al menos un pack');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final String eventId;
+      if (_isEditing) {
+        final updated = await EventService.updateEvent(
+          token: widget.token,
+          eventId: widget.event!.id,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          style: _styles,
+          city: _cityController.text.trim(),
+          country: _countryController.text.trim(),
+          coverFile: _coverFile,
+          reservationEnabled: _reservationChoice!,
+          eventType: _eventType,
+          locationType: _locationType,
+          visibility: _visibility,
+          status: _status,
+        );
+        eventId = updated.id;
+      } else {
+        final created = await EventService.createEvent(
+          token: widget.token,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          style: _styles,
+          city: _cityController.text.trim(),
+          country: _countryController.text.trim(),
+          coverFile: _coverFile!,
+          reservationEnabled: _reservationChoice!,
+          status: EventStatus.published,
+        );
+        eventId = created.id;
+      }
+
+      for (final sessionId in _deletedSessionIds) {
+        await SessionService.deleteSession(token: widget.token, eventId: eventId, sessionId: sessionId);
+      }
+
+      for (final session in _sessions) {
+        if (session.id == null) {
+          final created = await SessionService.createSession(
+            token: widget.token,
+            eventId: eventId,
+            name: session.name,
+            startDatetime: session.startDatetime,
+            endDatetime: session.endDatetime,
+            address: session.address,
+            isUnlimitedCapacity: session.isUnlimitedCapacity,
+            capacity: session.capacity,
+          );
+          session.id = created.id;
+        } else {
+          await SessionService.updateSession(
+            token: widget.token,
+            eventId: eventId,
+            sessionId: session.id!,
+            name: session.name,
+            startDatetime: session.startDatetime,
+            endDatetime: session.endDatetime,
+            address: session.address,
+            isUnlimitedCapacity: session.isUnlimitedCapacity,
+            capacity: session.capacity,
+          );
+        }
+      }
+
+      for (final packId in _deletedPackIds) {
+        await PackService.deletePack(token: widget.token, eventId: eventId, packId: packId);
+      }
+
+      for (final pack in _packs) {
+        final sessionIds = pack.selectedSessions.map((s) => s.id!).toList();
+        if (pack.id == null) {
+          await PackService.createPack(
+            token: widget.token,
+            eventId: eventId,
+            name: pack.name,
+            price: pack.price,
+            paymentType: pack.paymentType,
+            packType: pack.packType,
+            approvalMode: pack.approvalMode,
+            isUnlimitedCapacity: pack.isUnlimitedCapacity,
+            capacity: pack.capacity,
+            maxSelectableSessions: pack.maxSelectableSessions,
+            sessionIds: sessionIds,
+          );
+        } else {
+          await PackService.updatePack(
+            token: widget.token,
+            eventId: eventId,
+            packId: pack.id!,
+            name: pack.name,
+            price: pack.price,
+            paymentType: pack.paymentType,
+            packType: pack.packType,
+            approvalMode: pack.approvalMode,
+            isUnlimitedCapacity: pack.isUnlimitedCapacity,
+            capacity: pack.capacity,
+            maxSelectableSessions: pack.maxSelectableSessions,
+            sessionIds: sessionIds,
+          );
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_isEditing ? '¡Cambios guardados!' : '¡Evento publicado!')),
+        );
+        Navigator.of(context).pop(true);
+      }
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  String _formatDatetime(DateTime dt) =>
+      '${dt.day}/${dt.month}/${dt.year}  ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(_isEditing ? 'Editar evento' : 'Crear evento')),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+
+              // 1. Nombre
+              _label('Nombre del evento'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(hintText: 'Nombre del evento'),
+                textCapitalization: TextCapitalization.sentences,
+                validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // 2. Ciudad
+              _label('Ciudad'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _cityController,
+                decoration: const InputDecoration(hintText: 'Ciudad'),
+                textCapitalization: TextCapitalization.words,
+                validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // 3. País
+              _label('País'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _countryController,
+                decoration: const InputDecoration(hintText: 'País'),
+                textCapitalization: TextCapitalization.words,
+                validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // 4. Categoría / modalidad / visibilidad
+              _label('Categoría'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<EventType>(
+                value: _eventType,
+                items: EventType.values
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  if (v != null) _eventType = v;
+                }),
+              ),
+              const SizedBox(height: 16),
+              _label('Modalidad'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<LocationType>(
+                value: _locationType,
+                items: LocationType.values
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  if (v != null) _locationType = v;
+                }),
+              ),
+              const SizedBox(height: 16),
+              _label('Visibilidad'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<EventVisibility>(
+                value: _visibility,
+                items: EventVisibility.values
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  if (v != null) _visibility = v;
+                }),
+              ),
+              if (_isEditing) ...[
+                const SizedBox(height: 16),
+                _label('Estado'),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<EventStatus>(
+                  value: _status,
+                  items: EventStatus.values
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    if (v != null) _status = v;
+                  }),
+                ),
+              ],
+              const SizedBox(height: 24),
+
+              // 5. Estilo (chips)
+              _label('Estilo'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _styleInputController,
+                      decoration: const InputDecoration(hintText: 'ej: Salsa, Bachata, Hip-hop...'),
+                      textCapitalization: TextCapitalization.sentences,
+                      onSubmitted: (_) => _addStyle(),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: _styleInputController.text.trim().isEmpty ? null : _addStyle,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+              if (_styles.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: _styles
+                      .map(
+                        (s) => InputChip(
+                          label: Text(s),
+                          onDeleted: () => setState(() => _styles.remove(s)),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+              const SizedBox(height: 24),
+
+              // 6. Descripción
+              _label('Descripción'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  hintText: 'Describe el evento...',
+                  alignLabelWithHint: true,
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // 7. Sesiones
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _label('Sesiones'),
+                  if (_sessions.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => _openSessionSheet(),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Añadir'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_sessions.isEmpty)
+                OutlinedButton.icon(
+                  onPressed: () => _openSessionSheet(),
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: const Text('Añadir sesión'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                )
+              else
+                ..._sessions.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final s = entry.value;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      onTap: () => _openSessionSheet(existing: s),
+                      leading: CircleAvatar(child: Text('${i + 1}')),
+                      title: Text(s.name),
+                      subtitle: Text(
+                        '${_formatDatetime(s.startDatetime)} → ${_formatDatetime(s.endDatetime)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _removeSession(s),
+                      ),
+                    ),
+                  );
+                }),
+              const SizedBox(height: 24),
+
+              // 8. Portada
+              _label('Portada'),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pickCover,
+                child: Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _coverFile != null
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(_coverFile!, fit: BoxFit.cover),
+                            Positioned(
+                              bottom: 8,
+                              right: 8,
+                              child: FilledButton.tonal(
+                                onPressed: _pickCover,
+                                child: const Text('Cambiar'),
+                              ),
+                            ),
+                          ],
+                        )
+                      : _isEditing
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.network(
+                                  ApiConfig.mediaUrl(widget.event!.coverMediaUrl),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.image_not_supported_outlined,
+                                    size: 40,
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 8,
+                                  right: 8,
+                                  child: FilledButton.tonal(
+                                    onPressed: _pickCover,
+                                    child: const Text('Cambiar'),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_photo_alternate_outlined,
+                                    size: 40, color: colorScheme.onSurfaceVariant),
+                                const SizedBox(height: 8),
+                                Text('Añadir imagen o video',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                              ],
+                            ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 9. Reservas
+              _label('¿Necesitas gestionar reservas?'),
+              const SizedBox(height: 12),
+              _ReservationCard(
+                label: 'No, publicar sin reservas',
+                icon: Icons.public,
+                selected: _reservationChoice == false,
+                onTap: () => _setReservationChoice(false),
+              ),
+              const SizedBox(height: 10),
+              _ReservationCard(
+                label: 'Sí, quiero gestionar reservas',
+                icon: Icons.confirmation_number_outlined,
+                selected: _reservationChoice == true,
+                onTap: () => _setReservationChoice(true),
+              ),
+              if (_reservationChoice == true) ...[
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _label('Packs'),
+                    if (_packs.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: _sessions.isEmpty ? null : () => _openPackSheet(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Añadir'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (_sessions.isEmpty)
+                  Text(
+                    'Añade al menos una sesión antes de crear un pack',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: colorScheme.error),
+                  )
+                else if (_packs.isEmpty)
+                  OutlinedButton.icon(
+                    onPressed: () => _openPackSheet(),
+                    icon: const Icon(Icons.confirmation_number_outlined),
+                    label: const Text('Añadir pack'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  )
+                else
+                  ..._packs.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final p = entry.value;
+                    final priceLabel = p.paymentType == PaymentType.free
+                        ? 'Gratis'
+                        : '${p.price.toStringAsFixed(2)} · ${p.paymentType.label}';
+                    final packTypeLabel = p.packType == PackType.customizable
+                        ? '${p.packType.label} (máx. ${p.maxSelectableSessions} sesiones)'
+                        : p.packType.label;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        onTap: () => _openPackSheet(existing: p),
+                        leading: CircleAvatar(child: Text('${i + 1}')),
+                        title: Text(p.name),
+                        subtitle: Text(
+                          '$priceLabel · $packTypeLabel',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _removePack(p),
+                        ),
+                      ),
+                    );
+                  }),
+              ],
+              const SizedBox(height: 32),
+
+              if (_reservationChoice != null)
+                FilledButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(_isEditing ? 'Guardar cambios' : 'Publicar evento'),
+                ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) =>
+      Text(text, style: Theme.of(context).textTheme.titleSmall);
+}
+
+class _ReservationCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ReservationCard({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: selected ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? colorScheme.primary : colorScheme.outlineVariant,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant),
+            const SizedBox(width: 14),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: selected ? colorScheme.primary : colorScheme.onSurface,
+                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
