@@ -26,7 +26,7 @@ workflows:
         script: |
           find . -name "Podfile" -execdir pod install \;
       - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles
+        script: xcode-project use-profiles --create-profile
       - name: Build iOS IPA for App Store / TestFlight
         script: |
           flutter build ipa --release \
