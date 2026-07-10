@@ -7,8 +7,10 @@ workflows:
       app_store_connect: Codemagic CI Admin
     environment:
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.moveupempresa.moveup
+        provisioning_profiles:
+          - moveup-app-store-profile
+        certificates:
+          - moveup-ios-distribution
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -26,7 +28,7 @@ workflows:
         script: |
           find . -name "Podfile" -execdir pod install \;
       - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles --create-profile
+        script: xcode-project use-profiles
       - name: Build iOS IPA for App Store / TestFlight
         script: |
           flutter build ipa --release \
