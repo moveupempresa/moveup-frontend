@@ -26,13 +26,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final _profileKey = GlobalKey<ProfileScreenState>();
+  final _exploreKey = GlobalKey<ExploreScreenState>();
 
+  static const _exploreTabIndex = 0;
   static const _profileTabIndex = 3;
 
   @override
   Widget build(BuildContext context) {
     final screens = [
-      const ExploreScreen(),
+      ExploreScreen(key: _exploreKey, token: widget.token, currentUserId: widget.user.id),
       CreateScreen(user: widget.user, token: widget.token),
       const MySpaceScreen(),
       ProfileScreen(
@@ -50,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (index) {
           setState(() => _selectedIndex = index);
           if (index == _profileTabIndex) _profileKey.currentState?.refreshEvents();
+          if (index == _exploreTabIndex) _exploreKey.currentState?.refreshEvents();
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Explorar'),

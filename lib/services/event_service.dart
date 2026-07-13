@@ -154,6 +154,28 @@ class EventService {
         .toList();
   }
 
+  static Future<List<Event>> getPublicEvents({required String token}) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/events'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return (data['events'] as List<dynamic>)
+        .map((e) => Event.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   static MediaType _mediaTypeFromPath(String path) {
     final ext = path.split('.').last.toLowerCase();
     return switch (ext) {

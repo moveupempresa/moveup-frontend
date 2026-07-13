@@ -5,6 +5,7 @@ import '../models/event.dart';
 import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
+import '../widgets/event_card.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
 import 'settings/notifications_screen.dart';
@@ -262,12 +263,16 @@ class ProfileScreenState extends State<ProfileScreen> {
           else
             Column(
               children: _events!
-                  .map((e) => _EventCard(
+                  .map((e) => EventCard(
                         event: e,
                         onTap: () async {
                           final changed = await Navigator.of(context).push<bool>(
                             MaterialPageRoute(
-                              builder: (_) => EventDetailScreen(token: widget.token, event: e),
+                              builder: (_) => EventDetailScreen(
+                                token: widget.token,
+                                event: e,
+                                currentUserId: _user.id,
+                              ),
                             ),
                           );
                           if (changed == true) _loadEvents();
@@ -276,87 +281,6 @@ class ProfileScreenState extends State<ProfileScreen> {
                   .toList(),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _EventCard extends StatelessWidget {
-  final Event event;
-  final VoidCallback onTap;
-
-  const _EventCard({required this.event, required this.onTap});
-
-  static const _months = [
-    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
-  ];
-
-  String _eventDate() {
-    final sessions = event.sessions;
-    if (sessions != null && sessions.isNotEmpty) {
-      final dt = sessions.first.startDatetime.toLocal();
-      return '${dt.day} ${_months[dt.month - 1]}. ${dt.year}';
-    }
-    final dt = event.createdAt.toLocal();
-    return '${dt.day} ${_months[dt.month - 1]}. ${dt.year}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Row(
-          children: [
-            SizedBox(
-              width: 90,
-              height: 90,
-              child: Image.network(
-                ApiConfig.mediaUrl(event.coverMediaUrl),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const Icon(Icons.image_not_supported_outlined),
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    style: Theme.of(context).textTheme.titleSmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today_outlined,
-                          size: 13, color: Theme.of(context).colorScheme.outline),
-                      const SizedBox(width: 4),
-                      Text(
-                        _eventDate(),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(right: 8),
-              child: Icon(Icons.chevron_right_outlined),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -11,8 +11,14 @@ import 'event_form_screen.dart';
 class EventDetailScreen extends StatefulWidget {
   final Event event;
   final String token;
+  final String currentUserId;
 
-  const EventDetailScreen({super.key, required this.event, required this.token});
+  const EventDetailScreen({
+    super.key,
+    required this.event,
+    required this.token,
+    required this.currentUserId,
+  });
 
   @override
   State<EventDetailScreen> createState() => _EventDetailScreenState();
@@ -70,6 +76,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final event = widget.event;
     final sessions = event.sessions ?? [];
     final packs = event.packs ?? [];
+    final isOwner = event.ownerUserId == widget.currentUserId;
 
     return Scaffold(
       body: CustomScrollView(
@@ -77,24 +84,26 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           SliverAppBar(
             expandedHeight: 240,
             pinned: true,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Editar evento',
-                onPressed: _isDeleting ? null : _editEvent,
-              ),
-              IconButton(
-                icon: _isDeleting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.delete_outline),
-                tooltip: 'Eliminar evento',
-                onPressed: _isDeleting ? null : _deleteEvent,
-              ),
-            ],
+            actions: isOwner
+                ? [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: 'Editar evento',
+                      onPressed: _isDeleting ? null : _editEvent,
+                    ),
+                    IconButton(
+                      icon: _isDeleting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.delete_outline),
+                      tooltip: 'Eliminar evento',
+                      onPressed: _isDeleting ? null : _deleteEvent,
+                    ),
+                  ]
+                : null,
             flexibleSpace: FlexibleSpaceBar(
               background: Image.network(
                 ApiConfig.mediaUrl(event.coverMediaUrl),
