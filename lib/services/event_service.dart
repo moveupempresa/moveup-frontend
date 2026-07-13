@@ -154,12 +154,26 @@ class EventService {
         .toList();
   }
 
-  static Future<List<Event>> getPublicEvents({required String token}) async {
+  static Future<List<Event>> getPublicEvents({
+    required String token,
+    String? city,
+    String? style,
+    String? username,
+    DateTime? dateFrom,
+  }) async {
+    final queryParams = <String, String>{
+      if (city != null && city.isNotEmpty) 'city': city,
+      if (style != null && style.isNotEmpty) 'style': style,
+      if (username != null && username.isNotEmpty) 'username': username,
+      if (dateFrom != null) 'dateFrom': dateFrom.toUtc().toIso8601String(),
+    };
+
     http.Response response;
     try {
       response = await http
           .get(
-            Uri.parse('${ApiConfig.baseUrl}/events'),
+            Uri.parse('${ApiConfig.baseUrl}/events')
+                .replace(queryParameters: queryParams.isEmpty ? null : queryParams),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 10));

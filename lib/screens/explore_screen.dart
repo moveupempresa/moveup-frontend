@@ -20,6 +20,14 @@ class ExploreScreenState extends State<ExploreScreen> {
   bool _loading = false;
   String? _error;
 
+  String? _filterCity;
+  String? _filterStyle;
+  String? _filterUsername;
+  DateTime? _filterDateFrom;
+
+  bool get _hasActiveFilters =>
+      _filterCity != null || _filterStyle != null || _filterUsername != null || _filterDateFrom != null;
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +40,13 @@ class ExploreScreenState extends State<ExploreScreen> {
       _error = null;
     });
     try {
-      final events = await EventService.getPublicEvents(token: widget.token);
+      final events = await EventService.getPublicEvents(
+        token: widget.token,
+        city: _filterCity,
+        style: _filterStyle,
+        username: _filterUsername,
+        dateFrom: _filterDateFrom,
+      );
       if (mounted) setState(() => _events = events);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -43,15 +57,186 @@ class ExploreScreenState extends State<ExploreScreen> {
 
   void refreshEvents() => _loadEvents();
 
+  Future<void> _openFilterSheet() async {
+    final cityCtrl = TextEditingController(text: _filterCity ?? '');
+    final styleCtrl = TextEditingController(text: _filterStyle ?? '');
+    final usernameCtrl = TextEditingController(text: _filterUsername ?? '');
+    DateTime? dateFrom = _filterDateFrom;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            String fmt(DateTime? dt) {
+              if (dt == null) return 'Cualquier fecha';
+              return '${dt.day}/${dt.month}/${dt.year}';
+            }
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Filtrar eventos', style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: cityCtrl,
+                    decoration: const InputDecoration(labelText: 'Ciudad'),
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: styleCtrl,
+                    decoration: const InputDecoration(labelText: 'Estilo'),
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: usernameCtrl,
+                    decoration: const InputDecoration(labelText: 'Usuario organizador'),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: dateFrom ?? DateTime.now(),
+                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                        locale: const Locale('es', 'ES'),
+                      );
+                      if (picked != null) setSheetState(() => dateFrom = picked);
+                    },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    label: Text('Desde: ${fmt(dateFrom)}'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  ),
+                  if (dateFrom != null) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => setSheetState(() => dateFrom = null),
+                        child: const Text('Quitar fecha'),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () {
+                      setState(() {
+                        _filterCity = cityCtrl.text.trim().isEmpty ? null : cityCtrl.text.trim();
+                        _filterStyle = styleCtrl.text.trim().isEmpty ? null : styleCtrl.text.trim();
+                        _filterUsername =
+                            usernameCtrl.text.trim().isEmpty ? null : usernameCtrl.text.trim();
+                        _filterDateFrom = dateFrom;
+                      });
+                      Navigator.pop(ctx);
+                      _loadEvents();
+                    },
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                    child: const Text('Aplicar filtros'),
+                  ),
+                  if (_hasActiveFilters) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _filterCity = null;
+                          _filterStyle = null;
+                          _filterUsername = null;
+                          _filterDateFrom = null;
+                        });
+                        Navigator.pop(ctx);
+                        _loadEvents();
+                      },
+                      child: const Text('Limpiar filtros'),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _clearFilter(String key) {
+    setState(() {
+      switch (key) {
+        case 'city':
+          _filterCity = null;
+        case 'style':
+          _filterStyle = null;
+        case 'username':
+          _filterUsername = null;
+        case 'date':
+          _filterDateFrom = null;
+      }
+    });
+    _loadEvents();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorar')),
-      body: RefreshIndicator(
-        onRefresh: _loadEvents,
-        child: _buildBody(context),
+      appBar: AppBar(
+        title: const Text('Explorar'),
+        actions: [
+          IconButton(
+            icon: Badge(
+              isLabelVisible: _hasActiveFilters,
+              child: const Icon(Icons.filter_list_outlined),
+            ),
+            tooltip: 'Filtrar',
+            onPressed: _openFilterSheet,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_hasActiveFilters) _buildFilterChips(context),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadEvents,
+              child: _buildBody(context),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildFilterChips(BuildContext context) {
+    final chips = <Widget>[];
+    if (_filterCity != null) {
+      chips.add(_filterChip('Ciudad: $_filterCity', () => _clearFilter('city')));
+    }
+    if (_filterStyle != null) {
+      chips.add(_filterChip('Estilo: $_filterStyle', () => _clearFilter('style')));
+    }
+    if (_filterUsername != null) {
+      chips.add(_filterChip('Usuario: $_filterUsername', () => _clearFilter('username')));
+    }
+    if (_filterDateFrom != null) {
+      final d = _filterDateFrom!;
+      chips.add(_filterChip('Desde ${d.day}/${d.month}/${d.year}', () => _clearFilter('date')));
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Wrap(spacing: 8, runSpacing: 4, children: chips),
+    );
+  }
+
+  Widget _filterChip(String label, VoidCallback onDeleted) {
+    return InputChip(label: Text(label), onDeleted: onDeleted);
   }
 
   Widget _buildBody(BuildContext context) {
@@ -78,7 +263,9 @@ class ExploreScreenState extends State<ExploreScreen> {
               size: 40, color: Theme.of(context).colorScheme.outline),
           const SizedBox(height: 12),
           Text(
-            'Todavía no hay eventos publicados',
+            _hasActiveFilters
+                ? 'Ningún evento coincide con estos filtros'
+                : 'Todavía no hay eventos publicados',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
