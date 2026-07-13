@@ -6,8 +6,9 @@ import '../models/event.dart';
 class EventCard extends StatelessWidget {
   final Event event;
   final VoidCallback onTap;
+  final VoidCallback? onOwnerTap;
 
-  const EventCard({super.key, required this.event, required this.onTap});
+  const EventCard({super.key, required this.event, required this.onTap, this.onOwnerTap});
 
   static const _months = [
     'ene', 'feb', 'mar', 'abr', 'may', 'jun',
@@ -90,6 +91,31 @@ class EventCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (event.organizerName.isNotEmpty && onOwnerTap != null) ...[
+                    const SizedBox(height: 2),
+                    InkWell(
+                      onTap: onOwnerTap,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_outline,
+                              size: 13, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              event.organizerName,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -7,6 +7,7 @@ import '../models/session.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import 'event_form_screen.dart';
+import 'public_profile_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Event event;
@@ -123,6 +124,35 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   event.title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
+                if (!isOwner && event.organizerName.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  InkWell(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PublicProfileScreen(
+                          token: widget.token,
+                          userId: event.ownerUserId,
+                          currentUserId: widget.currentUserId,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_outline,
+                            size: 15, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Organizado por ${event.organizerName}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 _InfoRow(
                   icon: Icons.place_outlined,

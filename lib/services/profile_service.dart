@@ -40,6 +40,31 @@ class ProfileService {
     );
   }
 
+  static Future<(Profile, String)> getUserProfile({
+    required String token,
+    required String userId,
+  }) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/profile/$userId'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    final profile = Profile.fromJson(data['profile'] as Map<String, dynamic>);
+    final username = data['username'] as String;
+    return (profile, username);
+  }
+
   static Future<Profile> addGalleryMedia({
     required String token,
     required File mediaFile,

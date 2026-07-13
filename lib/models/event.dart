@@ -91,6 +91,8 @@ class Event {
   final DateTime updatedAt;
   final List<Session>? sessions;
   final List<Pack>? packs;
+  final String ownerUsername;
+  final String ownerDisplayName;
 
   const Event({
     required this.id,
@@ -112,7 +114,11 @@ class Event {
     required this.updatedAt,
     this.sessions,
     this.packs,
+    this.ownerUsername = '',
+    this.ownerDisplayName = '',
   });
+
+  String get organizerName => ownerDisplayName.isNotEmpty ? ownerDisplayName : ownerUsername;
 
   factory Event.fromJson(Map<String, dynamic> json) => Event(
         id: json['id'] as String,
@@ -144,5 +150,7 @@ class Event {
                 .map((p) => Pack.fromJson(p as Map<String, dynamic>))
                 .toList()
             : null,
+        ownerUsername: json['ownerUsername'] as String? ?? '',
+        ownerDisplayName: json['ownerDisplayName'] as String? ?? '',
       );
 }

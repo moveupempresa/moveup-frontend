@@ -4,6 +4,7 @@ import '../models/event.dart';
 import '../services/event_service.dart';
 import '../widgets/event_card.dart';
 import 'event_detail_screen.dart';
+import 'public_profile_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   final String token;
@@ -338,6 +339,17 @@ class ExploreScreenState extends State<ExploreScreen> {
               ),
             ),
           ),
+          onOwnerTap: event.ownerUserId == widget.currentUserId
+              ? null
+              : () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PublicProfileScreen(
+                        token: widget.token,
+                        userId: event.ownerUserId,
+                        currentUserId: widget.currentUserId,
+                      ),
+                    ),
+                  ),
         );
       },
     );

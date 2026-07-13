@@ -160,6 +160,7 @@ class EventService {
     String? city,
     String? style,
     String? username,
+    String? userId,
     DateTime? dateFrom,
   }) async {
     final queryParams = <String, String>{
@@ -167,6 +168,7 @@ class EventService {
       if (city != null && city.isNotEmpty) 'city': city,
       if (style != null && style.isNotEmpty) 'style': style,
       if (username != null && username.isNotEmpty) 'username': username,
+      if (userId != null && userId.isNotEmpty) 'userId': userId,
       if (dateFrom != null) 'dateFrom': dateFrom.toUtc().toIso8601String(),
     };
 
