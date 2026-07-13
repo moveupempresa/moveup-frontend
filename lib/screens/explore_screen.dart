@@ -16,22 +16,35 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class ExploreScreenState extends State<ExploreScreen> {
+  final _searchController = TextEditingController();
+
   List<Event>? _events;
   bool _loading = false;
   String? _error;
 
+  String? _searchTitle;
   String? _filterCity;
   String? _filterStyle;
   String? _filterUsername;
   DateTime? _filterDateFrom;
 
   bool get _hasActiveFilters =>
-      _filterCity != null || _filterStyle != null || _filterUsername != null || _filterDateFrom != null;
+      _searchTitle != null ||
+      _filterCity != null ||
+      _filterStyle != null ||
+      _filterUsername != null ||
+      _filterDateFrom != null;
 
   @override
   void initState() {
     super.initState();
     _loadEvents();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadEvents() async {
@@ -42,6 +55,7 @@ class ExploreScreenState extends State<ExploreScreen> {
     try {
       final events = await EventService.getPublicEvents(
         token: widget.token,
+        title: _searchTitle,
         city: _filterCity,
         style: _filterStyle,
         username: _filterUsername,
@@ -56,6 +70,17 @@ class ExploreScreenState extends State<ExploreScreen> {
   }
 
   void refreshEvents() => _loadEvents();
+
+  void _submitSearch(String value) {
+    setState(() => _searchTitle = value.trim().isEmpty ? null : value.trim());
+    _loadEvents();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchTitle = null);
+    _loadEvents();
+  }
 
   Future<void> _openFilterSheet() async {
     final cityCtrl = TextEditingController(text: _filterCity ?? '');
@@ -202,6 +227,26 @@ class ExploreScreenState extends State<ExploreScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar eventos por nombre',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchTitle != null
+                    ? IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: _clearSearch,
+                      )
+                    : null,
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              textInputAction: TextInputAction.search,
+              onSubmitted: _submitSearch,
+            ),
+          ),
           if (_hasActiveFilters) _buildFilterChips(context),
           Expanded(
             child: RefreshIndicator(
@@ -216,6 +261,9 @@ class ExploreScreenState extends State<ExploreScreen> {
 
   Widget _buildFilterChips(BuildContext context) {
     final chips = <Widget>[];
+    if (_searchTitle != null) {
+      chips.add(_filterChip('"$_searchTitle"', _clearSearch));
+    }
     if (_filterCity != null) {
       chips.add(_filterChip('Ciudad: $_filterCity', () => _clearFilter('city')));
     }

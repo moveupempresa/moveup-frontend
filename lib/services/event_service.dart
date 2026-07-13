@@ -156,12 +156,14 @@ class EventService {
 
   static Future<List<Event>> getPublicEvents({
     required String token,
+    String? title,
     String? city,
     String? style,
     String? username,
     DateTime? dateFrom,
   }) async {
     final queryParams = <String, String>{
+      if (title != null && title.isNotEmpty) 'title': title,
       if (city != null && city.isNotEmpty) 'city': city,
       if (style != null && style.isNotEmpty) 'style': style,
       if (username != null && username.isNotEmpty) 'username': username,
