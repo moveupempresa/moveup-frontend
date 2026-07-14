@@ -122,6 +122,35 @@ class RegistrationService {
         method: 'POST',
       );
 
+  static Future<bool> setPackPaymentStatus({
+    required String token,
+    required String eventId,
+    required String packId,
+    required String userId,
+    required bool hasPaid,
+  }) async {
+    http.Response response;
+    try {
+      final uri =
+          Uri.parse('${ApiConfig.baseUrl}/events/$eventId/packs/$packId/registrations/$userId/payment');
+      response = await http
+          .post(
+            uri,
+            headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+            body: jsonEncode({'hasPaid': hasPaid}),
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return data['hasPaid'] as bool;
+  }
+
   static Future<List<Registrant>> getSessionRegistrants({
     required String token,
     required String eventId,

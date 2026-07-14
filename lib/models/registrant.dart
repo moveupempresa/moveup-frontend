@@ -18,6 +18,7 @@ class Registrant {
   final String? profileImage;
   final RegistrationStatus status;
   final List<String> selectedSessionIds;
+  final bool hasPaid;
   final DateTime createdAt;
 
   const Registrant({
@@ -27,6 +28,7 @@ class Registrant {
     this.profileImage,
     required this.status,
     required this.selectedSessionIds,
+    required this.hasPaid,
     required this.createdAt,
   });
 
@@ -39,6 +41,18 @@ class Registrant {
         selectedSessionIds: json['selectedSessionIds'] != null
             ? (json['selectedSessionIds'] as List<dynamic>).cast<String>()
             : const [],
+        hasPaid: json['hasPaid'] as bool? ?? false,
         createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+
+  Registrant copyWith({bool? hasPaid}) => Registrant(
+        userId: userId,
+        username: username,
+        displayName: displayName,
+        profileImage: profileImage,
+        status: status,
+        selectedSessionIds: selectedSessionIds,
+        hasPaid: hasPaid ?? this.hasPaid,
+        createdAt: createdAt,
       );
 }

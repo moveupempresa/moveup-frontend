@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
+import '../models/pack.dart';
 import '../models/registrant.dart';
 import '../models/session.dart';
 import '../services/auth_service.dart';
@@ -17,6 +18,7 @@ class RegistrantsScreen extends StatefulWidget {
   final String targetId;
   final String targetName;
   final List<Session> sessions;
+  final PaymentType? paymentType;
 
   const RegistrantsScreen({
     super.key,
@@ -27,6 +29,7 @@ class RegistrantsScreen extends StatefulWidget {
     required this.targetId,
     required this.targetName,
     this.sessions = const [],
+    this.paymentType,
   });
 
   @override
@@ -70,6 +73,37 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
         RegistrationStatus.pending => Colors.grey.shade600,
         RegistrationStatus.waitlisted => Colors.amber.shade800,
       };
+
+  bool get _showsPayment =>
+      widget.targetType == RegistrantsTargetType.pack &&
+      widget.paymentType != null &&
+      widget.paymentType != PaymentType.free;
+
+  Future<void> _togglePaid(Registrant r) async {
+    final newValue = !r.hasPaid;
+    try {
+      await RegistrationService.setPackPaymentStatus(
+        token: widget.token,
+        eventId: widget.eventId,
+        packId: widget.targetId,
+        userId: r.userId,
+        hasPaid: newValue,
+      );
+      if (mounted) {
+        setState(() {
+          final index = _registrants!.indexWhere((x) => x.userId == r.userId);
+          _registrants![index] = r.copyWith(hasPaid: newValue);
+        });
+      }
+    } on AuthException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,21 +161,33 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                   if (sessionNames.isNotEmpty) sessionNames.join(', '),
                 ].join(' · '),
               ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _statusColor(r.status).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: _statusColor(r.status)),
-                ),
-                child: Text(
-                  r.status.label,
-                  style: TextStyle(
-                    color: _statusColor(r.status),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_showsPayment)
+                    IconButton(
+                      icon: Icon(r.hasPaid ? Icons.paid : Icons.money_off),
+                      color: r.hasPaid ? Colors.green.shade700 : Colors.red.shade700,
+                      tooltip: r.hasPaid ? 'Marcar como no pagado' : 'Marcar como pagado',
+                      onPressed: () => _togglePaid(r),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _statusColor(r.status).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: _statusColor(r.status)),
+                    ),
+                    child: Text(
+                      r.status.label,
+                      style: TextStyle(
+                        color: _statusColor(r.status),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(

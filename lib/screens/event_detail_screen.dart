@@ -158,6 +158,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             targetId: p.id,
             targetName: p.name,
             sessions: sessions,
+            paymentType: p.paymentType,
           ),
         ),
       ),
