@@ -149,6 +149,7 @@ class ExploreScreenState extends State<ExploreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Explorar')),
+      endDrawer: _buildFilterDrawer(context),
       body: Column(
         children: [
           Padding(
@@ -171,39 +172,7 @@ class ExploreScreenState extends State<ExploreScreen> {
               onSubmitted: _submitSearch,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildTextFilterButton(
-                    key: 'city',
-                    label: 'Ciudad',
-                    icon: Icons.location_city_outlined,
-                    value: _filterCity,
-                  ),
-                  _buildTextFilterButton(
-                    key: 'style',
-                    label: 'Estilo',
-                    icon: Icons.style_outlined,
-                    value: _filterStyle,
-                  ),
-                  _buildTextFilterButton(
-                    key: 'username',
-                    label: 'Usuario',
-                    icon: Icons.person_outline,
-                    value: _filterUsername,
-                  ),
-                  _buildDateFilterButton(),
-                ],
-              ),
-            ),
-          ),
-          if (_expandedFilter != null) _buildExpandedFilterForm(context),
+          if (_hasActiveFilters) _buildActiveFilterChips(context),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadEvents,
@@ -215,64 +184,160 @@ class ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  Widget _buildTextFilterButton({
-    required String key,
+  Widget _buildActiveFilterChips(BuildContext context) {
+    final chips = <Widget>[];
+    if (_filterCity != null) {
+      chips.add(_summaryChip('Ciudad: $_filterCity', () => _clearFilter('city')));
+    }
+    if (_filterStyle != null) {
+      chips.add(_summaryChip('Estilo: $_filterStyle', () => _clearFilter('style')));
+    }
+    if (_filterUsername != null) {
+      chips.add(_summaryChip('Usuario: $_filterUsername', () => _clearFilter('username')));
+    }
+    if (_filterDateFrom != null) {
+      final d = _filterDateFrom!;
+      chips.add(_summaryChip('Desde ${d.day}/${d.month}/${d.year}', () => _clearFilter('date')));
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Wrap(spacing: 8, runSpacing: 4, children: chips),
+    );
+  }
+
+  Widget _summaryChip(String label, VoidCallback onDeleted) =>
+      InputChip(label: Text(label), onDeleted: onDeleted);
+
+  Widget _buildFilterDrawer(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Text('Filtrar eventos', style: Theme.of(context).textTheme.titleLarge),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _buildDrawerFilterTile(
+                    filterKey: 'city',
+                    label: 'Ciudad',
+                    icon: Icons.location_city_outlined,
+                    value: _filterCity,
+                  ),
+                  _buildDrawerFilterTile(
+                    filterKey: 'style',
+                    label: 'Estilo',
+                    icon: Icons.style_outlined,
+                    value: _filterStyle,
+                  ),
+                  _buildDrawerFilterTile(
+                    filterKey: 'username',
+                    label: 'Usuario',
+                    icon: Icons.person_outline,
+                    value: _filterUsername,
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.calendar_month_outlined),
+                    title: const Text('Fecha'),
+                    subtitle: _filterDateFrom != null
+                        ? Text(
+                            'Desde ${_filterDateFrom!.day}/${_filterDateFrom!.month}/${_filterDateFrom!.year}')
+                        : null,
+                    trailing: _filterDateFrom != null
+                        ? IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => _clearFilter('date'),
+                          )
+                        : null,
+                    onTap: _pickDateFilter,
+                  ),
+                ],
+              ),
+            ),
+            if (_hasActiveFilters) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _filterCity = null;
+                      _filterStyle = null;
+                      _filterUsername = null;
+                      _filterDateFrom = null;
+                      _cityController.clear();
+                      _styleController.clear();
+                      _usernameController.clear();
+                      _expandedFilter = null;
+                    });
+                    _loadEvents();
+                  },
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Limpiar filtros'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerFilterTile({
+    required String filterKey,
     required String label,
     required IconData icon,
     required String? value,
   }) {
-    final active = value != null;
-    final selected = _expandedFilter == key;
-    return InputChip(
-      avatar: Icon(icon, size: 18),
-      label: Text(active ? value : label),
-      selected: selected,
-      onPressed: () => _toggleExpanded(key),
-      onDeleted: active ? () => _clearFilter(key) : null,
-    );
-  }
-
-  Widget _buildDateFilterButton() {
-    final active = _filterDateFrom != null;
-    final label = active
-        ? 'Desde ${_filterDateFrom!.day}/${_filterDateFrom!.month}/${_filterDateFrom!.year}'
-        : 'Fecha';
-    return InputChip(
-      avatar: const Icon(Icons.calendar_month_outlined, size: 18),
-      label: Text(label),
-      onPressed: _pickDateFilter,
-      onDeleted: active ? () => _clearFilter('date') : null,
-    );
-  }
-
-  Widget _buildExpandedFilterForm(BuildContext context) {
-    final (controller, label) = switch (_expandedFilter) {
-      'city' => (_cityController, 'Ciudad'),
-      'style' => (_styleController, 'Estilo'),
-      'username' => (_usernameController, 'Usuario organizador'),
-      _ => (_cityController, ''),
+    final expanded = _expandedFilter == filterKey;
+    final controller = switch (filterKey) {
+      'city' => _cityController,
+      'style' => _styleController,
+      'username' => _usernameController,
+      _ => _cityController,
     };
-    final key = _expandedFilter!;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      child: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: label,
-          isDense: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: () => _submitTextFilter(key, controller.text),
-          ),
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon),
+          title: Text(label),
+          subtitle: value != null ? Text(value) : null,
+          trailing: value != null
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _clearFilter(filterKey),
+                )
+              : Icon(expanded ? Icons.expand_less : Icons.expand_more),
+          onTap: () => _toggleExpanded(filterKey),
         ),
-        textCapitalization:
-            key == 'username' ? TextCapitalization.none : TextCapitalization.words,
-        textInputAction: TextInputAction.done,
-        onSubmitted: (value) => _submitTextFilter(key, value),
-      ),
+        if (expanded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: label,
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.check),
+                  onPressed: () => _submitTextFilter(filterKey, controller.text),
+                ),
+              ),
+              textCapitalization:
+                  filterKey == 'username' ? TextCapitalization.none : TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (value) => _submitTextFilter(filterKey, value),
+            ),
+          ),
+      ],
     );
   }
 
