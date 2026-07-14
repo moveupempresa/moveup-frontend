@@ -17,6 +17,7 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class ExploreScreenState extends State<ExploreScreen> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _searchController = TextEditingController();
   final _cityController = TextEditingController();
   final _styleController = TextEditingController();
@@ -148,7 +149,20 @@ class ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorar')),
+      key: _scaffoldKey,
+      appBar: AppBar(
+        title: const Text('Explorar'),
+        actions: [
+          IconButton(
+            icon: Badge(
+              isLabelVisible: _hasActiveFilters,
+              child: const Icon(Icons.filter_list),
+            ),
+            tooltip: 'Filtrar',
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+          ),
+        ],
+      ),
       endDrawer: _buildFilterDrawer(context),
       body: Column(
         children: [
