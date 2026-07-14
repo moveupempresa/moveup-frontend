@@ -10,6 +10,18 @@ import '../services/registration_service.dart';
 import 'event_form_screen.dart';
 import 'public_profile_screen.dart';
 
+const _months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+String _formatSessionDate(DateTime dt) {
+  final local = dt.toLocal();
+  return '${local.day} ${_months[local.month - 1]}. ${local.year}';
+}
+
+String _formatSessionTime(DateTime dt) {
+  final local = dt.toLocal();
+  return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
 class EventDetailScreen extends StatefulWidget {
   final Event event;
   final String token;
@@ -429,7 +441,7 @@ class _SessionCardState extends State<_SessionCard> {
                   children: [
                     const Icon(Icons.calendar_today_outlined, size: 14),
                     const SizedBox(width: 6),
-                    Text(_formatDate(start), style: Theme.of(context).textTheme.bodySmall),
+                    Text(_formatSessionDate(start), style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -437,7 +449,7 @@ class _SessionCardState extends State<_SessionCard> {
                   children: [
                     const Icon(Icons.access_time_outlined, size: 14),
                     const SizedBox(width: 6),
-                    Text('${_formatTime(start)} – ${_formatTime(end)}',
+                    Text('${_formatSessionTime(start)} – ${_formatSessionTime(end)}',
                         style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
@@ -489,13 +501,6 @@ class _SessionCardState extends State<_SessionCard> {
     );
   }
 
-  static const _months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-
-  String _formatDate(DateTime dt) =>
-      '${dt.day} ${_months[dt.month - 1]}. ${dt.year}';
-
-  String _formatTime(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 class _CapacityBadge extends StatelessWidget {
@@ -861,12 +866,26 @@ class _PackCardState extends State<_PackCard> {
                         ),
                   if (!widget.isOwner && !_isCommitted && _isExpanded) ...[
                     ...candidateSessions.map((s) => CheckboxListTile(
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
                           contentPadding: EdgeInsets.zero,
                           controlAffinity: ListTileControlAffinity.leading,
                           value: _selectedSessionIds.contains(s.id),
-                          title: Text(s.name, style: Theme.of(context).textTheme.bodySmall),
+                          title: Text(
+                            s.name,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            [
+                              _formatSessionDate(s.startDatetime),
+                              '${_formatSessionTime(s.startDatetime)} – ${_formatSessionTime(s.endDatetime)}',
+                              if (s.address != null && s.address!.isNotEmpty) s.address!,
+                            ].join(' · '),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                          ),
                           onChanged: (checked) => _onSessionToggled(s.id, checked ?? false),
                         )),
                     Align(
