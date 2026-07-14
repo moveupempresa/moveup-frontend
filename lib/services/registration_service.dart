@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import '../models/registrant.dart';
 import 'auth_service.dart';
 
 class RegistrationService {
@@ -120,6 +121,45 @@ class RegistrationService {
         path: 'events/$eventId/packs/$packId/requests/$userId/reject',
         method: 'POST',
       );
+
+  static Future<List<Registrant>> getSessionRegistrants({
+    required String token,
+    required String eventId,
+    required String sessionId,
+  }) =>
+      _getRegistrants(token: token, path: 'events/$eventId/sessions/$sessionId/registrations');
+
+  static Future<List<Registrant>> getPackRegistrants({
+    required String token,
+    required String eventId,
+    required String packId,
+  }) =>
+      _getRegistrants(token: token, path: 'events/$eventId/packs/$packId/registrations');
+
+  static Future<List<Registrant>> _getRegistrants({
+    required String token,
+    required String path,
+  }) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/$path'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return (data['registrants'] as List<dynamic>)
+        .map((r) => Registrant.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
 
   static Future<(String?, int)> _request({
     required String token,

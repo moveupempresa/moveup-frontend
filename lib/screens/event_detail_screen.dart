@@ -10,6 +10,7 @@ import '../services/registration_service.dart';
 import 'event_form_screen.dart';
 import 'payment_screen.dart';
 import 'public_profile_screen.dart';
+import 'registrants_screen.dart';
 
 const _months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -108,6 +109,60 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         setState(() => _isDeleting = false);
       }
     }
+  }
+
+  Widget _buildSessionCard(Session s, String eventId, bool isOwner) {
+    final card = _SessionCard(
+      session: s,
+      token: widget.token,
+      eventId: eventId,
+      isOwner: isOwner,
+    );
+    if (!isOwner) return card;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RegistrantsScreen(
+            token: widget.token,
+            currentUserId: widget.currentUserId,
+            eventId: eventId,
+            targetType: RegistrantsTargetType.session,
+            targetId: s.id,
+            targetName: s.name,
+          ),
+        ),
+      ),
+      child: card,
+    );
+  }
+
+  Widget _buildPackCard(Pack p, String eventId, List<Session> sessions, bool isOwner) {
+    final card = _PackCard(
+      pack: p,
+      sessions: sessions,
+      token: widget.token,
+      eventId: eventId,
+      isOwner: isOwner,
+    );
+    if (!isOwner) return card;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RegistrantsScreen(
+            token: widget.token,
+            currentUserId: widget.currentUserId,
+            eventId: eventId,
+            targetType: RegistrantsTargetType.pack,
+            targetId: p.id,
+            targetName: p.name,
+            sessions: sessions,
+          ),
+        ),
+      ),
+      child: card,
+    );
   }
 
   @override
@@ -255,12 +310,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         title: Text('Sesiones (${sessions.length})',
                             style: Theme.of(context).textTheme.titleSmall),
                         children: sessions
-                            .map((s) => _SessionCard(
-                                  session: s,
-                                  token: widget.token,
-                                  eventId: event.id,
-                                  isOwner: isOwner,
-                                ))
+                            .map((s) => _buildSessionCard(s, event.id, isOwner))
                             .toList(),
                       ),
                     )
@@ -276,12 +326,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             ),
                       )
                     else
-                      ...sessions.map((s) => _SessionCard(
-                            session: s,
-                            token: widget.token,
-                            eventId: event.id,
-                            isOwner: isOwner,
-                          )),
+                      ...sessions.map((s) => _buildSessionCard(s, event.id, isOwner)),
                   ],
                 ],
                 if (event.reservationEnabled) ...[
@@ -297,13 +342,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           ),
                     )
                   else
-                    ...packs.map((p) => _PackCard(
-                          pack: p,
-                          sessions: sessions,
-                          token: widget.token,
-                          eventId: event.id,
-                          isOwner: isOwner,
-                        )),
+                    ...packs.map((p) => _buildPackCard(p, event.id, sessions, isOwner)),
                 ],
               ]),
             ),
