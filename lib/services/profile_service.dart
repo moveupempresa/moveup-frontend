@@ -40,7 +40,7 @@ class ProfileService {
     );
   }
 
-  static Future<(Profile, String)> getUserProfile({
+  static Future<(Profile, String, bool, int)> getUserProfile({
     required String token,
     required String userId,
   }) async {
@@ -62,7 +62,9 @@ class ProfileService {
     }
     final profile = Profile.fromJson(data['profile'] as Map<String, dynamic>);
     final username = data['username'] as String;
-    return (profile, username);
+    final isFollowing = data['isFollowing'] as bool? ?? false;
+    final followersCount = data['followersCount'] as int? ?? 0;
+    return (profile, username, isFollowing, followersCount);
   }
 
   static Future<Profile> addGalleryMedia({

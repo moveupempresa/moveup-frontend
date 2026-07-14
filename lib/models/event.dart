@@ -93,6 +93,7 @@ class Event {
   final List<Pack>? packs;
   final String ownerUsername;
   final String ownerDisplayName;
+  final bool isSaved;
 
   const Event({
     required this.id,
@@ -116,6 +117,7 @@ class Event {
     this.packs,
     this.ownerUsername = '',
     this.ownerDisplayName = '',
+    this.isSaved = false,
   });
 
   String get organizerName => ownerDisplayName.isNotEmpty ? ownerDisplayName : ownerUsername;
@@ -152,5 +154,6 @@ class Event {
             : null,
         ownerUsername: json['ownerUsername'] as String? ?? '',
         ownerDisplayName: json['ownerDisplayName'] as String? ?? '',
+        isSaved: json['isSaved'] as bool? ?? false,
       );
 }

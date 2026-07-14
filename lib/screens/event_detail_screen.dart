@@ -27,6 +27,30 @@ class EventDetailScreen extends StatefulWidget {
 
 class _EventDetailScreenState extends State<EventDetailScreen> {
   bool _isDeleting = false;
+  bool _isTogglingSave = false;
+  late bool _isSaved = widget.event.isSaved;
+
+  Future<void> _toggleSave() async {
+    setState(() => _isTogglingSave = true);
+    try {
+      final isSaved = _isSaved
+          ? await EventService.unsaveEvent(token: widget.token, eventId: widget.event.id)
+          : await EventService.saveEvent(token: widget.token, eventId: widget.event.id);
+      if (mounted) setState(() => _isSaved = isSaved);
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isTogglingSave = false);
+    }
+  }
+
+  void _addToCalendar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Función próximamente disponible')),
+    );
+  }
 
   Future<void> _editEvent() async {
     final changed = await Navigator.of(context).push<bool>(
@@ -85,26 +109,42 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           SliverAppBar(
             expandedHeight: 240,
             pinned: true,
-            actions: isOwner
-                ? [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      tooltip: 'Editar evento',
-                      onPressed: _isDeleting ? null : _editEvent,
-                    ),
-                    IconButton(
-                      icon: _isDeleting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.delete_outline),
-                      tooltip: 'Eliminar evento',
-                      onPressed: _isDeleting ? null : _deleteEvent,
-                    ),
-                  ]
-                : null,
+            actions: [
+              IconButton(
+                icon: _isTogglingSave
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(_isSaved ? Icons.bookmark : Icons.bookmark_outline),
+                tooltip: _isSaved ? 'Quitar de guardados' : 'Guardar evento',
+                onPressed: _isTogglingSave ? null : _toggleSave,
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_today_outlined),
+                tooltip: 'Añadir al calendario',
+                onPressed: _addToCalendar,
+              ),
+              if (isOwner) ...[
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Editar evento',
+                  onPressed: _isDeleting ? null : _editEvent,
+                ),
+                IconButton(
+                  icon: _isDeleting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline),
+                  tooltip: 'Eliminar evento',
+                  onPressed: _isDeleting ? null : _deleteEvent,
+                ),
+              ],
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Image.network(
                 ApiConfig.mediaUrl(event.coverMediaUrl),

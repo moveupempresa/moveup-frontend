@@ -22,6 +22,7 @@ class ExploreScreenState extends State<ExploreScreen> {
   final _cityController = TextEditingController();
   final _styleController = TextEditingController();
   final _usernameController = TextEditingController();
+  final _priceController = TextEditingController();
 
   List<Event>? _events;
   bool _loading = false;
@@ -34,13 +35,15 @@ class ExploreScreenState extends State<ExploreScreen> {
   String? _filterStyle;
   String? _filterUsername;
   DateTime? _filterDateFrom;
+  double? _filterMaxPrice;
 
   bool get _hasActiveFilters =>
       _searchTitle != null ||
       _filterCity != null ||
       _filterStyle != null ||
       _filterUsername != null ||
-      _filterDateFrom != null;
+      _filterDateFrom != null ||
+      _filterMaxPrice != null;
 
   @override
   void initState() {
@@ -54,6 +57,7 @@ class ExploreScreenState extends State<ExploreScreen> {
     _cityController.dispose();
     _styleController.dispose();
     _usernameController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -70,6 +74,7 @@ class ExploreScreenState extends State<ExploreScreen> {
         style: _filterStyle,
         username: _filterUsername,
         dateFrom: _filterDateFrom,
+        maxPrice: _filterMaxPrice,
       );
       if (mounted) setState(() => _events = events);
     } catch (e) {
@@ -97,6 +102,16 @@ class ExploreScreenState extends State<ExploreScreen> {
   }
 
   void _submitTextFilter(String key, String value) {
+    if (key == 'price') {
+      final parsed = double.tryParse(value.trim().replaceAll(',', '.'));
+      setState(() {
+        _filterMaxPrice = value.trim().isEmpty ? null : parsed;
+        _expandedFilter = null;
+      });
+      _loadEvents();
+      return;
+    }
+
     final trimmed = value.trim().isEmpty ? null : value.trim();
     setState(() {
       switch (key) {
@@ -140,6 +155,9 @@ class ExploreScreenState extends State<ExploreScreen> {
           _usernameController.clear();
         case 'date':
           _filterDateFrom = null;
+        case 'price':
+          _filterMaxPrice = null;
+          _priceController.clear();
       }
       if (_expandedFilter == key) _expandedFilter = null;
     });
@@ -213,6 +231,10 @@ class ExploreScreenState extends State<ExploreScreen> {
       final d = _filterDateFrom!;
       chips.add(_summaryChip('Desde ${d.day}/${d.month}/${d.year}', () => _clearFilter('date')));
     }
+    if (_filterMaxPrice != null) {
+      chips.add(_summaryChip(
+          'Hasta ${_filterMaxPrice!.toStringAsFixed(0)} €', () => _clearFilter('price')));
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Wrap(spacing: 8, runSpacing: 4, children: chips),
@@ -255,6 +277,12 @@ class ExploreScreenState extends State<ExploreScreen> {
                     icon: Icons.person_outline,
                     value: _filterUsername,
                   ),
+                  _buildDrawerFilterTile(
+                    filterKey: 'price',
+                    label: 'Precio máximo',
+                    icon: Icons.payments_outlined,
+                    value: _filterMaxPrice != null ? '${_filterMaxPrice!.toStringAsFixed(0)} €' : null,
+                  ),
                   ListTile(
                     leading: const Icon(Icons.calendar_month_outlined),
                     title: const Text('Fecha'),
@@ -284,9 +312,11 @@ class ExploreScreenState extends State<ExploreScreen> {
                       _filterStyle = null;
                       _filterUsername = null;
                       _filterDateFrom = null;
+                      _filterMaxPrice = null;
                       _cityController.clear();
                       _styleController.clear();
                       _usernameController.clear();
+                      _priceController.clear();
                       _expandedFilter = null;
                     });
                     _loadEvents();
@@ -313,6 +343,7 @@ class ExploreScreenState extends State<ExploreScreen> {
       'city' => _cityController,
       'style' => _styleController,
       'username' => _usernameController,
+      'price' => _priceController,
       _ => _cityController,
     };
 
@@ -338,7 +369,11 @@ class ExploreScreenState extends State<ExploreScreen> {
               autofocus: true,
               decoration: InputDecoration(
                 labelText: label,
-                hintText: filterKey == 'style' ? '#urbano #rave' : null,
+                hintText: filterKey == 'style'
+                    ? '#urbano #rave'
+                    : filterKey == 'price'
+                        ? 'Ej: 30'
+                        : null,
                 isDense: true,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 suffixIcon: IconButton(
@@ -346,8 +381,11 @@ class ExploreScreenState extends State<ExploreScreen> {
                   onPressed: () => _submitTextFilter(filterKey, controller.text),
                 ),
               ),
-              textCapitalization:
-                  filterKey == 'username' ? TextCapitalization.none : TextCapitalization.words,
+              textCapitalization: filterKey == 'username' || filterKey == 'price'
+                  ? TextCapitalization.none
+                  : TextCapitalization.words,
+              keyboardType:
+                  filterKey == 'price' ? const TextInputType.numberWithOptions(decimal: true) : null,
               textInputAction: TextInputAction.done,
               onSubmitted: (value) => _submitTextFilter(filterKey, value),
             ),

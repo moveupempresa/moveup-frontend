@@ -132,6 +132,35 @@ class EventService {
     }
   }
 
+  static Future<bool> saveEvent({required String token, required String eventId}) =>
+      _saveRequest(token: token, eventId: eventId, unsave: false);
+
+  static Future<bool> unsaveEvent({required String token, required String eventId}) =>
+      _saveRequest(token: token, eventId: eventId, unsave: true);
+
+  static Future<bool> _saveRequest({
+    required String token,
+    required String eventId,
+    required bool unsave,
+  }) async {
+    http.Response response;
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/events/$eventId/save');
+      final headers = {'Authorization': 'Bearer $token'};
+      response = unsave
+          ? await http.delete(uri, headers: headers).timeout(const Duration(seconds: 10))
+          : await http.post(uri, headers: headers).timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return data['isSaved'] as bool;
+  }
+
   static Future<List<Event>> getMyEvents({required String token}) async {
     http.Response response;
     try {
@@ -162,6 +191,7 @@ class EventService {
     String? username,
     String? userId,
     DateTime? dateFrom,
+    double? maxPrice,
   }) async {
     final queryParams = <String, String>{
       if (title != null && title.isNotEmpty) 'title': title,
@@ -170,6 +200,7 @@ class EventService {
       if (username != null && username.isNotEmpty) 'username': username,
       if (userId != null && userId.isNotEmpty) 'userId': userId,
       if (dateFrom != null) 'dateFrom': dateFrom.toUtc().toIso8601String(),
+      if (maxPrice != null) 'maxPrice': maxPrice.toString(),
     };
 
     http.Response response;
