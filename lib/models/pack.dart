@@ -53,6 +53,7 @@ class Pack {
   final int confirmedCount;
   final bool isSignedUp;
   final bool isWaitlisted;
+  final bool isPending;
 
   const Pack({
     required this.id,
@@ -72,6 +73,7 @@ class Pack {
     this.confirmedCount = 0,
     this.isSignedUp = false,
     this.isWaitlisted = false,
+    this.isPending = false,
   });
 
   bool get isFull => !isUnlimitedCapacity && capacity != null && confirmedCount >= capacity!;
@@ -96,5 +98,6 @@ class Pack {
         confirmedCount: (json['confirmedCount'] as num?)?.toInt() ?? 0,
         isSignedUp: json['isSignedUp'] as bool? ?? false,
         isWaitlisted: json['isWaitlisted'] as bool? ?? false,
+        isPending: json['isPending'] as bool? ?? false,
       );
 }

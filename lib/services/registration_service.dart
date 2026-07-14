@@ -95,6 +95,30 @@ class RegistrationService {
         method: 'DELETE',
       );
 
+  static Future<(String?, int)> approvePackRequest({
+    required String token,
+    required String eventId,
+    required String packId,
+    required String userId,
+  }) =>
+      _request(
+        token: token,
+        path: 'events/$eventId/packs/$packId/requests/$userId/approve',
+        method: 'POST',
+      );
+
+  static Future<(String?, int)> rejectPackRequest({
+    required String token,
+    required String eventId,
+    required String packId,
+    required String userId,
+  }) =>
+      _request(
+        token: token,
+        path: 'events/$eventId/packs/$packId/requests/$userId/reject',
+        method: 'POST',
+      );
+
   static Future<(String?, int)> _request({
     required String token,
     required String path,

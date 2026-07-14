@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/app_notification.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/registration_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String token;
@@ -19,6 +20,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.waitlisted,
     NotificationType.spotAvailable,
     NotificationType.targetUpdated,
+    NotificationType.signupApproved,
+    NotificationType.signupRejected,
+  };
+  static const _myEventsTypes = {
+    NotificationType.newRegistration,
+    NotificationType.signupRequest,
   };
   static const _followTypes = {
     NotificationType.followedUser,
@@ -53,6 +60,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _silentRefresh() async {
+    try {
+      final notifications = await NotificationService.getMyNotifications(token: widget.token);
+      if (mounted) setState(() => _notifications = notifications);
+    } catch (_) {
+      // Keep the current list if the background refresh fails.
+    }
+  }
+
   void _onSectionExpanded(bool expanded) {
     if (!expanded || _markedRead) return;
     final hasUnread = _notifications?.any((n) => !n.read) ?? false;
@@ -75,7 +91,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             icon: Icons.calendar_today_outlined,
             items: _itemsOfTypes(_reservationTypes),
           ),
-          const _NotificationSection(title: 'Mis Eventos', icon: Icons.school_outlined),
+          _buildNotificationSection(
+            title: 'Mis Eventos',
+            icon: Icons.school_outlined,
+            items: _itemsOfTypes(_myEventsTypes),
+          ),
           _buildNotificationSection(
             title: 'Perfiles guardados',
             icon: Icons.bookmark_outline,
@@ -132,7 +152,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               )
             else
-              ...items.map((n) => _NotificationTile(notification: n)),
+              ...items.map((n) => _NotificationTile(
+                    notification: n,
+                    token: widget.token,
+                    onResolved: _silentRefresh,
+                  )),
           ],
         ),
         const Divider(height: 1),
@@ -141,32 +165,120 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-class _NotificationTile extends StatelessWidget {
+class _NotificationTile extends StatefulWidget {
   final AppNotification notification;
+  final String token;
+  final VoidCallback onResolved;
 
-  const _NotificationTile({required this.notification});
+  const _NotificationTile({
+    required this.notification,
+    required this.token,
+    required this.onResolved,
+  });
 
+  @override
+  State<_NotificationTile> createState() => _NotificationTileState();
+}
+
+class _NotificationTileState extends State<_NotificationTile> {
   static const _months = [
     'ene', 'feb', 'mar', 'abr', 'may', 'jun',
     'jul', 'ago', 'sep', 'oct', 'nov', 'dic'
   ];
+
+  bool _isResponding = false;
+  bool _responded = false;
 
   String _formatDate(DateTime dt) {
     final local = dt.toLocal();
     return '${local.day} ${_months[local.month - 1]}. ${local.year}';
   }
 
-  IconData get _icon => switch (notification.type) {
+  IconData get _icon => switch (widget.notification.type) {
         NotificationType.followedUser => Icons.person_add_alt_outlined,
         NotificationType.followedUserNewEvent => Icons.event_available_outlined,
         NotificationType.signedUp => Icons.check_circle_outline,
         NotificationType.waitlisted => Icons.notifications_none,
         NotificationType.spotAvailable => Icons.notifications_active,
         NotificationType.targetUpdated => Icons.edit_calendar_outlined,
+        NotificationType.newRegistration => Icons.person_outline,
+        NotificationType.signupRequest => Icons.pending_actions_outlined,
+        NotificationType.signupApproved => Icons.check_circle_outline,
+        NotificationType.signupRejected => Icons.cancel_outlined,
       };
+
+  Future<void> _respond(bool approve) async {
+    final n = widget.notification;
+    final eventId = n.relatedEventId;
+    final packId = n.relatedTargetId;
+    final userId = n.relatedUserId;
+    if (eventId == null || packId == null || userId == null) return;
+
+    setState(() => _isResponding = true);
+    try {
+      approve
+          ? await RegistrationService.approvePackRequest(
+              token: widget.token, eventId: eventId, packId: packId, userId: userId)
+          : await RegistrationService.rejectPackRequest(
+              token: widget.token, eventId: eventId, packId: packId, userId: userId);
+      if (mounted) setState(() => _responded = true);
+      widget.onResolved();
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    } finally {
+      if (mounted) setState(() => _isResponding = false);
+    }
+  }
+
+  Widget? get _trailing {
+    final n = widget.notification;
+    if (n.type == NotificationType.signupRequest && n.isPending == true && !_responded) {
+      if (_isResponding) {
+        return const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      }
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.check_circle_outline),
+            color: Colors.green.shade700,
+            tooltip: 'Aprobar',
+            onPressed: () => _respond(true),
+          ),
+          IconButton(
+            icon: const Icon(Icons.cancel_outlined),
+            color: Colors.red.shade700,
+            tooltip: 'Rechazar',
+            onPressed: () => _respond(false),
+          ),
+        ],
+      );
+    }
+    if (n.read) return null;
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final notification = widget.notification;
     return ListTile(
       leading: Icon(_icon, color: Theme.of(context).colorScheme.primary),
       title: Text(
@@ -179,16 +291,7 @@ class _NotificationTile extends StatelessWidget {
         _formatDate(notification.createdAt),
         style: Theme.of(context).textTheme.bodySmall,
       ),
-      trailing: notification.read
-          ? null
-          : Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
-            ),
+      trailing: _trailing,
     );
   }
 }

@@ -512,6 +512,7 @@ class _SignupIconButton extends StatelessWidget {
   final bool isFull;
   final bool isSignedUp;
   final bool isWaitlisted;
+  final bool isPending;
   final bool isLoading;
   final VoidCallback onToggleSignUp;
   final VoidCallback onToggleWaitlist;
@@ -520,6 +521,7 @@ class _SignupIconButton extends StatelessWidget {
     required this.isFull,
     required this.isSignedUp,
     required this.isWaitlisted,
+    this.isPending = false,
     required this.isLoading,
     required this.onToggleSignUp,
     required this.onToggleWaitlist,
@@ -531,6 +533,13 @@ class _SignupIconButton extends StatelessWidget {
       return const Padding(
         padding: EdgeInsets.all(10),
         child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    if (isPending) {
+      return IconButton(
+        icon: Icon(Icons.hourglass_top, color: Theme.of(context).colorScheme.primary),
+        tooltip: 'Solicitud pendiente de aprobación · toca para cancelar',
+        onPressed: onToggleSignUp,
       );
     }
     if (isFull && !isSignedUp) {
@@ -575,6 +584,7 @@ class _PackCardState extends State<_PackCard> {
   late int _confirmedCount = widget.pack.confirmedCount;
   late bool _isSignedUp = widget.pack.isSignedUp;
   late bool _isWaitlisted = widget.pack.isWaitlisted;
+  late bool _isPending = widget.pack.isPending;
   bool _isLoading = false;
 
   bool get _isFull =>
@@ -591,7 +601,7 @@ class _PackCardState extends State<_PackCard> {
   Future<void> _toggleSignUp() async {
     setState(() => _isLoading = true);
     try {
-      final (status, count) = _isSignedUp
+      final (status, count) = (_isSignedUp || _isPending)
           ? await RegistrationService.cancelPackSignUp(
               token: widget.token, eventId: widget.eventId, packId: widget.pack.id)
           : await RegistrationService.signUpForPack(
@@ -599,6 +609,7 @@ class _PackCardState extends State<_PackCard> {
       if (mounted) {
         setState(() {
           _isSignedUp = status == 'confirmed';
+          _isPending = status == 'pending';
           _confirmedCount = count;
         });
       }
@@ -745,6 +756,7 @@ class _PackCardState extends State<_PackCard> {
                 isFull: _isFull,
                 isSignedUp: _isSignedUp,
                 isWaitlisted: _isWaitlisted,
+                isPending: _isPending,
                 isLoading: _isLoading,
                 onToggleSignUp: _toggleSignUp,
                 onToggleWaitlist: _toggleWaitlist,
