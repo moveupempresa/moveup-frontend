@@ -18,10 +18,15 @@ class ExploreScreen extends StatefulWidget {
 
 class ExploreScreenState extends State<ExploreScreen> {
   final _searchController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _styleController = TextEditingController();
+  final _usernameController = TextEditingController();
 
   List<Event>? _events;
   bool _loading = false;
   String? _error;
+
+  String? _expandedFilter;
 
   String? _searchTitle;
   String? _filterCity;
@@ -45,6 +50,9 @@ class ExploreScreenState extends State<ExploreScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _cityController.dispose();
+    _styleController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -83,115 +91,38 @@ class ExploreScreenState extends State<ExploreScreen> {
     _loadEvents();
   }
 
-  Future<void> _openFilterSheet() async {
-    final cityCtrl = TextEditingController(text: _filterCity ?? '');
-    final styleCtrl = TextEditingController(text: _filterStyle ?? '');
-    final usernameCtrl = TextEditingController(text: _filterUsername ?? '');
-    DateTime? dateFrom = _filterDateFrom;
+  void _toggleExpanded(String key) {
+    setState(() => _expandedFilter = _expandedFilter == key ? null : key);
+  }
 
-    await showModalBottomSheet(
+  void _submitTextFilter(String key, String value) {
+    final trimmed = value.trim().isEmpty ? null : value.trim();
+    setState(() {
+      switch (key) {
+        case 'city':
+          _filterCity = trimmed;
+        case 'style':
+          _filterStyle = trimmed;
+        case 'username':
+          _filterUsername = trimmed;
+      }
+      _expandedFilter = null;
+    });
+    _loadEvents();
+  }
+
+  Future<void> _pickDateFilter() async {
+    final picked = await showDatePicker(
       context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            String fmt(DateTime? dt) {
-              if (dt == null) return 'Cualquier fecha';
-              return '${dt.day}/${dt.month}/${dt.year}';
-            }
-
-            return SingleChildScrollView(
-              padding: EdgeInsets.only(
-                left: 24, right: 24, top: 24,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Filtrar eventos', style: Theme.of(ctx).textTheme.titleLarge),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: cityCtrl,
-                    decoration: const InputDecoration(labelText: 'Ciudad'),
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: styleCtrl,
-                    decoration: const InputDecoration(labelText: 'Estilo'),
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: usernameCtrl,
-                    decoration: const InputDecoration(labelText: 'Usuario organizador'),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
-                        initialDate: dateFrom ?? DateTime.now(),
-                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-                        locale: const Locale('es', 'ES'),
-                      );
-                      if (picked != null) setSheetState(() => dateFrom = picked);
-                    },
-                    icon: const Icon(Icons.calendar_month_outlined),
-                    label: Text('Desde: ${fmt(dateFrom)}'),
-                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                  ),
-                  if (dateFrom != null) ...[
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => setSheetState(() => dateFrom = null),
-                        child: const Text('Quitar fecha'),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: () {
-                      setState(() {
-                        _filterCity = cityCtrl.text.trim().isEmpty ? null : cityCtrl.text.trim();
-                        _filterStyle = styleCtrl.text.trim().isEmpty ? null : styleCtrl.text.trim();
-                        _filterUsername =
-                            usernameCtrl.text.trim().isEmpty ? null : usernameCtrl.text.trim();
-                        _filterDateFrom = dateFrom;
-                      });
-                      Navigator.pop(ctx);
-                      _loadEvents();
-                    },
-                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                    child: const Text('Aplicar filtros'),
-                  ),
-                  if (_hasActiveFilters) ...[
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _filterCity = null;
-                          _filterStyle = null;
-                          _filterUsername = null;
-                          _filterDateFrom = null;
-                        });
-                        Navigator.pop(ctx);
-                        _loadEvents();
-                      },
-                      child: const Text('Limpiar filtros'),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          },
-        );
-      },
+      initialDate: _filterDateFrom ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      locale: const Locale('es', 'ES'),
     );
+    if (picked != null) {
+      setState(() => _filterDateFrom = picked);
+      _loadEvents();
+    }
   }
 
   void _clearFilter(String key) {
@@ -199,13 +130,17 @@ class ExploreScreenState extends State<ExploreScreen> {
       switch (key) {
         case 'city':
           _filterCity = null;
+          _cityController.clear();
         case 'style':
           _filterStyle = null;
+          _styleController.clear();
         case 'username':
           _filterUsername = null;
+          _usernameController.clear();
         case 'date':
           _filterDateFrom = null;
       }
+      if (_expandedFilter == key) _expandedFilter = null;
     });
     _loadEvents();
   }
@@ -213,19 +148,7 @@ class ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Explorar'),
-        actions: [
-          IconButton(
-            icon: Badge(
-              isLabelVisible: _hasActiveFilters,
-              child: const Icon(Icons.filter_list_outlined),
-            ),
-            tooltip: 'Filtrar',
-            onPressed: _openFilterSheet,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Explorar')),
       body: Column(
         children: [
           Padding(
@@ -248,7 +171,39 @@ class ExploreScreenState extends State<ExploreScreen> {
               onSubmitted: _submitSearch,
             ),
           ),
-          if (_hasActiveFilters) _buildFilterChips(context),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildTextFilterButton(
+                    key: 'city',
+                    label: 'Ciudad',
+                    icon: Icons.location_city_outlined,
+                    value: _filterCity,
+                  ),
+                  _buildTextFilterButton(
+                    key: 'style',
+                    label: 'Estilo',
+                    icon: Icons.style_outlined,
+                    value: _filterStyle,
+                  ),
+                  _buildTextFilterButton(
+                    key: 'username',
+                    label: 'Usuario',
+                    icon: Icons.person_outline,
+                    value: _filterUsername,
+                  ),
+                  _buildDateFilterButton(),
+                ],
+              ),
+            ),
+          ),
+          if (_expandedFilter != null) _buildExpandedFilterForm(context),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadEvents,
@@ -260,32 +215,65 @@ class ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  Widget _buildFilterChips(BuildContext context) {
-    final chips = <Widget>[];
-    if (_searchTitle != null) {
-      chips.add(_filterChip('"$_searchTitle"', _clearSearch));
-    }
-    if (_filterCity != null) {
-      chips.add(_filterChip('Ciudad: $_filterCity', () => _clearFilter('city')));
-    }
-    if (_filterStyle != null) {
-      chips.add(_filterChip('Estilo: $_filterStyle', () => _clearFilter('style')));
-    }
-    if (_filterUsername != null) {
-      chips.add(_filterChip('Usuario: $_filterUsername', () => _clearFilter('username')));
-    }
-    if (_filterDateFrom != null) {
-      final d = _filterDateFrom!;
-      chips.add(_filterChip('Desde ${d.day}/${d.month}/${d.year}', () => _clearFilter('date')));
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Wrap(spacing: 8, runSpacing: 4, children: chips),
+  Widget _buildTextFilterButton({
+    required String key,
+    required String label,
+    required IconData icon,
+    required String? value,
+  }) {
+    final active = value != null;
+    final selected = _expandedFilter == key;
+    return InputChip(
+      avatar: Icon(icon, size: 18),
+      label: Text(active ? value : label),
+      selected: selected,
+      onPressed: () => _toggleExpanded(key),
+      onDeleted: active ? () => _clearFilter(key) : null,
     );
   }
 
-  Widget _filterChip(String label, VoidCallback onDeleted) {
-    return InputChip(label: Text(label), onDeleted: onDeleted);
+  Widget _buildDateFilterButton() {
+    final active = _filterDateFrom != null;
+    final label = active
+        ? 'Desde ${_filterDateFrom!.day}/${_filterDateFrom!.month}/${_filterDateFrom!.year}'
+        : 'Fecha';
+    return InputChip(
+      avatar: const Icon(Icons.calendar_month_outlined, size: 18),
+      label: Text(label),
+      onPressed: _pickDateFilter,
+      onDeleted: active ? () => _clearFilter('date') : null,
+    );
+  }
+
+  Widget _buildExpandedFilterForm(BuildContext context) {
+    final (controller, label) = switch (_expandedFilter) {
+      'city' => (_cityController, 'Ciudad'),
+      'style' => (_styleController, 'Estilo'),
+      'username' => (_usernameController, 'Usuario organizador'),
+      _ => (_cityController, ''),
+    };
+    final key = _expandedFilter!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: label,
+          isDense: true,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: () => _submitTextFilter(key, controller.text),
+          ),
+        ),
+        textCapitalization:
+            key == 'username' ? TextCapitalization.none : TextCapitalization.words,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (value) => _submitTextFilter(key, value),
+      ),
+    );
   }
 
   Widget _buildBody(BuildContext context) {
