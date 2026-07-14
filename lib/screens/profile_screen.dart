@@ -87,7 +87,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             icon: const Icon(Icons.notifications_outlined),
             tooltip: 'Notificaciones',
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              MaterialPageRoute(builder: (_) => NotificationsScreen(token: widget.token)),
             ),
           ),
           IconButton(
