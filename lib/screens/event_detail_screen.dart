@@ -232,42 +232,44 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                if (sessions.length > 3)
-                  Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      tilePadding: EdgeInsets.zero,
-                      childrenPadding: EdgeInsets.zero,
-                      title: Text('Sesiones (${sessions.length})',
-                          style: Theme.of(context).textTheme.titleSmall),
-                      children: sessions
-                          .map((s) => _SessionCard(
-                                session: s,
-                                token: widget.token,
-                                eventId: event.id,
-                                isOwner: isOwner,
-                              ))
-                          .toList(),
-                    ),
-                  )
-                else ...[
-                  Text('Sesiones', style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 8),
-                  if (sessions.isEmpty)
-                    Text(
-                      'Sin sesiones',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                            fontStyle: FontStyle.italic,
-                          ),
+                if (isOwner || packs.isEmpty) ...[
+                  if (sessions.length > 3)
+                    Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        title: Text('Sesiones (${sessions.length})',
+                            style: Theme.of(context).textTheme.titleSmall),
+                        children: sessions
+                            .map((s) => _SessionCard(
+                                  session: s,
+                                  token: widget.token,
+                                  eventId: event.id,
+                                  isOwner: isOwner,
+                                ))
+                            .toList(),
+                      ),
                     )
-                  else
-                    ...sessions.map((s) => _SessionCard(
-                          session: s,
-                          token: widget.token,
-                          eventId: event.id,
-                          isOwner: isOwner,
-                        )),
+                  else ...[
+                    Text('Sesiones', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    if (sessions.isEmpty)
+                      Text(
+                        'Sin sesiones',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                              fontStyle: FontStyle.italic,
+                            ),
+                      )
+                    else
+                      ...sessions.map((s) => _SessionCard(
+                            session: s,
+                            token: widget.token,
+                            eventId: event.id,
+                            isOwner: isOwner,
+                          )),
+                  ],
                 ],
                 if (event.reservationEnabled) ...[
                   const SizedBox(height: 20),
@@ -534,6 +536,8 @@ class _SignupIconButton extends StatelessWidget {
   final bool isWaitlisted;
   final bool isPending;
   final bool isLoading;
+  final bool isExpandable;
+  final bool isExpanded;
   final VoidCallback onToggleSignUp;
   final VoidCallback onToggleWaitlist;
 
@@ -543,6 +547,8 @@ class _SignupIconButton extends StatelessWidget {
     required this.isWaitlisted,
     this.isPending = false,
     required this.isLoading,
+    this.isExpandable = false,
+    this.isExpanded = false,
     required this.onToggleSignUp,
     required this.onToggleWaitlist,
   });
@@ -570,6 +576,14 @@ class _SignupIconButton extends StatelessWidget {
             ? 'Cancelar aviso de disponibilidad'
             : 'Avisarme si hay un cupo disponible',
         onPressed: onToggleWaitlist,
+      );
+    }
+    if (isExpandable && !isSignedUp) {
+      return IconButton(
+        icon: Icon(isExpanded ? Icons.expand_less : Icons.checklist),
+        color: isExpanded ? Theme.of(context).colorScheme.primary : null,
+        tooltip: isExpanded ? 'Ocultar sesiones' : 'Elegir sesiones',
+        onPressed: onToggleSignUp,
       );
     }
     return IconButton(
@@ -607,6 +621,7 @@ class _PackCardState extends State<_PackCard> {
   late bool _isPending = widget.pack.isPending;
   late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds.toSet();
   bool _isLoading = false;
+  bool _isExpanded = false;
 
   bool get _isFull =>
       !widget.pack.isUnlimitedCapacity &&
@@ -637,9 +652,40 @@ class _PackCardState extends State<_PackCard> {
     }
   }
 
+  bool get _isCustomizable => widget.pack.packType == PackType.customizable;
+
   Future<void> _toggleSignUp() async {
-    final isCustomizable = widget.pack.packType == PackType.customizable;
-    if (!_isCommitted && isCustomizable && !_selectionValid) {
+    if (_isCommitted) {
+      setState(() => _isLoading = true);
+      try {
+        final (status, count) = await RegistrationService.cancelPackSignUp(
+            token: widget.token, eventId: widget.eventId, packId: widget.pack.id);
+        if (mounted) {
+          setState(() {
+            _isSignedUp = status == 'confirmed';
+            _isPending = status == 'pending';
+            _confirmedCount = count;
+            _isExpanded = false;
+          });
+        }
+      } catch (e) {
+        _showError(e);
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+      return;
+    }
+
+    if (_isCustomizable) {
+      setState(() => _isExpanded = !_isExpanded);
+      return;
+    }
+
+    await _confirmSignUp();
+  }
+
+  Future<void> _confirmSignUp() async {
+    if (_isCustomizable && !_selectionValid) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(widget.pack.maxSelectableSessions != null
             ? 'Selecciona entre 1 y ${widget.pack.maxSelectableSessions} sesiones'
@@ -650,15 +696,12 @@ class _PackCardState extends State<_PackCard> {
 
     setState(() => _isLoading = true);
     try {
-      final (status, count) = _isCommitted
-          ? await RegistrationService.cancelPackSignUp(
-              token: widget.token, eventId: widget.eventId, packId: widget.pack.id)
-          : await RegistrationService.signUpForPack(
-              token: widget.token,
-              eventId: widget.eventId,
-              packId: widget.pack.id,
-              selectedSessionIds: isCustomizable ? _selectedSessionIds.toList() : null,
-            );
+      final (status, count) = await RegistrationService.signUpForPack(
+        token: widget.token,
+        eventId: widget.eventId,
+        packId: widget.pack.id,
+        selectedSessionIds: _isCustomizable ? _selectedSessionIds.toList() : null,
+      );
       if (mounted) {
         setState(() {
           _isSignedUp = status == 'confirmed';
@@ -787,7 +830,36 @@ class _PackCardState extends State<_PackCard> {
                       ),
                     ],
                   ),
-                  if (!widget.isOwner)
+                  if (widget.isOwner && candidateSessions.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.calendar_month_outlined, size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            candidateSessions.map((s) => s.name).join(', '),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (!widget.isOwner && _isCommitted)
+                    ...candidateSessions.where((s) => _selectedSessionIds.contains(s.id)).map(
+                          (s) => Padding(
+                            padding: const EdgeInsets.only(left: 20, top: 2),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check, size: 14, color: Theme.of(context).colorScheme.primary),
+                                const SizedBox(width: 6),
+                                Text(s.name, style: Theme.of(context).textTheme.bodySmall),
+                              ],
+                            ),
+                          ),
+                        ),
+                  if (!widget.isOwner && !_isCommitted && _isExpanded) ...[
                     ...candidateSessions.map((s) => CheckboxListTile(
                           dense: true,
                           visualDensity: VisualDensity.compact,
@@ -795,10 +867,16 @@ class _PackCardState extends State<_PackCard> {
                           controlAffinity: ListTileControlAffinity.leading,
                           value: _selectedSessionIds.contains(s.id),
                           title: Text(s.name, style: Theme.of(context).textTheme.bodySmall),
-                          onChanged: _isCommitted
-                              ? null
-                              : (checked) => _onSessionToggled(s.id, checked ?? false),
+                          onChanged: (checked) => _onSessionToggled(s.id, checked ?? false),
                         )),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isLoading ? null : _confirmSignUp,
+                        child: const Text('Confirmar inscripción'),
+                      ),
+                    ),
+                  ],
                 ],
                 if (pack.packType == PackType.fixed && includedSessionNames.isNotEmpty) ...[
                   const SizedBox(height: 4),
@@ -829,6 +907,8 @@ class _PackCardState extends State<_PackCard> {
                 isWaitlisted: _isWaitlisted,
                 isPending: _isPending,
                 isLoading: _isLoading,
+                isExpandable: _isCustomizable,
+                isExpanded: _isExpanded,
                 onToggleSignUp: _toggleSignUp,
                 onToggleWaitlist: _toggleWaitlist,
               ),
