@@ -245,6 +245,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         session: s,
                         token: widget.token,
                         eventId: event.id,
+                        isOwner: isOwner,
                       )),
                 if (event.reservationEnabled) ...[
                   const SizedBox(height: 20),
@@ -264,6 +265,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           sessions: sessions,
                           token: widget.token,
                           eventId: event.id,
+                          isOwner: isOwner,
                         )),
                 ],
               ]),
@@ -299,8 +301,14 @@ class _SessionCard extends StatefulWidget {
   final Session session;
   final String token;
   final String eventId;
+  final bool isOwner;
 
-  const _SessionCard({required this.session, required this.token, required this.eventId});
+  const _SessionCard({
+    required this.session,
+    required this.token,
+    required this.eventId,
+    required this.isOwner,
+  });
 
   @override
   State<_SessionCard> createState() => _SessionCardState();
@@ -376,7 +384,7 @@ class _SessionCardState extends State<_SessionCard> {
       child: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 44),
+            padding: EdgeInsets.fromLTRB(14, 14, 14, widget.isOwner ? 14 : 44),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -439,18 +447,19 @@ class _SessionCardState extends State<_SessionCard> {
               ],
             ),
           ),
-          Positioned(
-            right: 4,
-            bottom: 4,
-            child: _SignupIconButton(
-              isFull: _isFull,
-              isSignedUp: _isSignedUp,
-              isWaitlisted: _isWaitlisted,
-              isLoading: _isLoading,
-              onToggleSignUp: _toggleSignUp,
-              onToggleWaitlist: _toggleWaitlist,
+          if (!widget.isOwner)
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: _SignupIconButton(
+                isFull: _isFull,
+                isSignedUp: _isSignedUp,
+                isWaitlisted: _isWaitlisted,
+                isLoading: _isLoading,
+                onToggleSignUp: _toggleSignUp,
+                onToggleWaitlist: _toggleWaitlist,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -546,12 +555,14 @@ class _PackCard extends StatefulWidget {
   final List<Session> sessions;
   final String token;
   final String eventId;
+  final bool isOwner;
 
   const _PackCard({
     required this.pack,
     required this.sessions,
     required this.token,
     required this.eventId,
+    required this.isOwner,
   });
 
   @override
@@ -634,7 +645,7 @@ class _PackCardState extends State<_PackCard> {
       child: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 44),
+            padding: EdgeInsets.fromLTRB(14, 14, 14, widget.isOwner ? 14 : 44),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -724,18 +735,19 @@ class _PackCardState extends State<_PackCard> {
               ],
             ),
           ),
-          Positioned(
-            right: 4,
-            bottom: 4,
-            child: _SignupIconButton(
-              isFull: _isFull,
-              isSignedUp: _isSignedUp,
-              isWaitlisted: _isWaitlisted,
-              isLoading: _isLoading,
-              onToggleSignUp: _toggleSignUp,
-              onToggleWaitlist: _toggleWaitlist,
+          if (!widget.isOwner)
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: _SignupIconButton(
+                isFull: _isFull,
+                isSignedUp: _isSignedUp,
+                isWaitlisted: _isWaitlisted,
+                isLoading: _isLoading,
+                onToggleSignUp: _toggleSignUp,
+                onToggleWaitlist: _toggleWaitlist,
+              ),
             ),
-          ),
         ],
       ),
     );
