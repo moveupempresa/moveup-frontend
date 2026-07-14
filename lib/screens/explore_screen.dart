@@ -338,6 +338,7 @@ class ExploreScreenState extends State<ExploreScreen> {
               autofocus: true,
               decoration: InputDecoration(
                 labelText: label,
+                hintText: filterKey == 'style' ? '#urbano #rave' : null,
                 isDense: true,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 suffixIcon: IconButton(
