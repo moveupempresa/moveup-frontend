@@ -461,11 +461,15 @@ class _EventFormScreenState extends State<EventFormScreen> {
             final selectedSessionsValid =
                 packType != PackType.fixed || selectedSessions.isNotEmpty;
 
+            final customizableSessionsValid =
+                packType != PackType.customizable || _sessions.isNotEmpty;
+
             final canSave = nameCtrl.text.trim().isNotEmpty &&
                 priceValid &&
                 capacityValid &&
                 maxSelectableSessionsValid &&
-                selectedSessionsValid;
+                selectedSessionsValid &&
+                customizableSessionsValid;
 
             return SingleChildScrollView(
               padding: EdgeInsets.only(
@@ -563,6 +567,17 @@ class _EventFormScreenState extends State<EventFormScreen> {
                       keyboardType: TextInputType.number,
                       onChanged: (_) => setSheetState(() {}),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _sessions.isEmpty
+                          ? 'Este evento todavía no tiene sesiones. Añade sesiones antes de crear un pack personalizable.'
+                          : 'El estudiante podrá elegir entre las ${_sessions.length} sesiones del evento',
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                            color: _sessions.isEmpty
+                                ? Theme.of(ctx).colorScheme.error
+                                : Theme.of(ctx).colorScheme.outline,
+                          ),
+                    ),
                   ],
                   if (packType == PackType.fixed) ...[
                     const SizedBox(height: 16),
@@ -598,9 +613,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
                               final maxSelectable = packType == PackType.customizable
                                   ? int.parse(maxSelectableSessionsCtrl.text.trim())
                                   : null;
-                              final sessions = packType == PackType.fixed
-                                  ? selectedSessions.toList()
-                                  : <_SessionDraft>[];
+                              final sessions = switch (packType) {
+                                PackType.fixed => selectedSessions.toList(),
+                                PackType.customizable => _sessions.toList(),
+                              };
 
                               if (existing != null) {
                                 existing.name = nameCtrl.text.trim();
