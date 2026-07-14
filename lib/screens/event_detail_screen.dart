@@ -663,6 +663,16 @@ class _PackCardState extends State<_PackCard> {
   bool get _isPaymentReady =>
       widget.pack.approvalMode == ApprovalMode.automatic || _isSignedUp;
 
+  void _onPaymentIconTap() {
+    if (!_isPaymentReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Esperando aprobación del organizador')),
+      );
+      return;
+    }
+    widget.pack.paymentType == PaymentType.online ? _openPayment() : _showCashMessage();
+  }
+
   void _openPayment() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PaymentScreen(packName: widget.pack.name)),
@@ -960,7 +970,7 @@ class _PackCardState extends State<_PackCard> {
                 tooltip: pack.paymentType == PaymentType.online
                     ? 'Pagar con tarjeta'
                     : 'Pago en efectivo',
-                onPressed: pack.paymentType == PaymentType.online ? _openPayment : _showCashMessage,
+                onPressed: _onPaymentIconTap,
               ),
             ),
         ],
