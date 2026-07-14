@@ -10,6 +10,9 @@ class Session {
   final bool isUnlimitedCapacity;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int confirmedCount;
+  final bool isSignedUp;
+  final bool isWaitlisted;
 
   const Session({
     required this.id,
@@ -23,7 +26,12 @@ class Session {
     required this.isUnlimitedCapacity,
     required this.createdAt,
     required this.updatedAt,
+    this.confirmedCount = 0,
+    this.isSignedUp = false,
+    this.isWaitlisted = false,
   });
+
+  bool get isFull => !isUnlimitedCapacity && capacity != null && confirmedCount >= capacity!;
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
         id: json['id'] as String,
@@ -37,5 +45,8 @@ class Session {
         isUnlimitedCapacity: json['isUnlimitedCapacity'] as bool,
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
+        confirmedCount: (json['confirmedCount'] as num?)?.toInt() ?? 0,
+        isSignedUp: json['isSignedUp'] as bool? ?? false,
+        isWaitlisted: json['isWaitlisted'] as bool? ?? false,
       );
 }

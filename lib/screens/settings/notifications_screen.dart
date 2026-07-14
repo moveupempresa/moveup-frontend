@@ -14,6 +14,17 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  static const _reservationTypes = {
+    NotificationType.signedUp,
+    NotificationType.waitlisted,
+    NotificationType.spotAvailable,
+    NotificationType.targetUpdated,
+  };
+  static const _followTypes = {
+    NotificationType.followedUser,
+    NotificationType.followedUserNewEvent,
+  };
+
   List<AppNotification>? _notifications;
   bool _loading = true;
   String? _error;
@@ -42,7 +53,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  void _onFollowSectionExpanded(bool expanded) {
+  void _onSectionExpanded(bool expanded) {
     if (!expanded || _markedRead) return;
     final hasUnread = _notifications?.any((n) => !n.read) ?? false;
     if (!hasUnread) return;
@@ -50,12 +61,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationService.markAllAsRead(token: widget.token).catchError((_) {});
   }
 
-  List<AppNotification> get _followNotifications =>
-      (_notifications ?? [])
-          .where((n) =>
-              n.type == NotificationType.followedUser ||
-              n.type == NotificationType.followedUserNewEvent)
-          .toList();
+  List<AppNotification> _itemsOfTypes(Set<NotificationType> types) =>
+      (_notifications ?? []).where((n) => types.contains(n.type)).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -63,17 +70,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(title: const Text('Notificaciones')),
       body: ListView(
         children: [
-          const _NotificationSection(title: 'Reservas', icon: Icons.calendar_today_outlined),
+          _buildNotificationSection(
+            title: 'Reservas',
+            icon: Icons.calendar_today_outlined,
+            items: _itemsOfTypes(_reservationTypes),
+          ),
           const _NotificationSection(title: 'Mis Eventos', icon: Icons.school_outlined),
-          _buildFollowSection(context),
+          _buildNotificationSection(
+            title: 'Perfiles guardados',
+            icon: Icons.bookmark_outline,
+            items: _itemsOfTypes(_followTypes),
+          ),
           const _NotificationSection(title: 'Recordatorios', icon: Icons.alarm_outlined),
         ],
       ),
     );
   }
 
-  Widget _buildFollowSection(BuildContext context) {
-    final items = _followNotifications;
+  Widget _buildNotificationSection({
+    required String title,
+    required IconData icon,
+    required List<AppNotification> items,
+  }) {
     final unreadCount = items.where((n) => !n.read).length;
 
     return Column(
@@ -82,10 +100,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           leading: Badge(
             isLabelVisible: unreadCount > 0,
             label: Text('$unreadCount'),
-            child: const Icon(Icons.bookmark_outline),
+            child: Icon(icon),
           ),
-          title: const Text('Perfiles guardados'),
-          onExpansionChanged: _onFollowSectionExpanded,
+          title: Text(title),
+          onExpansionChanged: _onSectionExpanded,
           children: [
             if (_loading)
               const Padding(
@@ -114,7 +132,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               )
             else
-              ...items.map((n) => _FollowNotificationTile(notification: n)),
+              ...items.map((n) => _NotificationTile(notification: n)),
           ],
         ),
         const Divider(height: 1),
@@ -123,10 +141,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-class _FollowNotificationTile extends StatelessWidget {
+class _NotificationTile extends StatelessWidget {
   final AppNotification notification;
 
-  const _FollowNotificationTile({required this.notification});
+  const _NotificationTile({required this.notification});
 
   static const _months = [
     'ene', 'feb', 'mar', 'abr', 'may', 'jun',
@@ -138,14 +156,19 @@ class _FollowNotificationTile extends StatelessWidget {
     return '${local.day} ${_months[local.month - 1]}. ${local.year}';
   }
 
+  IconData get _icon => switch (notification.type) {
+        NotificationType.followedUser => Icons.person_add_alt_outlined,
+        NotificationType.followedUserNewEvent => Icons.event_available_outlined,
+        NotificationType.signedUp => Icons.check_circle_outline,
+        NotificationType.waitlisted => Icons.notifications_none,
+        NotificationType.spotAvailable => Icons.notifications_active,
+        NotificationType.targetUpdated => Icons.edit_calendar_outlined,
+      };
+
   @override
   Widget build(BuildContext context) {
-    final icon = notification.type == NotificationType.followedUser
-        ? Icons.person_add_alt_outlined
-        : Icons.event_available_outlined;
-
     return ListTile(
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      leading: Icon(_icon, color: Theme.of(context).colorScheme.primary),
       title: Text(
         notification.message,
         style: notification.read

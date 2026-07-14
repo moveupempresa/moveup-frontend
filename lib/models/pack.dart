@@ -50,6 +50,9 @@ class Pack {
   final List<String> sessionIds;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int confirmedCount;
+  final bool isSignedUp;
+  final bool isWaitlisted;
 
   const Pack({
     required this.id,
@@ -66,7 +69,12 @@ class Pack {
     required this.sessionIds,
     required this.createdAt,
     required this.updatedAt,
+    this.confirmedCount = 0,
+    this.isSignedUp = false,
+    this.isWaitlisted = false,
   });
+
+  bool get isFull => !isUnlimitedCapacity && capacity != null && confirmedCount >= capacity!;
 
   factory Pack.fromJson(Map<String, dynamic> json) => Pack(
         id: json['id'] as String,
@@ -85,5 +93,8 @@ class Pack {
             : const [],
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
+        confirmedCount: (json['confirmedCount'] as num?)?.toInt() ?? 0,
+        isSignedUp: json['isSignedUp'] as bool? ?? false,
+        isWaitlisted: json['isWaitlisted'] as bool? ?? false,
       );
 }

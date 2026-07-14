@@ -6,6 +6,7 @@ import '../models/pack.dart';
 import '../models/session.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
+import '../services/registration_service.dart';
 import 'event_form_screen.dart';
 import 'public_profile_screen.dart';
 
@@ -240,7 +241,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         ),
                   )
                 else
-                  ...sessions.map((s) => _SessionCard(session: s)),
+                  ...sessions.map((s) => _SessionCard(
+                        session: s,
+                        token: widget.token,
+                        eventId: event.id,
+                      )),
                 if (event.reservationEnabled) ...[
                   const SizedBox(height: 20),
                   Text('Packs', style: Theme.of(context).textTheme.titleSmall),
@@ -254,7 +259,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           ),
                     )
                   else
-                    ...packs.map((p) => _PackCard(pack: p, sessions: sessions)),
+                    ...packs.map((p) => _PackCard(
+                          pack: p,
+                          sessions: sessions,
+                          token: widget.token,
+                          eventId: event.id,
+                        )),
                 ],
               ]),
             ),
@@ -285,70 +295,163 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _SessionCard extends StatelessWidget {
+class _SessionCard extends StatefulWidget {
   final Session session;
+  final String token;
+  final String eventId;
 
-  const _SessionCard({required this.session});
+  const _SessionCard({required this.session, required this.token, required this.eventId});
+
+  @override
+  State<_SessionCard> createState() => _SessionCardState();
+}
+
+class _SessionCardState extends State<_SessionCard> {
+  late int _confirmedCount = widget.session.confirmedCount;
+  late bool _isSignedUp = widget.session.isSignedUp;
+  late bool _isWaitlisted = widget.session.isWaitlisted;
+  bool _isLoading = false;
+
+  bool get _isFull =>
+      !widget.session.isUnlimitedCapacity &&
+      widget.session.capacity != null &&
+      _confirmedCount >= widget.session.capacity!;
+
+  void _showError(Object e) {
+    if (e is AuthException && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _toggleSignUp() async {
+    setState(() => _isLoading = true);
+    try {
+      final (status, count) = _isSignedUp
+          ? await RegistrationService.cancelSessionSignUp(
+              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id)
+          : await RegistrationService.signUpForSession(
+              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id);
+      if (mounted) {
+        setState(() {
+          _isSignedUp = status == 'confirmed';
+          _confirmedCount = count;
+        });
+      }
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleWaitlist() async {
+    setState(() => _isLoading = true);
+    try {
+      final (status, count) = _isWaitlisted
+          ? await RegistrationService.leaveSessionWaitlist(
+              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id)
+          : await RegistrationService.joinSessionWaitlist(
+              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id);
+      if (mounted) {
+        setState(() {
+          _isWaitlisted = status == 'waitlisted';
+          _confirmedCount = count;
+        });
+      }
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final session = widget.session;
     final start = session.startDatetime.toLocal();
     final end = session.endDatetime.toLocal();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(session.name, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 6),
-            Row(
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 44),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.calendar_today_outlined, size: 14),
-                const SizedBox(width: 6),
-                Text(_formatDate(start), style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                const Icon(Icons.access_time_outlined, size: 14),
-                const SizedBox(width: 6),
-                Text('${_formatTime(start)} – ${_formatTime(end)}',
-                    style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-            if (session.address != null && session.address!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.place_outlined, size: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(session.address!, style: Theme.of(context).textTheme.bodySmall),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(session.name, style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                    if (!session.isUnlimitedCapacity && session.capacity != null) ...[
+                      const SizedBox(width: 8),
+                      _CapacityBadge(confirmedCount: _confirmedCount, capacity: session.capacity!),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 14),
+                    const SizedBox(width: 6),
+                    Text(_formatDate(start), style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time_outlined, size: 14),
+                    const SizedBox(width: 6),
+                    Text('${_formatTime(start)} – ${_formatTime(end)}',
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+                if (session.address != null && session.address!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.place_outlined, size: 14),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(session.address!, style: Theme.of(context).textTheme.bodySmall),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.people_outline, size: 14),
-                const SizedBox(width: 6),
-                Text(
-                  session.isUnlimitedCapacity
-                      ? 'Aforo ilimitado'
-                      : session.capacity != null
-                          ? '${session.capacity} personas'
-                          : 'Aforo no especificado',
-                  style: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.people_outline, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      session.isUnlimitedCapacity
+                          ? 'Aforo ilimitado'
+                          : session.capacity != null
+                              ? '$_confirmedCount / ${session.capacity} personas'
+                              : 'Aforo no especificado',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            right: 4,
+            bottom: 4,
+            child: _SignupIconButton(
+              isFull: _isFull,
+              isSignedUp: _isSignedUp,
+              isWaitlisted: _isWaitlisted,
+              isLoading: _isLoading,
+              onToggleSignUp: _toggleSignUp,
+              onToggleWaitlist: _toggleWaitlist,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -362,104 +465,278 @@ class _SessionCard extends StatelessWidget {
       '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
-class _PackCard extends StatelessWidget {
-  final Pack pack;
-  final List<Session> sessions;
+class _CapacityBadge extends StatelessWidget {
+  final int confirmedCount;
+  final int capacity;
 
-  const _PackCard({required this.pack, required this.sessions});
+  const _CapacityBadge({required this.confirmedCount, required this.capacity});
 
   @override
   Widget build(BuildContext context) {
+    final ratio = capacity == 0 ? 1.0 : confirmedCount / capacity;
+    final Color color;
+    if (ratio >= 1.0) {
+      color = Colors.red.shade700;
+    } else if (ratio >= 0.7) {
+      color = Colors.amber.shade800;
+    } else {
+      color = Colors.green.shade700;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Text(
+        '$confirmedCount/$capacity',
+        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+class _SignupIconButton extends StatelessWidget {
+  final bool isFull;
+  final bool isSignedUp;
+  final bool isWaitlisted;
+  final bool isLoading;
+  final VoidCallback onToggleSignUp;
+  final VoidCallback onToggleWaitlist;
+
+  const _SignupIconButton({
+    required this.isFull,
+    required this.isSignedUp,
+    required this.isWaitlisted,
+    required this.isLoading,
+    required this.onToggleSignUp,
+    required this.onToggleWaitlist,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(10),
+        child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    if (isFull && !isSignedUp) {
+      return IconButton(
+        icon: Icon(isWaitlisted ? Icons.notifications_active : Icons.notifications_none),
+        color: isWaitlisted ? Theme.of(context).colorScheme.primary : null,
+        tooltip: isWaitlisted
+            ? 'Cancelar aviso de disponibilidad'
+            : 'Avisarme si hay un cupo disponible',
+        onPressed: onToggleWaitlist,
+      );
+    }
+    return IconButton(
+      icon: Icon(isSignedUp ? Icons.check_circle : Icons.check_circle_outline),
+      color: isSignedUp ? Theme.of(context).colorScheme.primary : null,
+      tooltip: isSignedUp ? 'Cancelar inscripción' : 'Inscribirme',
+      onPressed: onToggleSignUp,
+    );
+  }
+}
+
+class _PackCard extends StatefulWidget {
+  final Pack pack;
+  final List<Session> sessions;
+  final String token;
+  final String eventId;
+
+  const _PackCard({
+    required this.pack,
+    required this.sessions,
+    required this.token,
+    required this.eventId,
+  });
+
+  @override
+  State<_PackCard> createState() => _PackCardState();
+}
+
+class _PackCardState extends State<_PackCard> {
+  late int _confirmedCount = widget.pack.confirmedCount;
+  late bool _isSignedUp = widget.pack.isSignedUp;
+  late bool _isWaitlisted = widget.pack.isWaitlisted;
+  bool _isLoading = false;
+
+  bool get _isFull =>
+      !widget.pack.isUnlimitedCapacity &&
+      widget.pack.capacity != null &&
+      _confirmedCount >= widget.pack.capacity!;
+
+  void _showError(Object e) {
+    if (e is AuthException && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _toggleSignUp() async {
+    setState(() => _isLoading = true);
+    try {
+      final (status, count) = _isSignedUp
+          ? await RegistrationService.cancelPackSignUp(
+              token: widget.token, eventId: widget.eventId, packId: widget.pack.id)
+          : await RegistrationService.signUpForPack(
+              token: widget.token, eventId: widget.eventId, packId: widget.pack.id);
+      if (mounted) {
+        setState(() {
+          _isSignedUp = status == 'confirmed';
+          _confirmedCount = count;
+        });
+      }
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleWaitlist() async {
+    setState(() => _isLoading = true);
+    try {
+      final (status, count) = _isWaitlisted
+          ? await RegistrationService.leavePackWaitlist(
+              token: widget.token, eventId: widget.eventId, packId: widget.pack.id)
+          : await RegistrationService.joinPackWaitlist(
+              token: widget.token, eventId: widget.eventId, packId: widget.pack.id);
+      if (mounted) {
+        setState(() {
+          _isWaitlisted = status == 'waitlisted';
+          _confirmedCount = count;
+        });
+      }
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pack = widget.pack;
     final priceLabel = pack.paymentType == PaymentType.free
         ? 'Gratis'
         : '${pack.price.toStringAsFixed(2)} · ${pack.paymentType.label}';
 
     final includedSessionNames = pack.sessionIds
-        .map((id) => sessions.where((s) => s.id == id).firstOrNull?.name)
+        .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull?.name)
         .whereType<String>()
         .toList();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(pack.name, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 6),
-            Row(
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 44),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.payments_outlined, size: 14),
-                const SizedBox(width: 6),
-                Text(priceLabel, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.confirmation_number_outlined, size: 14),
-                const SizedBox(width: 6),
-                Text(pack.packType.label, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.people_outline, size: 14),
-                const SizedBox(width: 6),
-                Text(
-                  pack.isUnlimitedCapacity
-                      ? 'Aforo ilimitado'
-                      : pack.capacity != null
-                          ? '${pack.capacity} personas'
-                          : 'Aforo no especificado',
-                  style: Theme.of(context).textTheme.bodySmall,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(pack.name, style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                    if (!pack.isUnlimitedCapacity && pack.capacity != null) ...[
+                      const SizedBox(width: 8),
+                      _CapacityBadge(confirmedCount: _confirmedCount, capacity: pack.capacity!),
+                    ],
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.rule_outlined, size: 14),
-                const SizedBox(width: 6),
-                Text(
-                  'Aprobación ${pack.approvalMode.label.toLowerCase()}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.payments_outlined, size: 14),
+                    const SizedBox(width: 6),
+                    Text(priceLabel, style: Theme.of(context).textTheme.bodySmall),
+                  ],
                 ),
-              ],
-            ),
-            if (pack.packType == PackType.customizable && pack.maxSelectableSessions != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.event_available_outlined, size: 14),
-                  const SizedBox(width: 6),
-                  Text(
-                    'El estudiante elige hasta ${pack.maxSelectableSessions} sesiones',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ],
-            if (pack.packType == PackType.fixed && includedSessionNames.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.calendar_month_outlined, size: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      includedSessionNames.join(', '),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.confirmation_number_outlined, size: 14),
+                    const SizedBox(width: 6),
+                    Text(pack.packType.label, style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.people_outline, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      pack.isUnlimitedCapacity
+                          ? 'Aforo ilimitado'
+                          : pack.capacity != null
+                              ? '$_confirmedCount / ${pack.capacity} personas'
+                              : 'Aforo no especificado',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.rule_outlined, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Aprobación ${pack.approvalMode.label.toLowerCase()}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                if (pack.packType == PackType.customizable && pack.maxSelectableSessions != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.event_available_outlined, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        'El estudiante elige hasta ${pack.maxSelectableSessions} sesiones',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
-          ],
-        ),
+                if (pack.packType == PackType.fixed && includedSessionNames.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.calendar_month_outlined, size: 14),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          includedSessionNames.join(', '),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Positioned(
+            right: 4,
+            bottom: 4,
+            child: _SignupIconButton(
+              isFull: _isFull,
+              isSignedUp: _isSignedUp,
+              isWaitlisted: _isWaitlisted,
+              isLoading: _isLoading,
+              onToggleSignUp: _toggleSignUp,
+              onToggleWaitlist: _toggleWaitlist,
+            ),
+          ),
+        ],
       ),
     );
   }

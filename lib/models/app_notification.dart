@@ -1,6 +1,10 @@
 enum NotificationType {
   followedUser('followed_user'),
-  followedUserNewEvent('followed_user_new_event');
+  followedUserNewEvent('followed_user_new_event'),
+  signedUp('signed_up'),
+  waitlisted('waitlisted'),
+  spotAvailable('spot_available'),
+  targetUpdated('target_updated');
 
   const NotificationType(this.value);
   final String value;
