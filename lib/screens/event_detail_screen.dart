@@ -232,23 +232,43 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                Text('Sesiones', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                if (sessions.isEmpty)
-                  Text(
-                    'Sin sesiones',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                          fontStyle: FontStyle.italic,
-                        ),
+                if (sessions.length > 3)
+                  Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: EdgeInsets.zero,
+                      title: Text('Sesiones (${sessions.length})',
+                          style: Theme.of(context).textTheme.titleSmall),
+                      children: sessions
+                          .map((s) => _SessionCard(
+                                session: s,
+                                token: widget.token,
+                                eventId: event.id,
+                                isOwner: isOwner,
+                              ))
+                          .toList(),
+                    ),
                   )
-                else
-                  ...sessions.map((s) => _SessionCard(
-                        session: s,
-                        token: widget.token,
-                        eventId: event.id,
-                        isOwner: isOwner,
-                      )),
+                else ...[
+                  Text('Sesiones', style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: 8),
+                  if (sessions.isEmpty)
+                    Text(
+                      'Sin sesiones',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    )
+                  else
+                    ...sessions.map((s) => _SessionCard(
+                          session: s,
+                          token: widget.token,
+                          eventId: event.id,
+                          isOwner: isOwner,
+                        )),
+                ],
                 if (event.reservationEnabled) ...[
                   const SizedBox(height: 20),
                   Text('Packs', style: Theme.of(context).textTheme.titleSmall),
@@ -585,12 +605,31 @@ class _PackCardState extends State<_PackCard> {
   late bool _isSignedUp = widget.pack.isSignedUp;
   late bool _isWaitlisted = widget.pack.isWaitlisted;
   late bool _isPending = widget.pack.isPending;
+  late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds.toSet();
   bool _isLoading = false;
 
   bool get _isFull =>
       !widget.pack.isUnlimitedCapacity &&
       widget.pack.capacity != null &&
       _confirmedCount >= widget.pack.capacity!;
+
+  bool get _isCommitted => _isSignedUp || _isPending;
+
+  bool get _selectionValid {
+    if (_selectedSessionIds.isEmpty) return false;
+    final max = widget.pack.maxSelectableSessions;
+    return max == null || _selectedSessionIds.length <= max;
+  }
+
+  void _onSessionToggled(String sessionId, bool checked) {
+    setState(() {
+      if (checked) {
+        _selectedSessionIds.add(sessionId);
+      } else {
+        _selectedSessionIds.remove(sessionId);
+      }
+    });
+  }
 
   void _showError(Object e) {
     if (e is AuthException && mounted) {
@@ -599,13 +638,27 @@ class _PackCardState extends State<_PackCard> {
   }
 
   Future<void> _toggleSignUp() async {
+    final isCustomizable = widget.pack.packType == PackType.customizable;
+    if (!_isCommitted && isCustomizable && !_selectionValid) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(widget.pack.maxSelectableSessions != null
+            ? 'Selecciona entre 1 y ${widget.pack.maxSelectableSessions} sesiones'
+            : 'Selecciona al menos una sesión'),
+      ));
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      final (status, count) = (_isSignedUp || _isPending)
+      final (status, count) = _isCommitted
           ? await RegistrationService.cancelPackSignUp(
               token: widget.token, eventId: widget.eventId, packId: widget.pack.id)
           : await RegistrationService.signUpForPack(
-              token: widget.token, eventId: widget.eventId, packId: widget.pack.id);
+              token: widget.token,
+              eventId: widget.eventId,
+              packId: widget.pack.id,
+              selectedSessionIds: isCustomizable ? _selectedSessionIds.toList() : null,
+            );
       if (mounted) {
         setState(() {
           _isSignedUp = status == 'confirmed';
@@ -651,6 +704,10 @@ class _PackCardState extends State<_PackCard> {
     final includedSessionNames = pack.sessionIds
         .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull?.name)
         .whereType<String>()
+        .toList();
+    final candidateSessions = pack.sessionIds
+        .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull)
+        .whereType<Session>()
         .toList();
 
     return Card(
@@ -716,18 +773,32 @@ class _PackCardState extends State<_PackCard> {
                     ),
                   ],
                 ),
-                if (pack.packType == PackType.customizable && pack.maxSelectableSessions != null) ...[
+                if (pack.packType == PackType.customizable) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
                       const Icon(Icons.event_available_outlined, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        'El estudiante elige hasta ${pack.maxSelectableSessions} sesiones',
+                        pack.maxSelectableSessions != null
+                            ? 'Elige hasta ${pack.maxSelectableSessions} sesiones'
+                            : 'Elige tus sesiones',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
+                  if (!widget.isOwner)
+                    ...candidateSessions.map((s) => CheckboxListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: _selectedSessionIds.contains(s.id),
+                          title: Text(s.name, style: Theme.of(context).textTheme.bodySmall),
+                          onChanged: _isCommitted
+                              ? null
+                              : (checked) => _onSessionToggled(s.id, checked ?? false),
+                        )),
                 ],
                 if (pack.packType == PackType.fixed && includedSessionNames.isNotEmpty) ...[
                   const SizedBox(height: 4),

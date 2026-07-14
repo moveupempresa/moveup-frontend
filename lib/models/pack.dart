@@ -54,6 +54,7 @@ class Pack {
   final bool isSignedUp;
   final bool isWaitlisted;
   final bool isPending;
+  final List<String> mySelectedSessionIds;
 
   const Pack({
     required this.id,
@@ -74,6 +75,7 @@ class Pack {
     this.isSignedUp = false,
     this.isWaitlisted = false,
     this.isPending = false,
+    this.mySelectedSessionIds = const [],
   });
 
   bool get isFull => !isUnlimitedCapacity && capacity != null && confirmedCount >= capacity!;
@@ -99,5 +101,8 @@ class Pack {
         isSignedUp: json['isSignedUp'] as bool? ?? false,
         isWaitlisted: json['isWaitlisted'] as bool? ?? false,
         isPending: json['isPending'] as bool? ?? false,
+        mySelectedSessionIds: json['mySelectedSessionIds'] != null
+            ? (json['mySelectedSessionIds'] as List<dynamic>).cast<String>()
+            : const [],
       );
 }

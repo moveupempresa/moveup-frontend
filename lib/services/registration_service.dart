@@ -55,11 +55,13 @@ class RegistrationService {
     required String token,
     required String eventId,
     required String packId,
+    List<String>? selectedSessionIds,
   }) =>
       _request(
         token: token,
         path: 'events/$eventId/packs/$packId/signup',
         method: 'POST',
+        body: selectedSessionIds != null ? {'selectedSessionIds': selectedSessionIds} : null,
       );
 
   static Future<(String?, int)> cancelPackSignUp({
@@ -123,14 +125,19 @@ class RegistrationService {
     required String token,
     required String path,
     required String method,
+    Map<String, dynamic>? body,
   }) async {
     http.Response response;
     try {
       final uri = Uri.parse('${ApiConfig.baseUrl}/$path');
-      final headers = {'Authorization': 'Bearer $token'};
+      final headers = {
+        'Authorization': 'Bearer $token',
+        if (body != null) 'Content-Type': 'application/json',
+      };
+      final encodedBody = body != null ? jsonEncode(body) : null;
       response = method == 'POST'
-          ? await http.post(uri, headers: headers).timeout(const Duration(seconds: 10))
-          : await http.delete(uri, headers: headers).timeout(const Duration(seconds: 10));
+          ? await http.post(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 10))
+          : await http.delete(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 10));
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
     }
