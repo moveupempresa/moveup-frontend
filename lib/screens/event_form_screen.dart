@@ -243,6 +243,14 @@ class _EventFormScreenState extends State<EventFormScreen> {
     DateTime? endDt = existing?.endDatetime;
     bool isUnlimited = existing?.isUnlimitedCapacity ?? true;
 
+    final today = DateTime.now();
+    final startOfToday = DateTime(today.year, today.month, today.day);
+    DateTime firstSelectableDate(DateTime? current) {
+      if (current == null) return startOfToday;
+      final currentDay = DateTime(current.year, current.month, current.day);
+      return currentDay.isBefore(startOfToday) ? currentDay : startOfToday;
+    }
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -250,11 +258,12 @@ class _EventFormScreenState extends State<EventFormScreen> {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             Future<void> pickStart() async {
+              final firstDate = firstSelectableDate(startDt);
               final date = await showDatePicker(
                 context: ctx,
-                initialDate: startDt ?? DateTime.now(),
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                initialDate: startDt ?? today,
+                firstDate: firstDate,
+                lastDate: firstDate.add(const Duration(days: 365 * 2)),
                 locale: const Locale('es', 'ES'),
               );
               if (date == null || !ctx.mounted) return;
@@ -267,11 +276,12 @@ class _EventFormScreenState extends State<EventFormScreen> {
             }
 
             Future<void> pickEnd() async {
+              final firstDate = firstSelectableDate(endDt ?? startDt);
               final date = await showDatePicker(
                 context: ctx,
-                initialDate: endDt ?? startDt ?? DateTime.now(),
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                initialDate: endDt ?? startDt ?? today,
+                firstDate: firstDate,
+                lastDate: firstDate.add(const Duration(days: 365 * 2)),
                 locale: const Locale('es', 'ES'),
               );
               if (date == null || !ctx.mounted) return;

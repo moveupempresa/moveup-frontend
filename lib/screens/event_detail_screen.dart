@@ -111,22 +111,24 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             expandedHeight: 240,
             pinned: true,
             actions: [
-              IconButton(
-                icon: _isTogglingSave
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(_isSaved ? Icons.bookmark : Icons.bookmark_outline),
-                tooltip: _isSaved ? 'Quitar de guardados' : 'Guardar evento',
-                onPressed: _isTogglingSave ? null : _toggleSave,
-              ),
-              IconButton(
-                icon: const Icon(Icons.calendar_today_outlined),
-                tooltip: 'Añadir al calendario',
-                onPressed: _addToCalendar,
-              ),
+              if (!isOwner) ...[
+                IconButton(
+                  icon: _isTogglingSave
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(_isSaved ? Icons.bookmark : Icons.bookmark_outline),
+                  tooltip: _isSaved ? 'Quitar de guardados' : 'Guardar evento',
+                  onPressed: _isTogglingSave ? null : _toggleSave,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  tooltip: 'Añadir al calendario',
+                  onPressed: _addToCalendar,
+                ),
+              ],
               if (isOwner) ...[
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
