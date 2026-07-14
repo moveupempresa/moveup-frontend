@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
 import 'event_form_screen.dart';
+import 'payment_screen.dart';
 import 'public_profile_screen.dart';
 
 const _months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -659,6 +660,21 @@ class _PackCardState extends State<_PackCard> {
 
   bool get _isCustomizable => widget.pack.packType == PackType.customizable;
 
+  bool get _isPaymentReady =>
+      widget.pack.approvalMode == ApprovalMode.automatic || _isSignedUp;
+
+  void _openPayment() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => PaymentScreen(packName: widget.pack.name)),
+    );
+  }
+
+  void _showCashMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('El pago de este pack es en efectivo')),
+    );
+  }
+
   Future<void> _toggleSignUp() async {
     if (_isCommitted) {
       setState(() => _isLoading = true);
@@ -930,6 +946,21 @@ class _PackCardState extends State<_PackCard> {
                 isExpanded: _isExpanded,
                 onToggleSignUp: _toggleSignUp,
                 onToggleWaitlist: _toggleWaitlist,
+              ),
+            ),
+          if (!widget.isOwner && pack.paymentType != PaymentType.free)
+            Positioned(
+              left: 4,
+              bottom: 4,
+              child: IconButton(
+                icon: Icon(
+                  pack.paymentType == PaymentType.online ? Icons.credit_card : Icons.money,
+                ),
+                color: _isPaymentReady ? Colors.green.shade700 : Colors.grey,
+                tooltip: pack.paymentType == PaymentType.online
+                    ? 'Pagar con tarjeta'
+                    : 'Pago en efectivo',
+                onPressed: pack.paymentType == PaymentType.online ? _openPayment : _showCashMessage,
               ),
             ),
         ],
