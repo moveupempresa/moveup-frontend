@@ -715,7 +715,14 @@ class _PackCardState extends State<_PackCard> {
 
   void _openPayment() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => PaymentScreen(packName: widget.pack.name)),
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(
+          token: widget.token,
+          eventId: widget.eventId,
+          packId: widget.pack.id,
+          packName: widget.pack.name,
+        ),
+      ),
     );
   }
 
