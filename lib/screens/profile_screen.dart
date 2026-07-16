@@ -5,6 +5,7 @@ import '../models/event.dart';
 import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/event_card.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
@@ -34,6 +35,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   List<Event>? _events;
   bool _loadingEvents = false;
   String? _eventsError;
+  bool _hasUnreadNotifications = false;
 
   @override
   void initState() {
@@ -42,6 +44,18 @@ class ProfileScreenState extends State<ProfileScreen> {
     _user = widget.user;
     if (_user.subscriptionPlan == SubscriptionPlan.pro) {
       _loadEvents();
+    }
+    _loadNotificationStatus();
+  }
+
+  Future<void> _loadNotificationStatus() async {
+    try {
+      final notifications = await NotificationService.getMyNotifications(token: widget.token);
+      if (mounted) {
+        setState(() => _hasUnreadNotifications = notifications.any((n) => !n.read));
+      }
+    } catch (_) {
+      // Keep the current badge state if this background check fails.
     }
   }
 
@@ -84,11 +98,18 @@ class ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Perfil'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Notificaciones',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => NotificationsScreen(token: widget.token)),
+            icon: Badge(
+              isLabelVisible: _hasUnreadNotifications,
+              smallSize: 8,
+              child: const Icon(Icons.notifications_outlined),
             ),
+            tooltip: 'Notificaciones',
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => NotificationsScreen(token: widget.token)),
+              );
+              _loadNotificationStatus();
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),

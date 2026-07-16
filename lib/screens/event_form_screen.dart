@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import '../config/api_config.dart';
 import '../models/event.dart';
 import '../models/pack.dart';
 import '../models/session.dart' show Session;
+import '../services/address_service.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/pack_service.dart';
@@ -242,6 +244,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
     DateTime? startDt = existing?.startDatetime;
     DateTime? endDt = existing?.endDatetime;
     bool isUnlimited = existing?.isUnlimitedCapacity ?? true;
+    List<AddressSuggestion> addressSuggestions = [];
+    Timer? addressDebounce;
 
     final today = DateTime.now();
     final startOfToday = DateTime(today.year, today.month, today.day);
@@ -298,6 +302,20 @@ class _EventFormScreenState extends State<EventFormScreen> {
               return '${dt.day}/${dt.month}/${dt.year}  ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
             }
 
+            void onAddressChanged(String value) {
+              setSheetState(() {});
+              addressDebounce?.cancel();
+              addressDebounce = Timer(const Duration(milliseconds: 400), () async {
+                final results = await AddressService.search(value);
+                if (ctx.mounted) setSheetState(() => addressSuggestions = results);
+              });
+            }
+
+            void selectAddress(AddressSuggestion suggestion) {
+              addressCtrl.text = suggestion.displayName;
+              setSheetState(() => addressSuggestions = []);
+            }
+
             final capacityValid = isUnlimited ||
                 (capacityCtrl.text.trim().isNotEmpty &&
                     int.tryParse(capacityCtrl.text.trim()) != null &&
@@ -332,8 +350,36 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     controller: addressCtrl,
                     decoration: const InputDecoration(labelText: 'Dirección'),
                     textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) => setSheetState(() {}),
+                    onChanged: onAddressChanged,
                   ),
+                  if (addressSuggestions.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      constraints: const BoxConstraints(maxHeight: 160),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(ctx).colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: addressSuggestions.length,
+                        itemBuilder: (_, i) {
+                          final suggestion = addressSuggestions[i];
+                          return ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.place_outlined, size: 18),
+                            title: Text(
+                              suggestion.displayName,
+                              style: Theme.of(ctx).textTheme.bodySmall,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () => selectAddress(suggestion),
+                          );
+                        },
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
                     onPressed: pickStart,
@@ -404,6 +450,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
         );
       },
     );
+    addressDebounce?.cancel();
   }
 
   void _removeSession(_SessionDraft session) {
