@@ -79,6 +79,8 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
       widget.paymentType != null &&
       widget.paymentType != PaymentType.free;
 
+  bool get _canTogglePayment => widget.paymentType == PaymentType.offline;
+
   Future<void> _togglePaid(Registrant r) async {
     final newValue = !r.hasPaid;
     try {
@@ -164,12 +166,23 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_showsPayment)
+                  if (_showsPayment && _canTogglePayment)
                     IconButton(
                       icon: Icon(r.hasPaid ? Icons.paid : Icons.money_off),
                       color: r.hasPaid ? Colors.green.shade700 : Colors.red.shade700,
                       tooltip: r.hasPaid ? 'Marcar como no pagado' : 'Marcar como pagado',
                       onPressed: () => _togglePaid(r),
+                    )
+                  else if (_showsPayment)
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Tooltip(
+                        message: r.hasPaid ? 'Pagado' : 'No pagado',
+                        child: Icon(
+                          r.hasPaid ? Icons.paid : Icons.money_off,
+                          color: r.hasPaid ? Colors.green.shade700 : Colors.red.shade700,
+                        ),
+                      ),
                     ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
