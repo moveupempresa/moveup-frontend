@@ -52,6 +52,30 @@ class RegistrationService {
         method: 'DELETE',
       );
 
+  static Future<(String?, int)> revokeSessionRegistration({
+    required String token,
+    required String eventId,
+    required String sessionId,
+    required String userId,
+  }) =>
+      _request(
+        token: token,
+        path: 'events/$eventId/sessions/$sessionId/registrations/$userId',
+        method: 'DELETE',
+      );
+
+  static Future<(String?, int)> revokePackRegistration({
+    required String token,
+    required String eventId,
+    required String packId,
+    required String userId,
+  }) =>
+      _request(
+        token: token,
+        path: 'events/$eventId/packs/$packId/registrations/$userId',
+        method: 'DELETE',
+      );
+
   static Future<(String?, int)> signUpForPack({
     required String token,
     required String eventId,

@@ -107,6 +107,55 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
     }
   }
 
+  Future<void> _confirmRevoke(Registrant r) async {
+    final name = r.displayName.isNotEmpty ? r.displayName : r.username;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Revocar inscripción?'),
+        content: Text('$name perderá su plaza en "${widget.targetName}".'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+            child: const Text('Revocar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      widget.targetType == RegistrantsTargetType.session
+          ? await RegistrationService.revokeSessionRegistration(
+              token: widget.token,
+              eventId: widget.eventId,
+              sessionId: widget.targetId,
+              userId: r.userId,
+            )
+          : await RegistrationService.revokePackRegistration(
+              token: widget.token,
+              eventId: widget.eventId,
+              packId: widget.targetId,
+              userId: r.userId,
+            );
+      if (mounted) {
+        setState(() => _registrants!.removeWhere((x) => x.userId == r.userId));
+      }
+    } on AuthException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,6 +232,13 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                           color: r.hasPaid ? Colors.green.shade700 : Colors.red.shade700,
                         ),
                       ),
+                    ),
+                  if (r.status == RegistrationStatus.confirmed)
+                    IconButton(
+                      icon: const Icon(Icons.person_remove_outlined),
+                      color: Theme.of(context).colorScheme.error,
+                      tooltip: 'Revocar inscripción',
+                      onPressed: () => _confirmRevoke(r),
                     ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

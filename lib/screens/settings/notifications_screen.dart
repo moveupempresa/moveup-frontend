@@ -22,10 +22,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.targetUpdated,
     NotificationType.signupApproved,
     NotificationType.signupRejected,
+    NotificationType.registrationRevoked,
   };
   static const _myEventsTypes = {
     NotificationType.newRegistration,
     NotificationType.signupRequest,
+    NotificationType.packPaid,
   };
   static const _followTypes = {
     NotificationType.followedUser,
@@ -205,6 +207,8 @@ class _NotificationTileState extends State<_NotificationTile> {
         NotificationType.signupRequest => Icons.pending_actions_outlined,
         NotificationType.signupApproved => Icons.check_circle_outline,
         NotificationType.signupRejected => Icons.cancel_outlined,
+        NotificationType.packPaid => Icons.payments_outlined,
+        NotificationType.registrationRevoked => Icons.event_busy_outlined,
       };
 
   Future<void> _respond(bool approve) async {

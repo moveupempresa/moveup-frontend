@@ -8,7 +8,9 @@ enum NotificationType {
   newRegistration('new_registration'),
   signupRequest('signup_request'),
   signupApproved('signup_approved'),
-  signupRejected('signup_rejected');
+  signupRejected('signup_rejected'),
+  packPaid('pack_paid'),
+  registrationRevoked('registration_revoked');
 
   const NotificationType(this.value);
   final String value;
