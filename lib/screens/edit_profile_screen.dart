@@ -82,7 +82,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _addGalleryMedia() async {
-    final picked = await showModalBottomSheet<XFile?>(
+    final picked = await showModalBottomSheet<List<XFile>>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
@@ -90,10 +90,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.image_outlined),
-              title: const Text('Añadir foto'),
+              title: const Text('Añadir fotos'),
               onTap: () async {
-                final f = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-                if (ctx.mounted) Navigator.pop(ctx, f);
+                final files = await _picker.pickMultiImage(imageQuality: 85);
+                if (ctx.mounted) Navigator.pop(ctx, files);
               },
             ),
             ListTile(
@@ -101,22 +101,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               title: const Text('Añadir video'),
               onTap: () async {
                 final f = await _picker.pickVideo(source: ImageSource.gallery);
-                if (ctx.mounted) Navigator.pop(ctx, f);
+                if (ctx.mounted) Navigator.pop(ctx, f != null ? [f] : <XFile>[]);
               },
             ),
           ],
         ),
       ),
     );
-    if (picked == null) return;
+    if (picked == null || picked.isEmpty) return;
 
     setState(() => _isUploadingGalleryImage = true);
     try {
-      final updated = await ProfileService.addGalleryMedia(
-        token: widget.token,
-        mediaFile: File(picked.path),
-      );
-      setState(() => _profile = updated);
+      for (final file in picked) {
+        final updated = await ProfileService.addGalleryMedia(
+          token: widget.token,
+          mediaFile: File(file.path),
+        );
+        if (mounted) setState(() => _profile = updated);
+      }
     } on AuthException catch (e) {
       _showError(e.message);
     } finally {
