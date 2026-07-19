@@ -85,7 +85,11 @@ class ExploreScreenState extends State<ExploreScreen> {
   void refreshEvents() => _loadEvents();
 
   void _submitSearch(String value) {
-    setState(() => _searchTitle = value.trim().isEmpty ? null : value.trim());
+    setState(() {
+      _commitActiveTextFilter();
+      _searchTitle = value.trim().isEmpty ? null : value.trim();
+      _activeFilterKey = null;
+    });
     _loadEvents();
   }
 
@@ -234,16 +238,6 @@ class ExploreScreenState extends State<ExploreScreen> {
     _loadEvents();
   }
 
-  void _runSearch() {
-    setState(() {
-      _commitActiveTextFilter();
-      final title = _searchController.text.trim();
-      _searchTitle = title.isEmpty ? null : title;
-      _activeFilterKey = null;
-    });
-    _loadEvents();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -272,17 +266,7 @@ class ExploreScreenState extends State<ExploreScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                Expanded(child: _buildFilterCarousel(context)),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  icon: const Icon(Icons.search),
-                  tooltip: 'Buscar',
-                  onPressed: _runSearch,
-                ),
-              ],
-            ),
+            child: _buildFilterCarousel(context),
           ),
           if (_activeFilterKey != null) _buildActiveFilterInput(context),
           if (_hasFilterValues) _buildActiveFilterChips(context),
