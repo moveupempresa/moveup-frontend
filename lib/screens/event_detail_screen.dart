@@ -376,6 +376,25 @@ class _SessionsSectionState extends State<_SessionsSection> {
     return _dayKey(sorted.first.startDatetime);
   }
 
+  // table_calendar requires firstDay <= focusedDay <= lastDay, so the range
+  // must stretch to cover every session's date, not just a fixed window
+  // around today.
+  DateTime get _calendarFirstDay {
+    final base = DateTime.now().subtract(const Duration(days: 365));
+    if (widget.sessions.isEmpty) return base;
+    final earliest =
+        widget.sessions.map((s) => _dayKey(s.startDatetime)).reduce((a, b) => a.isBefore(b) ? a : b);
+    return earliest.isBefore(base) ? earliest : base;
+  }
+
+  DateTime get _calendarLastDay {
+    final base = DateTime.now().add(const Duration(days: 365 * 2));
+    if (widget.sessions.isEmpty) return base;
+    final latest =
+        widget.sessions.map((s) => _dayKey(s.startDatetime)).reduce((a, b) => a.isAfter(b) ? a : b);
+    return latest.isAfter(base) ? latest : base;
+  }
+
   // Real timestamps carry a timezone offset, so convert to local time before
   // taking the calendar day.
   DateTime _dayKey(DateTime dt) {
@@ -468,8 +487,8 @@ class _SessionsSectionState extends State<_SessionsSection> {
     return Column(
       children: [
         TableCalendar<Session>(
-          firstDay: DateTime.now().subtract(const Duration(days: 365)),
-          lastDay: DateTime.now().add(const Duration(days: 365 * 2)),
+          firstDay: _calendarFirstDay,
+          lastDay: _calendarLastDay,
           focusedDay: _focusedDay,
           locale: 'es_ES',
           selectedDayPredicate: (day) => isSameDay(_selectedDay ?? _focusedDay, day),
