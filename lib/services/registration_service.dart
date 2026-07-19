@@ -76,6 +76,35 @@ class RegistrationService {
         method: 'DELETE',
       );
 
+  static Future<bool> markSessionAttendance({
+    required String token,
+    required String eventId,
+    required String sessionId,
+    required String userId,
+    required bool attended,
+  }) async {
+    http.Response response;
+    try {
+      final uri = Uri.parse(
+          '${ApiConfig.baseUrl}/events/$eventId/sessions/$sessionId/registrations/$userId/attendance');
+      response = await http
+          .post(
+            uri,
+            headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+            body: jsonEncode({'attended': attended}),
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return data['attended'] as bool;
+  }
+
   static Future<(String?, int)> signUpForPack({
     required String token,
     required String eventId,

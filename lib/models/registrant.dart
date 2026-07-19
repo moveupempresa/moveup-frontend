@@ -20,6 +20,7 @@ class Registrant {
   final List<String> selectedSessionIds;
   final bool hasPaid;
   final String? viaPack;
+  final bool attended;
   final DateTime createdAt;
 
   const Registrant({
@@ -31,6 +32,7 @@ class Registrant {
     required this.selectedSessionIds,
     required this.hasPaid,
     this.viaPack,
+    this.attended = false,
     required this.createdAt,
   });
 
@@ -45,10 +47,11 @@ class Registrant {
             : const [],
         hasPaid: json['hasPaid'] as bool? ?? false,
         viaPack: json['viaPack'] as String?,
+        attended: json['attended'] as bool? ?? false,
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 
-  Registrant copyWith({bool? hasPaid}) => Registrant(
+  Registrant copyWith({bool? hasPaid, bool? attended}) => Registrant(
         userId: userId,
         username: username,
         displayName: displayName,
@@ -57,6 +60,7 @@ class Registrant {
         selectedSessionIds: selectedSessionIds,
         hasPaid: hasPaid ?? this.hasPaid,
         viaPack: viaPack,
+        attended: attended ?? this.attended,
         createdAt: createdAt,
       );
 }

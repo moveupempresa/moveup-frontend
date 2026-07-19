@@ -107,6 +107,34 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
     }
   }
 
+  bool get _showsAttendance => widget.targetType == RegistrantsTargetType.session;
+
+  Future<void> _toggleAttendance(Registrant r) async {
+    final newValue = !r.attended;
+    try {
+      await RegistrationService.markSessionAttendance(
+        token: widget.token,
+        eventId: widget.eventId,
+        sessionId: widget.targetId,
+        userId: r.userId,
+        attended: newValue,
+      );
+      if (mounted) {
+        setState(() {
+          final index = _registrants!.indexWhere((x) => x.userId == r.userId);
+          _registrants![index] = r.copyWith(attended: newValue);
+        });
+      }
+    } on AuthException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    }
+  }
+
   Future<void> _confirmRevoke(Registrant r) async {
     final name = r.displayName.isNotEmpty ? r.displayName : r.username;
     final confirmed = await showDialog<bool>(
@@ -216,6 +244,13 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_showsAttendance && r.status == RegistrationStatus.confirmed)
+                    IconButton(
+                      icon: Icon(r.attended ? Icons.event_available : Icons.event_busy_outlined),
+                      color: r.attended ? Colors.green.shade700 : null,
+                      tooltip: r.attended ? 'Marcar como no asistido' : 'Marcar como asistido',
+                      onPressed: () => _toggleAttendance(r),
+                    ),
                   if (_showsPayment && _canTogglePayment)
                     IconButton(
                       icon: Icon(r.hasPaid ? Icons.paid : Icons.money_off),
