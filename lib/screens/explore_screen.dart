@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../models/event.dart';
+import '../models/explore_sections.dart';
+import '../models/popular_profile.dart';
 import '../services/event_service.dart';
 import '../widgets/event_card.dart';
+import '../widgets/event_mini_card.dart';
+import '../widgets/profile_mini_card.dart';
 import 'event_detail_screen.dart';
 import 'public_profile_screen.dart';
 
@@ -24,6 +28,10 @@ class ExploreScreenState extends State<ExploreScreen> {
   List<Event>? _events;
   bool _loading = false;
   String? _error;
+
+  ExploreSections? _sections;
+  bool _loadingSections = false;
+  String? _sectionsError;
 
   // null means the search field is in "title" mode. Otherwise it's the key
   // of the text filter (city/style/username/price) currently being typed.
@@ -47,10 +55,12 @@ class ExploreScreenState extends State<ExploreScreen> {
       _filterMaxPrice != null ||
       _filterEventType != null;
 
+  bool get _isSearching => _hasFilterValues || _searchTitle != null;
+
   @override
   void initState() {
     super.initState();
-    _loadEvents();
+    _loadSections();
   }
 
   @override
@@ -83,7 +93,25 @@ class ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
-  void refreshEvents() => _loadEvents();
+  void refreshEvents() {
+    _loadSections();
+    if (_events != null) _loadEvents();
+  }
+
+  Future<void> _loadSections() async {
+    setState(() {
+      _loadingSections = true;
+      _sectionsError = null;
+    });
+    try {
+      final sections = await EventService.getExploreSections(token: widget.token);
+      if (mounted) setState(() => _sections = sections);
+    } catch (e) {
+      if (mounted) setState(() => _sectionsError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingSections = false);
+    }
+  }
 
   String _filterLabel(String key) => switch (key) {
         'city' => 'Ciudad',
@@ -208,7 +236,10 @@ class ExploreScreenState extends State<ExploreScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
       locale: const Locale('es', 'ES'),
     );
-    if (picked != null) setState(() => _filterDateFrom = picked);
+    if (picked != null) {
+      setState(() => _filterDateFrom = picked);
+      _loadEvents();
+    }
   }
 
   void _toggleEventTypePicker() {
@@ -223,6 +254,7 @@ class ExploreScreenState extends State<ExploreScreen> {
       _filterEventType = _filterEventType == type ? null : type;
       _expandedPicker = null;
     });
+    _loadEvents();
   }
 
   void _onFilterChipTapped(String key) {
@@ -317,10 +349,9 @@ class ExploreScreenState extends State<ExploreScreen> {
           if (_expandedPicker == 'eventType') _buildEventTypeChips(context),
           if (_hasFilterValues) _buildActiveFilterChips(context),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadEvents,
-              child: _buildBody(context),
-            ),
+            child: _isSearching
+                ? RefreshIndicator(onRefresh: _loadEvents, child: _buildBody(context))
+                : RefreshIndicator(onRefresh: _loadSections, child: _buildSections(context)),
           ),
         ],
       ),
@@ -402,6 +433,135 @@ class ExploreScreenState extends State<ExploreScreen> {
 
   Widget _summaryChip(String label, VoidCallback onDeleted) =>
       InputChip(label: Text(label), onDeleted: onDeleted);
+
+  Widget _buildSections(BuildContext context) {
+    if (_loadingSections && _sections == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_sectionsError != null && _sections == null) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(Icons.error_outline, size: 40, color: Theme.of(context).colorScheme.error),
+          const SizedBox(height: 12),
+          const Text('No se pudieron cargar los eventos', textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          Center(child: TextButton(onPressed: _loadSections, child: const Text('Reintentar'))),
+        ],
+      );
+    }
+
+    final sections = _sections;
+    if (sections == null || sections.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(Icons.explore_outlined, size: 40, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 12),
+          Text(
+            'Todavía no hay eventos publicados',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      children: [
+        _buildEventSection('Cerca de ti', sections.nearYou),
+        _buildEventSection('Lo más nuevo', sections.newest),
+        _buildEventSection('Eventos populares', sections.popular),
+        _buildProfileSection('Perfiles populares', sections.popularProfiles),
+        _buildEventSection('Para ti', sections.forYou),
+      ],
+    );
+  }
+
+  Widget _buildEventSection(String title, List<Event> events) {
+    if (events.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 190,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: events.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final event = events[index];
+                return EventMiniCard(
+                  event: event,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EventDetailScreen(
+                        token: widget.token,
+                        event: event,
+                        currentUserId: widget.currentUserId,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileSection(String title, List<PopularProfile> profiles) {
+    if (profiles.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 130,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: profiles.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 4),
+              itemBuilder: (context, index) {
+                final profile = profiles[index];
+                return ProfileMiniCard(
+                  profile: profile,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PublicProfileScreen(
+                        token: widget.token,
+                        userId: profile.userId,
+                        currentUserId: widget.currentUserId,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildBody(BuildContext context) {
     if (_loading && _events == null) {
