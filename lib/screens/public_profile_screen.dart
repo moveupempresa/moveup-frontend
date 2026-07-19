@@ -7,8 +7,8 @@ import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/profile_service.dart';
 import '../services/user_service.dart';
-import '../widgets/event_card.dart';
 import '../widgets/image_viewer_dialog.dart';
+import '../widgets/profile_events_section.dart';
 import 'event_detail_screen.dart';
 
 class PublicProfileScreen extends StatefulWidget {
@@ -301,35 +301,19 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                 },
               ),
         const SizedBox(height: 32),
-        Text('Eventos', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        if (_events == null || _events!.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-              borderRadius: BorderRadius.circular(12),
+        ProfileEventsSection(
+          events: _events,
+          emptyMessage: 'Todavía no tiene eventos publicados',
+          onEventTap: (e) => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => EventDetailScreen(
+                token: widget.token,
+                event: e,
+                currentUserId: widget.currentUserId,
+              ),
             ),
-            alignment: Alignment.center,
-            child: const Text('Todavía no tiene eventos publicados'),
-          )
-        else
-          Column(
-            children: _events!
-                .map((e) => EventCard(
-                      event: e,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => EventDetailScreen(
-                            token: widget.token,
-                            event: e,
-                            currentUserId: widget.currentUserId,
-                          ),
-                        ),
-                      ),
-                    ))
-                .toList(),
           ),
+        ),
       ],
     );
   }
