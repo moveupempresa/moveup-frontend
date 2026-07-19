@@ -376,10 +376,17 @@ class _SessionsSectionState extends State<_SessionsSection> {
     return _dayKey(sorted.first.startDatetime);
   }
 
+  // Real timestamps carry a timezone offset, so convert to local time before
+  // taking the calendar day.
   DateTime _dayKey(DateTime dt) {
     final local = dt.toLocal();
     return DateTime(local.year, local.month, local.day);
   }
+
+  // table_calendar hands back day-only values normalized to UTC; converting
+  // those with .toLocal() can shift them onto the wrong calendar day, so just
+  // read the y/m/d fields directly instead.
+  DateTime _calendarDayKey(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
   Map<DateTime, List<Session>> _groupByDay(List<Session> sessions) {
     final map = <DateTime, List<Session>>{};
@@ -455,7 +462,7 @@ class _SessionsSectionState extends State<_SessionsSection> {
 
   Widget _buildCalendar(BuildContext context, List<Session> sessions) {
     final sessionsByDay = _groupByDay(sessions);
-    final selectedDay = _selectedDay ?? _dayKey(_focusedDay);
+    final selectedDay = _selectedDay ?? _calendarDayKey(_focusedDay);
     final selectedSessions = sessionsByDay[selectedDay] ?? const <Session>[];
 
     return Column(
@@ -466,10 +473,10 @@ class _SessionsSectionState extends State<_SessionsSection> {
           focusedDay: _focusedDay,
           locale: 'es_ES',
           selectedDayPredicate: (day) => isSameDay(_selectedDay ?? _focusedDay, day),
-          eventLoader: (day) => sessionsByDay[_dayKey(day)] ?? const <Session>[],
+          eventLoader: (day) => sessionsByDay[_calendarDayKey(day)] ?? const <Session>[],
           onDaySelected: (selected, focused) {
             setState(() {
-              _selectedDay = selected;
+              _selectedDay = _calendarDayKey(selected);
               _focusedDay = focused;
             });
           },
