@@ -33,11 +33,17 @@ class _ProPlanScreenState extends State<ProPlanScreen> {
   bool get _isPro => widget.subscriptionPlan == SubscriptionPlan.pro;
 
   Future<void> _changePlan() async {
+    if (_isPro) {
+      await _downgrade();
+    } else {
+      await _openBillingSheet();
+    }
+  }
+
+  Future<void> _downgrade() async {
     setState(() => _isUpgrading = true);
     try {
-      final updatedUser = _isPro
-          ? await UserService.downgradeToFree(token: widget.token)
-          : await UserService.upgradeToPro(token: widget.token);
+      final updatedUser = await UserService.downgradeToFree(token: widget.token);
       if (!mounted) return;
       Navigator.of(context).pop(updatedUser);
     } on AuthException catch (e) {
@@ -47,6 +53,96 @@ class _ProPlanScreenState extends State<ProPlanScreen> {
     } finally {
       if (mounted) setState(() => _isUpgrading = false);
     }
+  }
+
+  Future<void> _upgrade(String accountHolderName, String iban) async {
+    setState(() => _isUpgrading = true);
+    try {
+      final updatedUser = await UserService.upgradeToPro(
+        token: widget.token,
+        accountHolderName: accountHolderName,
+        iban: iban,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(updatedUser);
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isUpgrading = false);
+    }
+  }
+
+  Future<void> _openBillingSheet() async {
+    final nameCtrl = TextEditingController();
+    final ibanCtrl = TextEditingController();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final nameValid = nameCtrl.text.trim().isNotEmpty;
+            final ibanValid =
+                RegExp(r'^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$').hasMatch(ibanCtrl.text.replaceAll(' ', '').toUpperCase());
+            final canConfirm = nameValid && ibanValid;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Datos de facturación', style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Necesitamos tu cuenta bancaria para domiciliar el pago mensual del plan Pro.',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.outline,
+                        ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Nombre del titular'),
+                    textCapitalization: TextCapitalization.words,
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: ibanCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'IBAN',
+                      hintText: 'ES00 0000 0000 0000 0000 0000',
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: canConfirm && !_isUpgrading
+                        ? () {
+                            Navigator.pop(ctx);
+                            _upgrade(nameCtrl.text.trim(), ibanCtrl.text.trim());
+                          }
+                        : null,
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                    child: const Text('Confirmar y actualizar a Pro'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override

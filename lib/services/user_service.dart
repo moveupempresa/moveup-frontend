@@ -138,8 +138,16 @@ class UserService {
     return (data['isFollowing'] as bool, data['followersCount'] as int);
   }
 
-  static Future<User> upgradeToPro({required String token}) =>
-      _planRequest(token: token, endpoint: 'upgrade-to-pro');
+  static Future<User> upgradeToPro({
+    required String token,
+    required String accountHolderName,
+    required String iban,
+  }) =>
+      _planRequest(
+        token: token,
+        endpoint: 'upgrade-to-pro',
+        body: {'accountHolderName': accountHolderName, 'iban': iban},
+      );
 
   static Future<User> downgradeToFree({required String token}) =>
       _planRequest(token: token, endpoint: 'downgrade-to-free');
@@ -147,13 +155,18 @@ class UserService {
   static Future<User> _planRequest({
     required String token,
     required String endpoint,
+    Map<String, dynamic>? body,
   }) async {
     http.Response response;
     try {
       response = await http
           .post(
             Uri.parse('${ApiConfig.baseUrl}/users/$endpoint'),
-            headers: {'Authorization': 'Bearer $token'},
+            headers: {
+              'Authorization': 'Bearer $token',
+              if (body != null) 'Content-Type': 'application/json',
+            },
+            body: body != null ? jsonEncode(body) : null,
           )
           .timeout(const Duration(seconds: 10));
     } on SocketException {
