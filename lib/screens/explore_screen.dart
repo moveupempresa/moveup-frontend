@@ -452,37 +452,51 @@ class ExploreScreenState extends State<ExploreScreen> {
     }
 
     final sections = _sections;
-    if (sections == null || sections.isEmpty) {
-      return ListView(
-        children: [
-          const SizedBox(height: 120),
-          Icon(Icons.explore_outlined, size: 40, color: Theme.of(context).colorScheme.outline),
-          const SizedBox(height: 12),
-          Text(
-            'Todavía no hay eventos publicados',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-          ),
-        ],
-      );
-    }
+    if (sections == null) return const SizedBox.shrink();
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
-        _buildEventSection('Cerca de ti', sections.nearYou),
-        _buildEventSection('Lo más nuevo', sections.newest),
-        _buildEventSection('Eventos populares', sections.popular),
-        _buildProfileSection('Perfiles populares', sections.popularProfiles),
-        _buildEventSection('Para ti', sections.forYou),
+        _buildEventSection(
+          'Cerca de ti',
+          sections.nearYou,
+          emptyMessage: sections.viewerHasLocation
+              ? 'Todavía no hay eventos cerca de ti'
+              : 'Configura tu ciudad en tu perfil para ver eventos cerca de ti',
+        ),
+        _buildEventSection('Lo más nuevo', sections.newest, emptyMessage: 'Nada nuevo por ahora'),
+        _buildEventSection(
+          'Eventos populares',
+          sections.popular,
+          emptyMessage: 'Todavía no hay eventos populares',
+        ),
+        _buildProfileSection(
+          'Perfiles populares',
+          sections.popularProfiles,
+          emptyMessage: 'Todavía no hay perfiles populares',
+        ),
+        _buildEventSection(
+          'Para ti',
+          sections.forYou,
+          emptyMessage: 'Guarda o resérvate a eventos para recibir recomendaciones',
+        ),
       ],
     );
   }
 
-  Widget _buildEventSection(String title, List<Event> events) {
-    if (events.isEmpty) return const SizedBox.shrink();
+  Widget _buildSectionEmptyMessage(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+      ),
+    );
+  }
+
+  Widget _buildEventSection(String title, List<Event> events, {required String emptyMessage}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -493,37 +507,43 @@ class ExploreScreenState extends State<ExploreScreen> {
             child: Text(title, style: Theme.of(context).textTheme.titleMedium),
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 190,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: events.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final event = events[index];
-                return EventMiniCard(
-                  event: event,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => EventDetailScreen(
-                        token: widget.token,
-                        event: event,
-                        currentUserId: widget.currentUserId,
+          if (events.isEmpty)
+            _buildSectionEmptyMessage(emptyMessage)
+          else
+            SizedBox(
+              height: 190,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: events.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final event = events[index];
+                  return EventMiniCard(
+                    event: event,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EventDetailScreen(
+                          token: widget.token,
+                          event: event,
+                          currentUserId: widget.currentUserId,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileSection(String title, List<PopularProfile> profiles) {
-    if (profiles.isEmpty) return const SizedBox.shrink();
+  Widget _buildProfileSection(
+    String title,
+    List<PopularProfile> profiles, {
+    required String emptyMessage,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -534,30 +554,33 @@ class ExploreScreenState extends State<ExploreScreen> {
             child: Text(title, style: Theme.of(context).textTheme.titleMedium),
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 130,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: profiles.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 4),
-              itemBuilder: (context, index) {
-                final profile = profiles[index];
-                return ProfileMiniCard(
-                  profile: profile,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => PublicProfileScreen(
-                        token: widget.token,
-                        userId: profile.userId,
-                        currentUserId: widget.currentUserId,
+          if (profiles.isEmpty)
+            _buildSectionEmptyMessage(emptyMessage)
+          else
+            SizedBox(
+              height: 130,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: profiles.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 4),
+                itemBuilder: (context, index) {
+                  final profile = profiles[index];
+                  return ProfileMiniCard(
+                    profile: profile,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PublicProfileScreen(
+                          token: widget.token,
+                          userId: profile.userId,
+                          currentUserId: widget.currentUserId,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

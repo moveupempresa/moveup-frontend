@@ -7,6 +7,7 @@ class ExploreSections {
   final List<Event> popular;
   final List<Event> forYou;
   final List<PopularProfile> popularProfiles;
+  final bool viewerHasLocation;
 
   const ExploreSections({
     required this.nearYou,
@@ -14,10 +15,8 @@ class ExploreSections {
     required this.popular,
     required this.forYou,
     required this.popularProfiles,
+    required this.viewerHasLocation,
   });
-
-  bool get isEmpty =>
-      nearYou.isEmpty && newest.isEmpty && popular.isEmpty && forYou.isEmpty && popularProfiles.isEmpty;
 
   factory ExploreSections.fromJson(Map<String, dynamic> json) => ExploreSections(
         nearYou: (json['nearYou'] as List<dynamic>)
@@ -35,5 +34,6 @@ class ExploreSections {
         popularProfiles: (json['popularProfiles'] as List<dynamic>)
             .map((p) => PopularProfile.fromJson(p as Map<String, dynamic>))
             .toList(),
+        viewerHasLocation: json['viewerHasLocation'] as bool,
       );
 }
