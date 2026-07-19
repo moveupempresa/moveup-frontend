@@ -239,6 +239,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                   crossAxisCount: 2,
                   crossAxisSpacing: 4,
                   mainAxisSpacing: 4,
+                  childAspectRatio: 0.75,
                 ),
                 itemCount: profile.gallery.length,
                 itemBuilder: (context, index) {
