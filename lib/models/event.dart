@@ -11,7 +11,8 @@ enum EventType {
   competition('competition', 'Competición'),
   battle('battle', 'Battle'),
   party('party', 'Fiesta'),
-  specialEvent('special_event', 'Evento especial');
+  specialEvent('special_event', 'Evento especial'),
+  other('other', 'Otro');
 
   const EventType(this.value, this.label);
   final String value;
@@ -78,6 +79,7 @@ class Event {
   final String description;
   final List<String> style;
   final EventType eventType;
+  final String? customEventType;
   final String city;
   final String country;
   final LocationType locationType;
@@ -102,6 +104,7 @@ class Event {
     required this.description,
     required this.style,
     required this.eventType,
+    this.customEventType,
     required this.city,
     required this.country,
     required this.locationType,
@@ -122,6 +125,11 @@ class Event {
 
   String get organizerName => ownerDisplayName.isNotEmpty ? ownerDisplayName : ownerUsername;
 
+  String get eventTypeLabel =>
+      eventType == EventType.other && (customEventType ?? '').isNotEmpty
+          ? customEventType!
+          : eventType.label;
+
   factory Event.fromJson(Map<String, dynamic> json) => Event(
         id: json['id'] as String,
         ownerUserId: json['ownerUserId'] as String,
@@ -129,6 +137,7 @@ class Event {
         description: json['description'] as String,
         style: (json['style'] as List<dynamic>).cast<String>(),
         eventType: EventType.fromValue(json['eventType'] as String),
+        customEventType: json['customEventType'] as String?,
         city: json['city'] as String,
         country: json['country'] as String,
         locationType: LocationType.fromValue(json['locationType'] as String),

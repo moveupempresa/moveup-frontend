@@ -36,6 +36,7 @@ class ExploreScreenState extends State<ExploreScreen> {
   String? _filterUsername;
   DateTime? _filterDateFrom;
   double? _filterMaxPrice;
+  EventType? _filterEventType;
 
   bool get _hasActiveFilters =>
       _searchTitle != null ||
@@ -43,7 +44,8 @@ class ExploreScreenState extends State<ExploreScreen> {
       _filterStyle != null ||
       _filterUsername != null ||
       _filterDateFrom != null ||
-      _filterMaxPrice != null;
+      _filterMaxPrice != null ||
+      _filterEventType != null;
 
   @override
   void initState() {
@@ -75,6 +77,7 @@ class ExploreScreenState extends State<ExploreScreen> {
         username: _filterUsername,
         dateFrom: _filterDateFrom,
         maxPrice: _filterMaxPrice,
+        eventType: _filterEventType,
       );
       if (mounted) setState(() => _events = events);
     } catch (e) {
@@ -158,8 +161,18 @@ class ExploreScreenState extends State<ExploreScreen> {
         case 'price':
           _filterMaxPrice = null;
           _priceController.clear();
+        case 'eventType':
+          _filterEventType = null;
       }
       if (_expandedFilter == key) _expandedFilter = null;
+    });
+    _loadEvents();
+  }
+
+  void _selectEventTypeFilter(EventType type) {
+    setState(() {
+      _filterEventType = _filterEventType == type ? null : type;
+      _expandedFilter = null;
     });
     _loadEvents();
   }
@@ -235,6 +248,10 @@ class ExploreScreenState extends State<ExploreScreen> {
       chips.add(_summaryChip(
           'Hasta ${_filterMaxPrice!.toStringAsFixed(0)} €', () => _clearFilter('price')));
     }
+    if (_filterEventType != null) {
+      chips.add(_summaryChip(
+          'Tipo: ${_filterEventType!.label}', () => _clearFilter('eventType')));
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Wrap(spacing: 8, runSpacing: 4, children: chips),
@@ -298,6 +315,35 @@ class ExploreScreenState extends State<ExploreScreen> {
                         : null,
                     onTap: _pickDateFilter,
                   ),
+                  ListTile(
+                    leading: const Icon(Icons.category_outlined),
+                    title: const Text('Tipo de evento'),
+                    subtitle: _filterEventType != null ? Text(_filterEventType!.label) : null,
+                    trailing: _filterEventType != null
+                        ? IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => _clearFilter('eventType'),
+                          )
+                        : Icon(_expandedFilter == 'eventType'
+                            ? Icons.expand_less
+                            : Icons.expand_more),
+                    onTap: () => _toggleExpanded('eventType'),
+                  ),
+                  if (_expandedFilter == 'eventType')
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: EventType.values
+                            .map((t) => ChoiceChip(
+                                  label: Text(t.label),
+                                  selected: _filterEventType == t,
+                                  onSelected: (_) => _selectEventTypeFilter(t),
+                                ))
+                            .toList(),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -313,6 +359,7 @@ class ExploreScreenState extends State<ExploreScreen> {
                       _filterUsername = null;
                       _filterDateFrom = null;
                       _filterMaxPrice = null;
+                      _filterEventType = null;
                       _cityController.clear();
                       _styleController.clear();
                       _usernameController.clear();

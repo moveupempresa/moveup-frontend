@@ -50,8 +50,6 @@ class _PackDraft {
   PaymentType paymentType;
   double price;
   ApprovalMode approvalMode;
-  bool isUnlimitedCapacity;
-  int? capacity;
   PackType packType;
   int? maxSelectableSessions;
   List<_SessionDraft> selectedSessions;
@@ -62,8 +60,6 @@ class _PackDraft {
     required this.paymentType,
     required this.price,
     required this.approvalMode,
-    required this.isUnlimitedCapacity,
-    this.capacity,
     required this.packType,
     this.maxSelectableSessions,
     required this.selectedSessions,
@@ -75,8 +71,6 @@ class _PackDraft {
         paymentType: p.paymentType,
         price: p.price,
         approvalMode: p.approvalMode,
-        isUnlimitedCapacity: p.isUnlimitedCapacity,
-        capacity: p.capacity,
         packType: p.packType,
         maxSelectableSessions: p.maxSelectableSessions,
         selectedSessions:
@@ -103,6 +97,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
   final _countryController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _styleInputController = TextEditingController();
+  final _customEventTypeController = TextEditingController();
 
   final List<String> _styles = [];
   final List<_SessionDraft> _sessions = [];
@@ -132,6 +127,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
       _styles.addAll(event.style);
       _reservationChoice = event.reservationEnabled;
       _eventType = event.eventType;
+      _customEventTypeController.text = event.customEventType ?? '';
       _locationType = event.locationType;
       _visibility = event.visibility;
       _status = event.status;
@@ -149,6 +145,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     _countryController.dispose();
     _descriptionController.dispose();
     _styleInputController.dispose();
+    _customEventTypeController.dispose();
     super.dispose();
   }
 
@@ -158,6 +155,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
   }
 
   void _addStyle() {
+    if (_styles.length >= 3) {
+      _showError('Puedes elegir hasta 3 estilos');
+      return;
+    }
     final value = _styleInputController.text.trim();
     if (value.isEmpty) return;
     if (_styles.contains(value)) {
@@ -470,9 +471,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
           ? existing.price.toString()
           : '',
     );
-    final capacityCtrl = TextEditingController(
-      text: existing?.capacity != null ? existing!.capacity.toString() : '',
-    );
     final maxSelectableSessionsCtrl = TextEditingController(
       text: existing?.maxSelectableSessions != null
           ? existing!.maxSelectableSessions.toString()
@@ -481,7 +479,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
     PaymentType paymentType = existing?.paymentType ?? PaymentType.online;
     ApprovalMode approvalMode = existing?.approvalMode ?? ApprovalMode.automatic;
     PackType packType = existing?.packType ?? PackType.fixed;
-    bool isUnlimited = existing?.isUnlimitedCapacity ?? true;
     final selectedSessions = <_SessionDraft>{...(existing?.selectedSessions ?? [])};
 
     await showModalBottomSheet(
@@ -494,11 +491,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 (priceCtrl.text.trim().isNotEmpty &&
                     double.tryParse(priceCtrl.text.trim()) != null &&
                     double.parse(priceCtrl.text.trim()) > 0);
-
-            final capacityValid = isUnlimited ||
-                (capacityCtrl.text.trim().isNotEmpty &&
-                    int.tryParse(capacityCtrl.text.trim()) != null &&
-                    int.parse(capacityCtrl.text.trim()) > 0);
 
             final maxSelectableSessionsValid = packType != PackType.customizable ||
                 (maxSelectableSessionsCtrl.text.trim().isNotEmpty &&
@@ -513,7 +505,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
             final canSave = nameCtrl.text.trim().isNotEmpty &&
                 priceValid &&
-                capacityValid &&
                 maxSelectableSessionsValid &&
                 selectedSessionsValid &&
                 customizableSessionsValid;
@@ -570,25 +561,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
                       if (v != null) approvalMode = v;
                     }),
                   ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Capacidad ilimitada'),
-                    value: isUnlimited,
-                    onChanged: (v) => setSheetState(() {
-                      isUnlimited = v;
-                      if (v) capacityCtrl.clear();
-                    }),
-                  ),
-                  if (!isUnlimited) ...[
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: capacityCtrl,
-                      decoration: const InputDecoration(labelText: 'Capacidad (nº de personas)'),
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setSheetState(() {}),
-                    ),
-                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<PackType>(
                     value: packType,
@@ -655,8 +627,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
                               final price = paymentType == PaymentType.free
                                   ? 0.0
                                   : double.parse(priceCtrl.text.trim());
-                              final capacity =
-                                  isUnlimited ? null : int.parse(capacityCtrl.text.trim());
                               final maxSelectable = packType == PackType.customizable
                                   ? int.parse(maxSelectableSessionsCtrl.text.trim())
                                   : null;
@@ -670,8 +640,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                 existing.paymentType = paymentType;
                                 existing.price = price;
                                 existing.approvalMode = approvalMode;
-                                existing.isUnlimitedCapacity = isUnlimited;
-                                existing.capacity = capacity;
                                 existing.packType = packType;
                                 existing.maxSelectableSessions = maxSelectable;
                                 existing.selectedSessions = sessions;
@@ -681,8 +649,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                   paymentType: paymentType,
                                   price: price,
                                   approvalMode: approvalMode,
-                                  isUnlimitedCapacity: isUnlimited,
-                                  capacity: capacity,
                                   packType: packType,
                                   maxSelectableSessions: maxSelectable,
                                   selectedSessions: sessions,
@@ -749,6 +715,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
           coverFile: _coverFile,
           reservationEnabled: _reservationChoice!,
           eventType: _eventType,
+          customEventType: _eventType == EventType.other
+              ? _customEventTypeController.text.trim()
+              : null,
           locationType: _locationType,
           visibility: _visibility,
           status: _status,
@@ -765,6 +734,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
           coverFile: _coverFile!,
           reservationEnabled: _reservationChoice!,
           status: EventStatus.published,
+          eventType: _eventType,
+          customEventType: _eventType == EventType.other
+              ? _customEventTypeController.text.trim()
+              : null,
         );
         eventId = created.id;
       }
@@ -816,8 +789,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
             paymentType: pack.paymentType,
             packType: pack.packType,
             approvalMode: pack.approvalMode,
-            isUnlimitedCapacity: pack.isUnlimitedCapacity,
-            capacity: pack.capacity,
             maxSelectableSessions: pack.maxSelectableSessions,
             sessionIds: sessionIds,
           );
@@ -831,8 +802,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
             paymentType: pack.paymentType,
             packType: pack.packType,
             approvalMode: pack.approvalMode,
-            isUnlimitedCapacity: pack.isUnlimitedCapacity,
-            capacity: pack.capacity,
             maxSelectableSessions: pack.maxSelectableSessions,
             sessionIds: sessionIds,
           );
@@ -913,6 +882,17 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   if (v != null) _eventType = v;
                 }),
               ),
+              if (_eventType == EventType.other) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _customEventTypeController,
+                  decoration: const InputDecoration(hintText: '¿De qué tipo de evento se trata?'),
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: (v) => _eventType == EventType.other && (v == null || v.trim().isEmpty)
+                      ? 'Requerido'
+                      : null,
+                ),
+              ],
               if (_isEditing) ...[
                 const SizedBox(height: 16),
                 _label('Estado'),
@@ -930,14 +910,30 @@ class _EventFormScreenState extends State<EventFormScreen> {
               const SizedBox(height: 24),
 
               // 5. Estilo (chips)
-              _label('Estilo'),
+              Row(
+                children: [
+                  _label('Estilo'),
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${_styles.length}/3)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _styleInputController,
-                      decoration: const InputDecoration(hintText: 'ej: Salsa, Bachata, Hip-hop...'),
+                      decoration: InputDecoration(
+                        hintText: _styles.length >= 3
+                            ? 'Máximo de estilos alcanzado'
+                            : 'ej: Salsa, Bachata, Hip-hop...',
+                      ),
+                      enabled: _styles.length < 3,
                       textCapitalization: TextCapitalization.sentences,
                       onSubmitted: (_) => _addStyle(),
                       onChanged: (_) => setState(() {}),
@@ -945,7 +941,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    onPressed: _styleInputController.text.trim().isEmpty ? null : _addStyle,
+                    onPressed: _styles.length < 3 && _styleInputController.text.trim().isNotEmpty
+                        ? _addStyle
+                        : null,
                     icon: const Icon(Icons.add),
                   ),
                 ],

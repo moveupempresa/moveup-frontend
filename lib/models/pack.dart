@@ -45,8 +45,6 @@ class Pack {
   final PackType packType;
   final ApprovalMode approvalMode;
   final int? maxSelectableSessions;
-  final bool isUnlimitedCapacity;
-  final int? capacity;
   final List<String> sessionIds;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -54,6 +52,7 @@ class Pack {
   final bool isSignedUp;
   final bool isWaitlisted;
   final bool isPending;
+  final bool isAwaitingPayment;
   final List<String> mySelectedSessionIds;
 
   const Pack({
@@ -66,8 +65,6 @@ class Pack {
     required this.packType,
     required this.approvalMode,
     this.maxSelectableSessions,
-    required this.isUnlimitedCapacity,
-    this.capacity,
     required this.sessionIds,
     required this.createdAt,
     required this.updatedAt,
@@ -75,10 +72,9 @@ class Pack {
     this.isSignedUp = false,
     this.isWaitlisted = false,
     this.isPending = false,
+    this.isAwaitingPayment = false,
     this.mySelectedSessionIds = const [],
   });
-
-  bool get isFull => !isUnlimitedCapacity && capacity != null && confirmedCount >= capacity!;
 
   factory Pack.fromJson(Map<String, dynamic> json) => Pack(
         id: json['id'] as String,
@@ -90,8 +86,6 @@ class Pack {
         packType: PackType.fromValue(json['packType'] as String),
         approvalMode: ApprovalMode.fromValue(json['approvalMode'] as String),
         maxSelectableSessions: json['maxSelectableSessions'] as int?,
-        isUnlimitedCapacity: json['isUnlimitedCapacity'] as bool,
-        capacity: json['capacity'] as int?,
         sessionIds: json['sessionIds'] != null
             ? (json['sessionIds'] as List<dynamic>).cast<String>()
             : const [],
@@ -101,6 +95,7 @@ class Pack {
         isSignedUp: json['isSignedUp'] as bool? ?? false,
         isWaitlisted: json['isWaitlisted'] as bool? ?? false,
         isPending: json['isPending'] as bool? ?? false,
+        isAwaitingPayment: json['isAwaitingPayment'] as bool? ?? false,
         mySelectedSessionIds: json['mySelectedSessionIds'] != null
             ? (json['mySelectedSessionIds'] as List<dynamic>).cast<String>()
             : const [],

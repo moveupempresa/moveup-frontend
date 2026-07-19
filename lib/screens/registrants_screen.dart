@@ -72,6 +72,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
         RegistrationStatus.confirmed => Colors.green.shade700,
         RegistrationStatus.pending => Colors.grey.shade600,
         RegistrationStatus.waitlisted => Colors.amber.shade800,
+        RegistrationStatus.awaitingPayment => Colors.orange.shade800,
       };
 
   bool get _showsPayment =>
@@ -158,19 +159,12 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
     if (confirmed != true) return;
 
     try {
-      widget.targetType == RegistrantsTargetType.session
-          ? await RegistrationService.revokeSessionRegistration(
-              token: widget.token,
-              eventId: widget.eventId,
-              sessionId: widget.targetId,
-              userId: r.userId,
-            )
-          : await RegistrationService.revokePackRegistration(
-              token: widget.token,
-              eventId: widget.eventId,
-              packId: widget.targetId,
-              userId: r.userId,
-            );
+      await RegistrationService.revokePackRegistration(
+        token: widget.token,
+        eventId: widget.eventId,
+        packId: widget.targetId,
+        userId: r.userId,
+      );
       if (mounted) {
         setState(() => _registrants!.removeWhere((x) => x.userId == r.userId));
       }
@@ -269,7 +263,8 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                         ),
                       ),
                     ),
-                  if (r.status == RegistrationStatus.confirmed && r.viaPack == null)
+                  if (widget.targetType == RegistrantsTargetType.pack &&
+                      r.status == RegistrationStatus.confirmed)
                     IconButton(
                       icon: const Icon(Icons.person_remove_outlined),
                       color: Theme.of(context).colorScheme.error,

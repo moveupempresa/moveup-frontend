@@ -23,6 +23,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.signupApproved,
     NotificationType.signupRejected,
     NotificationType.registrationRevoked,
+    NotificationType.paymentRequired,
   };
   static const _myEventsTypes = {
     NotificationType.newRegistration,
@@ -99,7 +100,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             items: _itemsOfTypes(_myEventsTypes),
           ),
           _buildNotificationSection(
-            title: 'Perfiles guardados',
+            title: 'Perfiles seguidos',
             icon: Icons.bookmark_outline,
             items: _itemsOfTypes(_followTypes),
           ),
@@ -209,6 +210,7 @@ class _NotificationTileState extends State<_NotificationTile> {
         NotificationType.signupRejected => Icons.cancel_outlined,
         NotificationType.packPaid => Icons.payments_outlined,
         NotificationType.registrationRevoked => Icons.event_busy_outlined,
+        NotificationType.paymentRequired => Icons.hourglass_bottom,
       };
 
   Future<void> _respond(bool approve) async {

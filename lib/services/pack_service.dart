@@ -18,8 +18,6 @@ class PackService {
     required PackType packType,
     required ApprovalMode approvalMode,
     int? maxSelectableSessions,
-    required bool isUnlimitedCapacity,
-    int? capacity,
     List<String> sessionIds = const [],
   }) async {
     http.Response response;
@@ -39,8 +37,6 @@ class PackService {
               'packType': packType.value,
               'approvalMode': approvalMode.value,
               if (maxSelectableSessions != null) 'maxSelectableSessions': maxSelectableSessions,
-              'isUnlimitedCapacity': isUnlimitedCapacity,
-              if (!isUnlimitedCapacity && capacity != null) 'capacity': capacity,
               if (sessionIds.isNotEmpty) 'sessionIds': sessionIds,
             }),
           )
@@ -67,8 +63,6 @@ class PackService {
     required PackType packType,
     required ApprovalMode approvalMode,
     int? maxSelectableSessions,
-    required bool isUnlimitedCapacity,
-    int? capacity,
     List<String> sessionIds = const [],
   }) async {
     http.Response response;
@@ -88,8 +82,6 @@ class PackService {
               'packType': packType.value,
               'approvalMode': approvalMode.value,
               'maxSelectableSessions': maxSelectableSessions,
-              'isUnlimitedCapacity': isUnlimitedCapacity,
-              'capacity': isUnlimitedCapacity ? null : capacity,
               'sessionIds': sessionIds,
             }),
           )

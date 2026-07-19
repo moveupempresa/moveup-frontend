@@ -273,7 +273,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 const SizedBox(height: 8),
                 _InfoRow(
                   icon: Icons.category_outlined,
-                  text: event.eventType.label,
+                  text: event.eventTypeLabel,
                 ),
                 const SizedBox(height: 8),
                 _InfoRow(
@@ -581,6 +581,7 @@ class _SignupIconButton extends StatelessWidget {
   final bool isSignedUp;
   final bool isWaitlisted;
   final bool isPending;
+  final bool isAwaitingPayment;
   final bool isLoading;
   final bool isExpandable;
   final bool isExpanded;
@@ -592,6 +593,7 @@ class _SignupIconButton extends StatelessWidget {
     required this.isSignedUp,
     required this.isWaitlisted,
     this.isPending = false,
+    this.isAwaitingPayment = false,
     required this.isLoading,
     this.isExpandable = false,
     this.isExpanded = false,
@@ -611,6 +613,13 @@ class _SignupIconButton extends StatelessWidget {
       return IconButton(
         icon: Icon(Icons.hourglass_top, color: Theme.of(context).colorScheme.primary),
         tooltip: 'Solicitud pendiente de aprobación · toca para cancelar',
+        onPressed: onToggleSignUp,
+      );
+    }
+    if (isAwaitingPayment) {
+      return IconButton(
+        icon: Icon(Icons.hourglass_bottom, color: Colors.amber.shade800),
+        tooltip: 'Esperando tu pago · toca para cancelar',
         onPressed: onToggleSignUp,
       );
     }
@@ -663,18 +672,13 @@ class _PackCard extends StatefulWidget {
 class _PackCardState extends State<_PackCard> {
   late int _confirmedCount = widget.pack.confirmedCount;
   late bool _isSignedUp = widget.pack.isSignedUp;
-  late bool _isWaitlisted = widget.pack.isWaitlisted;
   late bool _isPending = widget.pack.isPending;
+  late bool _isAwaitingPayment = widget.pack.isAwaitingPayment;
   late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds.toSet();
   bool _isLoading = false;
   bool _isExpanded = false;
 
-  bool get _isFull =>
-      !widget.pack.isUnlimitedCapacity &&
-      widget.pack.capacity != null &&
-      _confirmedCount >= widget.pack.capacity!;
-
-  bool get _isCommitted => _isSignedUp || _isPending;
+  bool get _isCommitted => _isSignedUp || _isPending || _isAwaitingPayment;
 
   bool get _selectionValid {
     if (_selectedSessionIds.isEmpty) return false;
@@ -700,10 +704,15 @@ class _PackCardState extends State<_PackCard> {
 
   bool get _isCustomizable => widget.pack.packType == PackType.customizable;
 
-  bool get _isPaymentReady =>
-      widget.pack.approvalMode == ApprovalMode.automatic || _isSignedUp;
+  bool get _isPaymentReady => _isAwaitingPayment || _isSignedUp;
 
   void _onPaymentIconTap() {
+    if (_isSignedUp) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ya has pagado este pack')),
+      );
+      return;
+    }
     if (!_isPaymentReady) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Esperando aprobación del organizador')),
@@ -742,6 +751,7 @@ class _PackCardState extends State<_PackCard> {
           setState(() {
             _isSignedUp = status == 'confirmed';
             _isPending = status == 'pending';
+            _isAwaitingPayment = status == 'awaiting_payment';
             _confirmedCount = count;
             _isExpanded = false;
           });
@@ -784,27 +794,7 @@ class _PackCardState extends State<_PackCard> {
         setState(() {
           _isSignedUp = status == 'confirmed';
           _isPending = status == 'pending';
-          _confirmedCount = count;
-        });
-      }
-    } catch (e) {
-      _showError(e);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _toggleWaitlist() async {
-    setState(() => _isLoading = true);
-    try {
-      final (status, count) = _isWaitlisted
-          ? await RegistrationService.leavePackWaitlist(
-              token: widget.token, eventId: widget.eventId, packId: widget.pack.id)
-          : await RegistrationService.joinPackWaitlist(
-              token: widget.token, eventId: widget.eventId, packId: widget.pack.id);
-      if (mounted) {
-        setState(() {
-          _isWaitlisted = status == 'waitlisted';
+          _isAwaitingPayment = status == 'awaiting_payment';
           _confirmedCount = count;
         });
       }
@@ -840,18 +830,7 @@ class _PackCardState extends State<_PackCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(pack.name, style: Theme.of(context).textTheme.titleSmall),
-                    ),
-                    if (!pack.isUnlimitedCapacity && pack.capacity != null) ...[
-                      const SizedBox(width: 8),
-                      _CapacityBadge(confirmedCount: _confirmedCount, capacity: pack.capacity!),
-                    ],
-                  ],
-                ),
+                Text(pack.name, style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -874,11 +853,7 @@ class _PackCardState extends State<_PackCard> {
                     const Icon(Icons.people_outline, size: 14),
                     const SizedBox(width: 6),
                     Text(
-                      pack.isUnlimitedCapacity
-                          ? 'Aforo ilimitado'
-                          : pack.capacity != null
-                              ? '$_confirmedCount / ${pack.capacity} personas'
-                              : 'Aforo no especificado',
+                      '$_confirmedCount inscritos',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -994,15 +969,16 @@ class _PackCardState extends State<_PackCard> {
               right: 4,
               bottom: 4,
               child: _SignupIconButton(
-                isFull: _isFull,
+                isFull: false,
                 isSignedUp: _isSignedUp,
-                isWaitlisted: _isWaitlisted,
+                isWaitlisted: false,
                 isPending: _isPending,
+                isAwaitingPayment: _isAwaitingPayment,
                 isLoading: _isLoading,
                 isExpandable: _isCustomizable,
                 isExpanded: _isExpanded,
                 onToggleSignUp: _toggleSignUp,
-                onToggleWaitlist: _toggleWaitlist,
+                onToggleWaitlist: () {},
               ),
             ),
           if (!widget.isOwner && pack.paymentType != PaymentType.free)

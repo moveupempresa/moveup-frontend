@@ -10,7 +10,8 @@ enum NotificationType {
   signupApproved('signup_approved'),
   signupRejected('signup_rejected'),
   packPaid('pack_paid'),
-  registrationRevoked('registration_revoked');
+  registrationRevoked('registration_revoked'),
+  paymentRequired('payment_required');
 
   const NotificationType(this.value);
   final String value;

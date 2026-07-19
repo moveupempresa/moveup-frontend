@@ -19,6 +19,8 @@ class EventService {
     required File coverFile,
     bool reservationEnabled = false,
     EventStatus status = EventStatus.draft,
+    EventType? eventType,
+    String? customEventType,
   }) async {
     http.Response response;
     try {
@@ -34,6 +36,8 @@ class EventService {
       request.fields['country'] = country;
       request.fields['reservationEnabled'] = reservationEnabled.toString();
       request.fields['status'] = status.value;
+      if (eventType != null) request.fields['eventType'] = eventType.value;
+      if (customEventType != null) request.fields['customEventType'] = customEventType;
 
       request.files.add(await http.MultipartFile.fromPath(
         'cover',
@@ -65,6 +69,7 @@ class EventService {
     File? coverFile,
     bool? reservationEnabled,
     EventType? eventType,
+    String? customEventType,
     LocationType? locationType,
     EventVisibility? visibility,
     EventStatus? status,
@@ -85,6 +90,7 @@ class EventService {
         request.fields['reservationEnabled'] = reservationEnabled.toString();
       }
       if (eventType != null) request.fields['eventType'] = eventType.value;
+      if (customEventType != null) request.fields['customEventType'] = customEventType;
       if (locationType != null) request.fields['locationType'] = locationType.value;
       if (visibility != null) request.fields['visibility'] = visibility.value;
       if (status != null) request.fields['status'] = status.value;
@@ -192,6 +198,7 @@ class EventService {
     String? userId,
     DateTime? dateFrom,
     double? maxPrice,
+    EventType? eventType,
   }) async {
     final queryParams = <String, String>{
       if (title != null && title.isNotEmpty) 'title': title,
@@ -201,6 +208,7 @@ class EventService {
       if (userId != null && userId.isNotEmpty) 'userId': userId,
       if (dateFrom != null) 'dateFrom': dateFrom.toUtc().toIso8601String(),
       if (maxPrice != null) 'maxPrice': maxPrice.toString(),
+      if (eventType != null) 'eventType': eventType.value,
     };
 
     http.Response response;

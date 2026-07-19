@@ -1,7 +1,8 @@
 enum RegistrationStatus {
   confirmed('confirmed', 'Confirmado'),
   pending('pending', 'Pendiente de aprobación'),
-  waitlisted('waitlisted', 'Lista de espera');
+  waitlisted('waitlisted', 'Lista de espera'),
+  awaitingPayment('awaiting_payment', 'Esperando pago');
 
   const RegistrationStatus(this.value, this.label);
   final String value;
