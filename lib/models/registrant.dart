@@ -19,6 +19,7 @@ class Registrant {
   final RegistrationStatus status;
   final List<String> selectedSessionIds;
   final bool hasPaid;
+  final String? viaPack;
   final DateTime createdAt;
 
   const Registrant({
@@ -29,6 +30,7 @@ class Registrant {
     required this.status,
     required this.selectedSessionIds,
     required this.hasPaid,
+    this.viaPack,
     required this.createdAt,
   });
 
@@ -42,6 +44,7 @@ class Registrant {
             ? (json['selectedSessionIds'] as List<dynamic>).cast<String>()
             : const [],
         hasPaid: json['hasPaid'] as bool? ?? false,
+        viaPack: json['viaPack'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 
@@ -53,6 +56,7 @@ class Registrant {
         status: status,
         selectedSessionIds: selectedSessionIds,
         hasPaid: hasPaid ?? this.hasPaid,
+        viaPack: viaPack,
         createdAt: createdAt,
       );
 }

@@ -210,6 +210,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                 [
                   '@${r.username}',
                   if (sessionNames.isNotEmpty) sessionNames.join(', '),
+                  if (r.viaPack != null) 'vía pack "${r.viaPack}"',
                 ].join(' · '),
               ),
               trailing: Row(
@@ -233,7 +234,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                         ),
                       ),
                     ),
-                  if (r.status == RegistrationStatus.confirmed)
+                  if (r.status == RegistrationStatus.confirmed && r.viaPack == null)
                     IconButton(
                       icon: const Icon(Icons.person_remove_outlined),
                       color: Theme.of(context).colorScheme.error,
