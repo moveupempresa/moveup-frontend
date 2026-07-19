@@ -53,16 +53,23 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
   // read the y/m/d fields directly instead.
   DateTime _calendarDayKey(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
+  // Each event is placed on a single day (its earliest session), so the
+  // calendar marks one entry per event instead of one per session.
+  DateTime? _eventDayKey(Event event) {
+    final sessions = event.sessions;
+    if (sessions == null || sessions.isEmpty) return null;
+    return _dayKey(sessions.first.startDatetime);
+  }
+
   List<DateTime> _allDayKeys(List<Event> events) =>
-      events.expand((e) => (e.sessions ?? []).map((s) => _dayKey(s.startDatetime))).toList();
+      events.map(_eventDayKey).whereType<DateTime>().toList();
 
   Map<DateTime, List<Event>> _groupByDay(List<Event> events) {
     final map = <DateTime, List<Event>>{};
     for (final event in events) {
-      final days = (event.sessions ?? []).map((s) => _dayKey(s.startDatetime)).toSet();
-      for (final day in days) {
-        map.putIfAbsent(day, () => []).add(event);
-      }
+      final day = _eventDayKey(event);
+      if (day == null) continue;
+      map.putIfAbsent(day, () => []).add(event);
     }
     return map;
   }
