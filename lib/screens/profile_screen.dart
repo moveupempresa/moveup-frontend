@@ -6,8 +6,8 @@ import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
 import '../services/notification_service.dart';
-import '../widgets/event_card.dart';
 import '../widgets/image_viewer_dialog.dart';
+import '../widgets/profile_events_section.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
 import 'settings/notifications_screen.dart';
@@ -282,88 +282,43 @@ class ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
           const SizedBox(height: 32),
-          Text('Eventos', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          if (_user.subscriptionPlan == SubscriptionPlan.free)
-            _EventsLockedBanner(
-              onUpgrade: () async {
-                final updatedUser = await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ProPlanScreen(
-                      token: widget.token,
-                      subscriptionPlan: SubscriptionPlan.free,
-                    ),
+          ProfileEventsSection(
+            events: _events,
+            isLoading: _loadingEvents,
+            error: _eventsError,
+            onRetry: _loadEvents,
+            emptyMessage: 'Todavía no tienes eventos publicados',
+            lockedBanner: _user.subscriptionPlan == SubscriptionPlan.free
+                ? _EventsLockedBanner(
+                    onUpgrade: () async {
+                      final updatedUser = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProPlanScreen(
+                            token: widget.token,
+                            subscriptionPlan: SubscriptionPlan.free,
+                          ),
+                        ),
+                      );
+                      if (updatedUser != null) {
+                        setState(() => _user = updatedUser);
+                        _loadEvents();
+                      }
+                    },
+                  )
+                : null,
+            onEventTap: (e) async {
+              final changed = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => EventDetailScreen(
+                    token: widget.token,
+                    event: e,
+                    currentUserId: _user.id,
                   ),
-                );
-                if (updatedUser != null) {
-                  setState(() => _user = updatedUser);
-                  _loadEvents();
-                }
-              },
-            )
-          else if (_loadingEvents)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else if (_eventsError != null)
-            _ErrorBanner(onRetry: _loadEvents)
-          else if (_events == null || _events!.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: const Text('Todavía no tienes eventos publicados'),
-            )
-          else
-            Column(
-              children: _events!
-                  .map((e) => EventCard(
-                        event: e,
-                        onTap: () async {
-                          final changed = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder: (_) => EventDetailScreen(
-                                token: widget.token,
-                                event: e,
-                                currentUserId: _user.id,
-                              ),
-                            ),
-                          );
-                          if (changed == true) _loadEvents();
-                        },
-                      ))
-                  .toList(),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _ErrorBanner({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const Text('No se pudieron cargar los eventos'),
-          const SizedBox(height: 8),
-          TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+                ),
+              );
+              if (changed == true) _loadEvents();
+            },
+          ),
         ],
       ),
     );
