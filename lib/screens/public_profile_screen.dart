@@ -222,31 +222,31 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         const SizedBox(height: 32),
         Text('Galería', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-        profile.gallery.isEmpty
-            ? Container(
-                height: 96,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: const Text('Sin imágenes todavía'),
-              )
-            : GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
-                ),
-                itemCount: profile.gallery.length,
-                itemBuilder: (context, index) {
-                  final url = profile.gallery[index];
-                  final isVideo = isGalleryVideoUrl(url);
-                  return ClipRRect(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: -24),
+          child: profile.gallery.isEmpty
+              ? Container(
+                  height: 96,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                     borderRadius: BorderRadius.circular(12),
-                    child: GestureDetector(
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text('Sin imágenes todavía'),
+                )
+              : GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
+                  ),
+                  itemCount: profile.gallery.length,
+                  itemBuilder: (context, index) {
+                    final url = profile.gallery[index];
+                    final isVideo = isGalleryVideoUrl(url);
+                    return GestureDetector(
                       onTap: isVideo
                           ? null
                           : () => showImageViewer(context, ApiConfig.mediaUrl(url)),
@@ -264,10 +264,10 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                               ApiConfig.mediaUrl(url),
                               fit: BoxFit.cover,
                             ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
+        ),
         const SizedBox(height: 32),
         Text('Eventos', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
