@@ -217,9 +217,9 @@ class ProfileScreenState extends State<ProfileScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
                   ),
                   itemCount: _profile.gallery.length,
                   itemBuilder: (context, index) {
