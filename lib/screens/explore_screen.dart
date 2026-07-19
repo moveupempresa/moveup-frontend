@@ -286,7 +286,11 @@ class ExploreScreenState extends State<ExploreScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: _activeHint,
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: 'Buscar',
+                  onPressed: () => _submitSearch(_searchController.text),
+                ),
                 prefixText: _committedPrefix(),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
