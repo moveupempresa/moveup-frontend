@@ -133,22 +133,17 @@ class ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           Center(
-            child: GestureDetector(
-              onTap: _profile.profileImage != null
-                  ? () => showImageViewer(context, ApiConfig.mediaUrl(_profile.profileImage!))
+            child: CircleAvatar(
+              radius: 48,
+              backgroundImage: _profile.profileImage != null
+                  ? NetworkImage(ApiConfig.mediaUrl(_profile.profileImage!))
                   : null,
-              child: CircleAvatar(
-                radius: 48,
-                backgroundImage: _profile.profileImage != null
-                    ? NetworkImage(ApiConfig.mediaUrl(_profile.profileImage!))
-                    : null,
-                child: _profile.profileImage == null
-                    ? Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      )
-                    : null,
-              ),
+              child: _profile.profileImage == null
+                  ? Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    )
+                  : null,
             ),
           ),
           const SizedBox(height: 16),
