@@ -913,30 +913,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   if (v != null) _eventType = v;
                 }),
               ),
-              const SizedBox(height: 16),
-              _label('Modalidad'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<LocationType>(
-                value: _locationType,
-                items: LocationType.values
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  if (v != null) _locationType = v;
-                }),
-              ),
-              const SizedBox(height: 16),
-              _label('Visibilidad'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<EventVisibility>(
-                value: _visibility,
-                items: EventVisibility.values
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  if (v != null) _visibility = v;
-                }),
-              ),
               if (_isEditing) ...[
                 const SizedBox(height: 16),
                 _label('Estado'),
