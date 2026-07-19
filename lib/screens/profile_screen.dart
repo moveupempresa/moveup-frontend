@@ -7,6 +7,7 @@ import '../models/user.dart';
 import '../services/event_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/event_card.dart';
+import '../widgets/image_viewer_dialog.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
 import 'settings/notifications_screen.dart';
@@ -132,17 +133,22 @@ class ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           Center(
-            child: CircleAvatar(
-              radius: 48,
-              backgroundImage: _profile.profileImage != null
-                  ? NetworkImage(ApiConfig.mediaUrl(_profile.profileImage!))
+            child: GestureDetector(
+              onTap: _profile.profileImage != null
+                  ? () => showImageViewer(context, ApiConfig.mediaUrl(_profile.profileImage!))
                   : null,
-              child: _profile.profileImage == null
-                  ? Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    )
-                  : null,
+              child: CircleAvatar(
+                radius: 48,
+                backgroundImage: _profile.profileImage != null
+                    ? NetworkImage(ApiConfig.mediaUrl(_profile.profileImage!))
+                    : null,
+                child: _profile.profileImage == null
+                    ? Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      )
+                    : null,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -223,22 +229,28 @@ class ProfileScreenState extends State<ProfileScreen> {
                   itemCount: _profile.gallery.length,
                   itemBuilder: (context, index) {
                     final url = _profile.gallery[index];
+                    final isVideo = isGalleryVideoUrl(url);
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: isGalleryVideoUrl(url)
-                          ? Container(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              alignment: Alignment.center,
-                              child: Icon(
-                                Icons.play_circle_outline,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                size: 32,
+                      child: GestureDetector(
+                        onTap: isVideo
+                            ? null
+                            : () => showImageViewer(context, ApiConfig.mediaUrl(url)),
+                        child: isVideo
+                            ? Container(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  Icons.play_circle_outline,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  size: 32,
+                                ),
+                              )
+                            : Image.network(
+                                ApiConfig.mediaUrl(url),
+                                fit: BoxFit.cover,
                               ),
-                            )
-                          : Image.network(
-                              ApiConfig.mediaUrl(url),
-                              fit: BoxFit.cover,
-                            ),
+                      ),
                     );
                   },
                 ),
