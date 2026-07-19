@@ -67,15 +67,36 @@ class ProfileService {
     return (profile, username, isFollowing, followersCount);
   }
 
-  static Future<Profile> addGalleryMedia({
+  static Future<Profile> addGalleryAlbum({
     required String token,
-    required File mediaFile,
-  }) =>
-      _uploadImage(token: token, imageFile: mediaFile, endpoint: 'profile/me/gallery');
+    required List<File> mediaFiles,
+  }) async {
+    http.Response response;
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}/profile/me/gallery'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      for (final file in mediaFiles) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'images',
+          file.path,
+          contentType: _mediaTypeFromPath(file.path),
+        ));
+      }
 
-  static Future<Profile> removeGalleryImage({
+      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      response = await http.Response.fromStream(streamed);
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+    return _parseProfile(response);
+  }
+
+  static Future<Profile> removeGalleryAlbum({
     required String token,
-    required String url,
+    required String id,
   }) async {
     http.Response response;
     try {
@@ -85,7 +106,7 @@ class ProfileService {
       );
       request.headers['Content-Type'] = 'application/json';
       request.headers['Authorization'] = 'Bearer $token';
-      request.body = jsonEncode({'url': url});
+      request.body = jsonEncode({'id': id});
       final streamed = await request.send().timeout(const Duration(seconds: 10));
       response = await http.Response.fromStream(streamed);
     } on SocketException {

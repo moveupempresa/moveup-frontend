@@ -3,6 +3,20 @@ const _videoExtensions = ['.mp4', '.mov', '.avi'];
 bool isGalleryVideoUrl(String url) =>
     _videoExtensions.any((ext) => url.toLowerCase().endsWith(ext));
 
+class GalleryItem {
+  final String id;
+  final List<String> urls;
+
+  const GalleryItem({required this.id, required this.urls});
+
+  bool get isVideo => isGalleryVideoUrl(urls.first);
+
+  factory GalleryItem.fromJson(Map<String, dynamic> json) => GalleryItem(
+        id: json['id'] as String,
+        urls: (json['urls'] as List<dynamic>).cast<String>(),
+      );
+}
+
 class SocialLinks {
   final String instagram;
   final String tiktok;
@@ -62,7 +76,7 @@ class Profile {
   final String city;
   final String country;
   final String? profileImage;
-  final List<String> gallery;
+  final List<GalleryItem> gallery;
   final String websiteUrl;
   final String cvUrl;
   final int experience;
@@ -98,7 +112,10 @@ class Profile {
       city: json['city'] as String? ?? '',
       country: json['country'] as String? ?? '',
       profileImage: json['profileImage'] as String?,
-      gallery: (json['gallery'] as List<dynamic>?)?.cast<String>() ?? const [],
+      gallery: (json['gallery'] as List<dynamic>?)
+              ?.map((g) => GalleryItem.fromJson(g as Map<String, dynamic>))
+              .toList() ??
+          const [],
       websiteUrl: json['websiteUrl'] as String? ?? '',
       cvUrl: json['cvUrl'] as String? ?? '',
       experience: (json['experience'] as num?)?.toInt() ?? 0,
@@ -117,7 +134,7 @@ class Profile {
     String? city,
     String? country,
     String? profileImage,
-    List<String>? gallery,
+    List<GalleryItem>? gallery,
     String? websiteUrl,
     String? cvUrl,
     int? experience,

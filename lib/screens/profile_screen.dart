@@ -224,28 +224,59 @@ class ProfileScreenState extends State<ProfileScreen> {
                   ),
                   itemCount: _profile.gallery.length,
                   itemBuilder: (context, index) {
-                    final url = _profile.gallery[index];
-                    final isVideo = isGalleryVideoUrl(url);
+                    final album = _profile.gallery[index];
+                    final isVideo = album.isVideo;
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: GestureDetector(
-                        onTap: isVideo
-                            ? null
-                            : () => showImageViewer(context, ApiConfig.mediaUrl(url)),
-                        child: isVideo
-                            ? Container(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                alignment: Alignment.center,
-                                child: Icon(
-                                  Icons.play_circle_outline,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  size: 32,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          GestureDetector(
+                            onTap: isVideo
+                                ? null
+                                : () => showImageViewer(
+                                      context,
+                                      album.urls.map(ApiConfig.mediaUrl).toList(),
+                                    ),
+                            child: isVideo
+                                ? Container(
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    alignment: Alignment.center,
+                                    child: Icon(
+                                      Icons.play_circle_outline,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      size: 32,
+                                    ),
+                                  )
+                                : Image.network(
+                                    ApiConfig.mediaUrl(album.urls.first),
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                          if (album.urls.length > 1)
+                            Positioned(
+                              bottom: 4,
+                              left: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(999),
                                 ),
-                              )
-                            : Image.network(
-                                ApiConfig.mediaUrl(url),
-                                fit: BoxFit.cover,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.photo_library, size: 11, color: Colors.white),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${album.urls.length}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ),
+                        ],
                       ),
                     );
                   },

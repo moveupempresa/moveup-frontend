@@ -40,7 +40,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isSaving = false;
   bool _isUploadingImage = false;
   bool _isUploadingGalleryImage = false;
-  String? _removingGalleryUrl;
+  String? _removingGalleryId;
 
   @override
   void initState() {
@@ -112,13 +112,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => _isUploadingGalleryImage = true);
     try {
-      for (final file in picked) {
-        final updated = await ProfileService.addGalleryMedia(
-          token: widget.token,
-          mediaFile: File(file.path),
-        );
-        if (mounted) setState(() => _profile = updated);
-      }
+      final updated = await ProfileService.addGalleryAlbum(
+        token: widget.token,
+        mediaFiles: picked.map((f) => File(f.path)).toList(),
+      );
+      if (mounted) setState(() => _profile = updated);
     } on AuthException catch (e) {
       _showError(e.message);
     } finally {
@@ -126,18 +124,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<void> _removeGalleryImage(String url) async {
-    setState(() => _removingGalleryUrl = url);
+  Future<void> _removeGalleryAlbum(String id) async {
+    setState(() => _removingGalleryId = id);
     try {
-      final updated = await ProfileService.removeGalleryImage(
+      final updated = await ProfileService.removeGalleryAlbum(
         token: widget.token,
-        url: url,
+        id: id,
       );
       setState(() => _profile = updated);
     } on AuthException catch (e) {
       _showError(e.message);
     } finally {
-      if (mounted) setState(() => _removingGalleryUrl = null);
+      if (mounted) setState(() => _removingGalleryId = null);
     }
   }
 
@@ -362,8 +360,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       );
                     }
-                    final url = _profile.gallery[index];
-                    final isVideo = isGalleryVideoUrl(url);
+                    final album = _profile.gallery[index];
+                    final isVideo = album.isVideo;
                     return Stack(
                       fit: StackFit.expand,
                       children: [
@@ -380,11 +378,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   ),
                                 )
                               : Image.network(
-                                  ApiConfig.mediaUrl(url),
+                                  ApiConfig.mediaUrl(album.urls.first),
                                   fit: BoxFit.cover,
                                 ),
                         ),
-                        if (_removingGalleryUrl == url)
+                        if (album.urls.length > 1)
+                          Positioned(
+                            bottom: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.photo_library, size: 11, color: Colors.white),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${album.urls.length}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (_removingGalleryId == album.id)
                           const Positioned.fill(
                             child: ColoredBox(
                               color: Colors.black45,
@@ -396,7 +417,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             top: 4,
                             right: 4,
                             child: GestureDetector(
-                              onTap: () => _removeGalleryImage(url),
+                              onTap: () => _removeGalleryAlbum(album.id),
                               child: const CircleAvatar(
                                 radius: 12,
                                 backgroundColor: Colors.black54,
