@@ -6,7 +6,6 @@ import '../widgets/event_card.dart';
 import 'event_detail_screen.dart';
 import 'public_profile_screen.dart';
 
-const _textFilterKeys = ['city', 'style', 'username', 'price'];
 const _carouselKeys = ['city', 'style', 'username', 'price', 'date', 'eventType'];
 
 class ExploreScreen extends StatefulWidget {
@@ -21,13 +20,16 @@ class ExploreScreen extends StatefulWidget {
 
 class ExploreScreenState extends State<ExploreScreen> {
   final _searchController = TextEditingController();
-  final _filterInputController = TextEditingController();
 
   List<Event>? _events;
   bool _loading = false;
   String? _error;
 
+  // null means the search field is in "title" mode. Otherwise it's the key
+  // of the text filter (city/style/username/price) currently being typed.
   String? _activeFilterKey;
+  // Only 'eventType' uses an inline picker separate from the search field.
+  String? _expandedPicker;
 
   String? _searchTitle;
   String? _filterCity;
@@ -54,7 +56,6 @@ class ExploreScreenState extends State<ExploreScreen> {
   @override
   void dispose() {
     _searchController.dispose();
-    _filterInputController.dispose();
     super.dispose();
   }
 
@@ -84,21 +85,6 @@ class ExploreScreenState extends State<ExploreScreen> {
 
   void refreshEvents() => _loadEvents();
 
-  void _submitSearch(String value) {
-    setState(() {
-      _commitActiveTextFilter();
-      _searchTitle = value.trim().isEmpty ? null : value.trim();
-      _activeFilterKey = null;
-    });
-    _loadEvents();
-  }
-
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() => _searchTitle = null);
-    _loadEvents();
-  }
-
   String _filterLabel(String key) => switch (key) {
         'city' => 'Ciudad',
         'style' => 'Estilo',
@@ -109,7 +95,7 @@ class ExploreScreenState extends State<ExploreScreen> {
         _ => key,
       };
 
-  // Formatted for display: chips, and the running "; "-joined preview.
+  // Formatted for the carousel "has value" indicator and the chips summary.
   String? _filterValue(String key) => switch (key) {
         'city' => _filterCity,
         'style' => _filterStyle,
@@ -122,9 +108,9 @@ class ExploreScreenState extends State<ExploreScreen> {
         _ => null,
       };
 
-  // Raw editable text for text-based filters, used to prefill the input when
-  // re-opening an already-set filter.
-  String? _filterRawValue(String key) => switch (key) {
+  // Raw editable text for the search field's current mode (title or a text filter).
+  String? _rawValueFor(String? key) => switch (key) {
+        null => _searchTitle,
         'city' => _filterCity,
         'style' => _filterStyle,
         'username' => _filterUsername,
@@ -132,20 +118,38 @@ class ExploreScreenState extends State<ExploreScreen> {
         _ => null,
       };
 
-  String _committedSummary({String? excludeKey}) {
-    final parts = _textFilterKeys
-        .where((k) => k != excludeKey)
-        .map(_filterValue)
-        .whereType<String>()
-        .toList();
-    return parts.isEmpty ? '' : '${parts.join('; ')}; ';
+  String get _activeHint => switch (_activeFilterKey) {
+        null => 'Buscar eventos por nombre',
+        'city' => 'Ciudad',
+        'style' => 'Estilo (#urbano #rave)',
+        'username' => 'Usuario',
+        'price' => 'Precio máximo (ej: 30)',
+        _ => '',
+      };
+
+  TextCapitalization get _activeTextCapitalization => switch (_activeFilterKey) {
+        null || 'username' || 'price' => TextCapitalization.none,
+        _ => TextCapitalization.words,
+      };
+
+  // Everything already set for title/city/style/username/price, other than
+  // whatever is currently being typed, chained together with "; ".
+  String _committedPrefix() {
+    final values = <String?>[
+      _activeFilterKey == null ? null : _searchTitle,
+      _activeFilterKey == 'city' ? null : _filterCity,
+      _activeFilterKey == 'style' ? null : _filterStyle,
+      _activeFilterKey == 'username' ? null : _filterUsername,
+      _activeFilterKey == 'price' ? null : _filterMaxPrice?.toStringAsFixed(0),
+    ].whereType<String>().toList();
+    return values.isEmpty ? '' : '${values.join('; ')}; ';
   }
 
   void _commitActiveTextFilter() {
-    final key = _activeFilterKey;
-    if (key == null || !_textFilterKeys.contains(key)) return;
-    final value = _filterInputController.text.trim();
-    switch (key) {
+    final value = _searchController.text.trim();
+    switch (_activeFilterKey) {
+      case null:
+        _searchTitle = value.isEmpty ? null : value;
       case 'city':
         _filterCity = value.isEmpty ? null : value;
       case 'style':
@@ -160,28 +164,42 @@ class ExploreScreenState extends State<ExploreScreen> {
   void _activateFilter(String key) {
     setState(() {
       _commitActiveTextFilter();
-      if (_activeFilterKey == key) {
-        _activeFilterKey = null;
-        return;
-      }
-      _activeFilterKey = key;
-      _filterInputController.text = _filterRawValue(key) ?? '';
-      _filterInputController.selection =
-          TextSelection.collapsed(offset: _filterInputController.text.length);
+      _expandedPicker = null;
+      _activeFilterKey = _activeFilterKey == key ? null : key;
+      _searchController.text = _rawValueFor(_activeFilterKey) ?? '';
+      _searchController.selection =
+          TextSelection.collapsed(offset: _searchController.text.length);
     });
   }
 
-  void _finishActiveTextFilter() {
+  void _submitSearch(String value) {
+    setState(() => _commitActiveTextFilter());
+    _loadEvents();
+  }
+
+  void _clearActive() {
     setState(() {
-      _commitActiveTextFilter();
-      _activeFilterKey = null;
+      _searchController.clear();
+      switch (_activeFilterKey) {
+        case null:
+          _searchTitle = null;
+        case 'city':
+          _filterCity = null;
+        case 'style':
+          _filterStyle = null;
+        case 'username':
+          _filterUsername = null;
+        case 'price':
+          _filterMaxPrice = null;
+      }
     });
+    _loadEvents();
   }
 
   Future<void> _pickDateFilter() async {
     setState(() {
       _commitActiveTextFilter();
-      _activeFilterKey = null;
+      _expandedPicker = null;
     });
     final picked = await showDatePicker(
       context: context,
@@ -193,11 +211,29 @@ class ExploreScreenState extends State<ExploreScreen> {
     if (picked != null) setState(() => _filterDateFrom = picked);
   }
 
+  void _toggleEventTypePicker() {
+    setState(() {
+      _commitActiveTextFilter();
+      _expandedPicker = _expandedPicker == 'eventType' ? null : 'eventType';
+    });
+  }
+
   void _selectEventTypeFilter(EventType type) {
     setState(() {
       _filterEventType = _filterEventType == type ? null : type;
-      _activeFilterKey = null;
+      _expandedPicker = null;
     });
+  }
+
+  void _onFilterChipTapped(String key) {
+    switch (key) {
+      case 'date':
+        _pickDateFilter();
+      case 'eventType':
+        _toggleEventTypePicker();
+      default:
+        _activateFilter(key);
+    }
   }
 
   void _clearFilter(String key) {
@@ -216,10 +252,7 @@ class ExploreScreenState extends State<ExploreScreen> {
         case 'eventType':
           _filterEventType = null;
       }
-      if (_activeFilterKey == key) {
-        _filterInputController.clear();
-        _activeFilterKey = null;
-      }
+      if (_activeFilterKey == key) _searchController.clear();
     });
     _loadEvents();
   }
@@ -232,8 +265,11 @@ class ExploreScreenState extends State<ExploreScreen> {
       _filterDateFrom = null;
       _filterMaxPrice = null;
       _filterEventType = null;
-      _filterInputController.clear();
-      _activeFilterKey = null;
+      _expandedPicker = null;
+      if (_activeFilterKey != null) {
+        _activeFilterKey = null;
+        _searchController.text = _searchTitle ?? '';
+      }
     });
     _loadEvents();
   }
@@ -249,18 +285,24 @@ class ExploreScreenState extends State<ExploreScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Buscar eventos por nombre',
+                hintText: _activeHint,
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchTitle != null
+                prefixText: _committedPrefix(),
+                suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: _clearSearch,
+                        onPressed: _clearActive,
                       )
                     : null,
                 isDense: true,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
+              textCapitalization: _activeTextCapitalization,
+              keyboardType: _activeFilterKey == 'price'
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : null,
               textInputAction: TextInputAction.search,
+              onChanged: (_) => setState(() {}),
               onSubmitted: _submitSearch,
             ),
           ),
@@ -268,7 +310,7 @@ class ExploreScreenState extends State<ExploreScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: _buildFilterCarousel(context),
           ),
-          if (_activeFilterKey != null) _buildActiveFilterInput(context),
+          if (_expandedPicker == 'eventType') _buildEventTypeChips(context),
           if (_hasFilterValues) _buildActiveFilterChips(context),
           Expanded(
             child: RefreshIndicator(
@@ -291,62 +333,32 @@ class ExploreScreenState extends State<ExploreScreen> {
         itemBuilder: (context, index) {
           final key = _carouselKeys[index];
           final hasValue = _filterValue(key) != null;
+          final selected = key == 'eventType' ? _expandedPicker == 'eventType' : _activeFilterKey == key;
           return ChoiceChip(
             label: Text(_filterLabel(key)),
-            selected: _activeFilterKey == key,
+            selected: selected,
             showCheckmark: false,
             avatar: hasValue ? const Icon(Icons.check, size: 16) : null,
-            onSelected: (_) => key == 'date' ? _pickDateFilter() : _activateFilter(key),
+            onSelected: (_) => _onFilterChipTapped(key),
           );
         },
       ),
     );
   }
 
-  Widget _buildActiveFilterInput(BuildContext context) {
-    final key = _activeFilterKey!;
-    if (key == 'eventType') {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: EventType.values
-              .map((t) => ChoiceChip(
-                    label: Text(t.label),
-                    selected: _filterEventType == t,
-                    onSelected: (_) => _selectEventTypeFilter(t),
-                  ))
-              .toList(),
-        ),
-      );
-    }
-
+  Widget _buildEventTypeChips(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: TextField(
-        controller: _filterInputController,
-        autofocus: true,
-        decoration: InputDecoration(
-          prefixText: _committedSummary(excludeKey: key),
-          labelText: _filterLabel(key),
-          hintText: key == 'style'
-              ? '#urbano #rave'
-              : key == 'price'
-                  ? 'Ej: 30'
-                  : null,
-          isDense: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: _finishActiveTextFilter,
-          ),
-        ),
-        textCapitalization:
-            key == 'username' || key == 'price' ? TextCapitalization.none : TextCapitalization.words,
-        keyboardType: key == 'price' ? const TextInputType.numberWithOptions(decimal: true) : null,
-        textInputAction: TextInputAction.done,
-        onSubmitted: (_) => _finishActiveTextFilter(),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: EventType.values
+            .map((t) => ChoiceChip(
+                  label: Text(t.label),
+                  selected: _filterEventType == t,
+                  onSelected: (_) => _selectEventTypeFilter(t),
+                ))
+            .toList(),
       ),
     );
   }
