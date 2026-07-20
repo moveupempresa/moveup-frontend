@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/user.dart';
 import 'settings/account_screen.dart';
-import 'settings/appearance_screen.dart';
 import 'settings/pro_plan_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -49,14 +48,6 @@ class SettingsScreen extends StatelessWidget {
                 Navigator.of(context).pop(updatedUser);
               }
             },
-          ),
-          ListTile(
-            leading: const Icon(Icons.dark_mode_outlined),
-            title: const Text('Apariencia'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AppearanceScreen()),
-            ),
           ),
         ],
       ),
