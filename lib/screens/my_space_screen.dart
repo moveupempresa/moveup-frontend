@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../models/event.dart';
+import '../models/popular_profile.dart';
 import '../models/reservation.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
+import '../services/user_service.dart';
 import '../widgets/event_card.dart';
+import '../widgets/following_profile_card.dart';
 import '../widgets/reservation_card.dart';
 import 'event_detail_screen.dart';
 import 'public_profile_screen.dart';
@@ -28,16 +31,22 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   bool _loadingSaved = false;
   String? _savedError;
 
+  List<PopularProfile>? _following;
+  bool _loadingFollowing = false;
+  String? _followingError;
+
   @override
   void initState() {
     super.initState();
     _loadReservations();
     _loadSavedEvents();
+    _loadFollowing();
   }
 
   void refreshMySpace() {
     _loadReservations();
     _loadSavedEvents();
+    _loadFollowing();
   }
 
   Future<void> _loadReservations() async {
@@ -70,6 +79,21 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     }
   }
 
+  Future<void> _loadFollowing() async {
+    setState(() {
+      _loadingFollowing = true;
+      _followingError = null;
+    });
+    try {
+      final following = await UserService.getMyFollowing(token: widget.token);
+      if (mounted) setState(() => _following = following);
+    } catch (e) {
+      if (mounted) setState(() => _followingError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingFollowing = false);
+    }
+  }
+
   Future<void> _openReservation(Reservation reservation) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -99,15 +123,18 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Mi espacio'),
           bottom: const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'Próximas'),
               Tab(text: 'Pasadas'),
               Tab(text: 'Guardados'),
+              Tab(text: 'Siguiendo'),
             ],
           ),
         ),
@@ -116,6 +143,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             _buildReservationsTab(upcoming: true),
             _buildReservationsTab(upcoming: false),
             _buildSavedTab(),
+            _buildFollowingTab(),
           ],
         ),
       ),
@@ -199,6 +227,46 @@ class MySpaceScreenState extends State<MySpaceScreen> {
                         ),
                       ),
                     ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFollowingTab() {
+    if (_loadingFollowing && _following == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_followingError != null && _following == null) {
+      return _ErrorState(onRetry: _loadFollowing);
+    }
+
+    final following = _following ?? [];
+    if (following.isEmpty) {
+      return const _EmptyState(
+        icon: Icons.people_outline,
+        message: 'Todavía no sigues a ningún perfil',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadFollowing,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: following.length,
+        itemBuilder: (context, index) {
+          final profile = following[index];
+          return FollowingProfileCard(
+            profile: profile,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PublicProfileScreen(
+                  token: widget.token,
+                  userId: profile.userId,
+                  currentUserId: widget.currentUserId,
+                ),
+              ),
+            ),
           );
         },
       ),

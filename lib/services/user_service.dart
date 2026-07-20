@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import '../models/popular_profile.dart';
 import '../models/user.dart';
 import 'auth_service.dart';
 
@@ -101,6 +102,28 @@ class UserService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
     }
+  }
+
+  static Future<List<PopularProfile>> getMyFollowing({required String token}) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/users/me/following'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return (data['profiles'] as List<dynamic>)
+        .map((p) => PopularProfile.fromJson(p as Map<String, dynamic>))
+        .toList();
   }
 
   static Future<(bool, int)> followUser({
