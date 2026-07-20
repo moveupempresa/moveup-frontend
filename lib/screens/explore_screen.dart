@@ -12,6 +12,8 @@ import 'public_profile_screen.dart';
 
 const _carouselKeys = ['city', 'style', 'username', 'price', 'date', 'eventType'];
 
+enum _DatePickMode { single, range }
+
 class ExploreScreen extends StatefulWidget {
   final String token;
   final String currentUserId;
@@ -44,6 +46,7 @@ class ExploreScreenState extends State<ExploreScreen> {
   String? _filterStyle;
   String? _filterUsername;
   DateTime? _filterDateFrom;
+  DateTime? _filterDateTo;
   double? _filterMaxPrice;
   EventType? _filterEventType;
 
@@ -82,6 +85,8 @@ class ExploreScreenState extends State<ExploreScreen> {
         style: _filterStyle,
         username: _filterUsername,
         dateFrom: _filterDateFrom,
+        // Include the whole last day of the range, not just its midnight.
+        dateTo: _filterDateTo?.add(const Duration(hours: 23, minutes: 59, seconds: 59)),
         maxPrice: _filterMaxPrice,
         eventType: _filterEventType,
       );
@@ -129,12 +134,18 @@ class ExploreScreenState extends State<ExploreScreen> {
         'style' => _filterStyle,
         'username' => _filterUsername,
         'price' => _filterMaxPrice != null ? '${_filterMaxPrice!.toStringAsFixed(0)} €' : null,
-        'date' => _filterDateFrom != null
-            ? 'Desde ${_filterDateFrom!.day}/${_filterDateFrom!.month}/${_filterDateFrom!.year}'
-            : null,
+        'date' => _dateFilterLabel(),
         'eventType' => _filterEventType?.label,
         _ => null,
       };
+
+  String _formatDay(DateTime d) => '${d.day}/${d.month}/${d.year}';
+
+  String? _dateFilterLabel() {
+    if (_filterDateFrom == null) return null;
+    if (_filterDateTo == null) return 'Desde ${_formatDay(_filterDateFrom!)}';
+    return '${_formatDay(_filterDateFrom!)} - ${_formatDay(_filterDateTo!)}';
+  }
 
   // Raw editable text for the search field's current mode (title or a text filter).
   String? _rawValueFor(String? key) => switch (key) {
@@ -229,6 +240,30 @@ class ExploreScreenState extends State<ExploreScreen> {
       _commitActiveTextFilter();
       _expandedPicker = null;
     });
+    final mode = await showDialog<_DatePickMode>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Filtrar por fecha'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_DatePickMode.single),
+            child: const Text('Un día concreto'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_DatePickMode.range),
+            child: const Text('Rango de fechas'),
+          ),
+        ],
+      ),
+    );
+    if (mode == _DatePickMode.single) {
+      await _pickSingleDate();
+    } else if (mode == _DatePickMode.range) {
+      await _pickDateRange();
+    }
+  }
+
+  Future<void> _pickSingleDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _filterDateFrom ?? DateTime.now(),
@@ -237,7 +272,30 @@ class ExploreScreenState extends State<ExploreScreen> {
       locale: const Locale('es', 'ES'),
     );
     if (picked != null) {
-      setState(() => _filterDateFrom = picked);
+      setState(() {
+        _filterDateFrom = picked;
+        _filterDateTo = null;
+      });
+      _loadEvents();
+    }
+  }
+
+  Future<void> _pickDateRange() async {
+    final initialRange = _filterDateFrom != null && _filterDateTo != null
+        ? DateTimeRange(start: _filterDateFrom!, end: _filterDateTo!)
+        : null;
+    final picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: initialRange,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      locale: const Locale('es', 'ES'),
+    );
+    if (picked != null) {
+      setState(() {
+        _filterDateFrom = picked.start;
+        _filterDateTo = picked.end;
+      });
       _loadEvents();
     }
   }
@@ -279,6 +337,7 @@ class ExploreScreenState extends State<ExploreScreen> {
           _filterUsername = null;
         case 'date':
           _filterDateFrom = null;
+          _filterDateTo = null;
         case 'price':
           _filterMaxPrice = null;
         case 'eventType':
@@ -295,6 +354,7 @@ class ExploreScreenState extends State<ExploreScreen> {
       _filterStyle = null;
       _filterUsername = null;
       _filterDateFrom = null;
+      _filterDateTo = null;
       _filterMaxPrice = null;
       _filterEventType = null;
       _expandedPicker = null;
@@ -410,8 +470,7 @@ class ExploreScreenState extends State<ExploreScreen> {
       chips.add(_summaryChip('Usuario: $_filterUsername', () => _clearFilter('username')));
     }
     if (_filterDateFrom != null) {
-      final d = _filterDateFrom!;
-      chips.add(_summaryChip('Desde ${d.day}/${d.month}/${d.year}', () => _clearFilter('date')));
+      chips.add(_summaryChip(_dateFilterLabel()!, () => _clearFilter('date')));
     }
     if (_filterMaxPrice != null) {
       chips.add(_summaryChip(
@@ -469,6 +528,11 @@ class ExploreScreenState extends State<ExploreScreen> {
           'Eventos populares',
           sections.popular,
           emptyMessage: 'Todavía no hay eventos populares',
+        ),
+        _buildEventSection(
+          'Castings / Audiciones',
+          sections.castings,
+          emptyMessage: 'Todavía no hay castings ni audiciones publicados',
         ),
         _buildProfileSection(
           'Perfiles populares',

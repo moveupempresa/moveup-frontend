@@ -6,6 +6,7 @@ class ExploreSections {
   final List<Event> newest;
   final List<Event> popular;
   final List<Event> forYou;
+  final List<Event> castings;
   final List<PopularProfile> popularProfiles;
   final bool viewerHasLocation;
 
@@ -14,6 +15,7 @@ class ExploreSections {
     required this.newest,
     required this.popular,
     required this.forYou,
+    required this.castings,
     required this.popularProfiles,
     required this.viewerHasLocation,
   });
@@ -29,6 +31,9 @@ class ExploreSections {
             .map((e) => Event.fromJson(e as Map<String, dynamic>))
             .toList(),
         forYou: (json['forYou'] as List<dynamic>)
+            .map((e) => Event.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        castings: (json['castings'] as List<dynamic>)
             .map((e) => Event.fromJson(e as Map<String, dynamic>))
             .toList(),
         popularProfiles: (json['popularProfiles'] as List<dynamic>)
