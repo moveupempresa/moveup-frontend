@@ -200,6 +200,7 @@ class EventService {
     DateTime? dateFrom,
     double? maxPrice,
     EventType? eventType,
+    bool savedOnly = false,
   }) async {
     final queryParams = <String, String>{
       if (title != null && title.isNotEmpty) 'title': title,
@@ -210,6 +211,7 @@ class EventService {
       if (dateFrom != null) 'dateFrom': dateFrom.toUtc().toIso8601String(),
       if (maxPrice != null) 'maxPrice': maxPrice.toString(),
       if (eventType != null) 'eventType': eventType.value,
+      if (savedOnly) 'savedOnly': 'true',
     };
 
     http.Response response;

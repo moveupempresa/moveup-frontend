@@ -27,8 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final _profileKey = GlobalKey<ProfileScreenState>();
   final _exploreKey = GlobalKey<ExploreScreenState>();
+  final _mySpaceKey = GlobalKey<MySpaceScreenState>();
 
   static const _exploreTabIndex = 0;
+  static const _mySpaceTabIndex = 2;
   static const _profileTabIndex = 3;
 
   @override
@@ -36,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final screens = [
       ExploreScreen(key: _exploreKey, token: widget.token, currentUserId: widget.user.id),
       CreateScreen(user: widget.user, token: widget.token),
-      const MySpaceScreen(),
+      MySpaceScreen(key: _mySpaceKey, token: widget.token, currentUserId: widget.user.id),
       ProfileScreen(
         key: _profileKey,
         user: widget.user,
@@ -53,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() => _selectedIndex = index);
           if (index == _profileTabIndex) _profileKey.currentState?.refreshEvents();
           if (index == _exploreTabIndex) _exploreKey.currentState?.refreshEvents();
+          if (index == _mySpaceTabIndex) _mySpaceKey.currentState?.refreshMySpace();
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Explorar'),

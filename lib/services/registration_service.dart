@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../models/registrant.dart';
+import '../models/reservation.dart';
 import 'auth_service.dart';
 
 class RegistrationService {
@@ -212,6 +213,28 @@ class RegistrationService {
       throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
     }
     return data['hasPaid'] as bool;
+  }
+
+  static Future<List<Reservation>> getMyReservations({required String token}) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/users/me/reservations'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return (data['reservations'] as List<dynamic>)
+        .map((r) => Reservation.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   static Future<List<Registrant>> getSessionRegistrants({
