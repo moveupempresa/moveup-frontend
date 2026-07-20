@@ -33,6 +33,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   static const _followTypes = {
     NotificationType.followedUser,
     NotificationType.followedUserNewEvent,
+    NotificationType.newFollower,
   };
 
   List<AppNotification>? _notifications;
@@ -200,6 +201,7 @@ class _NotificationTileState extends State<_NotificationTile> {
   IconData get _icon => switch (widget.notification.type) {
         NotificationType.followedUser => Icons.person_add_alt_outlined,
         NotificationType.followedUserNewEvent => Icons.event_available_outlined,
+        NotificationType.newFollower => Icons.person_add_alt_1_outlined,
         NotificationType.signedUp => Icons.check_circle_outline,
         NotificationType.waitlisted => Icons.notifications_none,
         NotificationType.spotAvailable => Icons.notifications_active,

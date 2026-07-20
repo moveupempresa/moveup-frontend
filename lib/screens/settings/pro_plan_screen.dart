@@ -26,8 +26,6 @@ class _ProPlanScreenState extends State<ProPlanScreen> {
     (Icons.book_online_outlined, 'Gestionar reservas'),
     (Icons.checklist_outlined, 'Control asistencia'),
     (Icons.build_outlined, 'Herramientas profesionales'),
-    (Icons.workspace_premium_outlined, 'Perfil visual premium'),
-    (Icons.tune_outlined, 'Personalización avanzada perfil'),
   ];
 
   bool get _isPro => widget.subscriptionPlan == SubscriptionPlan.pro;

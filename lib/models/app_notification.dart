@@ -1,6 +1,7 @@
 enum NotificationType {
   followedUser('followed_user'),
   followedUserNewEvent('followed_user_new_event'),
+  newFollower('new_follower'),
   signedUp('signed_up'),
   waitlisted('waitlisted'),
   spotAvailable('spot_available'),

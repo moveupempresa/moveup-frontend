@@ -531,7 +531,11 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   DropdownButtonFormField<PaymentType>(
                     value: paymentType,
                     decoration: const InputDecoration(labelText: 'Tipo de pago'),
+                    // "Gratis" is retired for new/edited choices, but stays
+                    // selectable if a legacy pack already used it so the
+                    // dropdown's current value is never missing from the list.
                     items: PaymentType.values
+                        .where((p) => p != PaymentType.free || paymentType == PaymentType.free)
                         .map((p) => DropdownMenuItem(value: p, child: Text(p.label)))
                         .toList(),
                     onChanged: (v) => setSheetState(() {
