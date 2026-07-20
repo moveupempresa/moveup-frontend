@@ -6,7 +6,7 @@ import '../models/reservation.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
 import '../services/user_service.dart';
-import '../widgets/event_card.dart';
+import '../widgets/eventos_section.dart';
 import '../widgets/following_profile_card.dart';
 import '../widgets/reservation_card.dart';
 import 'event_detail_screen.dart';
@@ -94,36 +94,56 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     }
   }
 
-  Future<void> _openReservation(Reservation reservation) async {
+  // Every event the user is attending (upcoming reservation) or has saved,
+  // deduplicated so an event that's both only shows once (as "attending").
+  List<EventosItem>? get _eventosItems {
+    if (_reservations == null && _savedEvents == null) return null;
+
+    final byEventId = <String, EventosItem>{};
+    for (final r in (_reservations ?? []).where((r) => !r.isPast)) {
+      final existing = byEventId[r.event.id];
+      final existingDate = existing?.reservation?.sessionDate;
+      final shouldReplace = existing == null ||
+          (r.sessionDate != null && (existingDate == null || r.sessionDate!.isBefore(existingDate)));
+      if (shouldReplace) byEventId[r.event.id] = EventosItem(event: r.event, reservation: r);
+    }
+    for (final e in (_savedEvents ?? [])) {
+      byEventId.putIfAbsent(e.id, () => EventosItem(event: e));
+    }
+    return byEventId.values.toList();
+  }
+
+  Future<void> _openEventosItem(EventosItem item) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EventDetailScreen(
           token: widget.token,
-          event: reservation.event,
+          event: item.event,
           currentUserId: widget.currentUserId,
         ),
       ),
     );
     _loadReservations();
+    _loadSavedEvents();
   }
 
-  Future<void> _openEvent(Event event) async {
-    await Navigator.of(context).push(
+  void _openOwnerProfile(Event event) {
+    if (event.ownerUserId == widget.currentUserId) return;
+    Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => EventDetailScreen(
+        builder: (_) => PublicProfileScreen(
           token: widget.token,
-          event: event,
+          userId: event.ownerUserId,
           currentUserId: widget.currentUserId,
         ),
       ),
     );
-    _loadSavedEvents();
   }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Mi espacio'),
@@ -131,18 +151,27 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [
-              Tab(text: 'Próximas'),
+              Tab(text: 'Eventos'),
               Tab(text: 'Pasadas'),
-              Tab(text: 'Guardados'),
               Tab(text: 'Siguiendo'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            _buildReservationsTab(upcoming: true),
-            _buildReservationsTab(upcoming: false),
-            _buildSavedTab(),
+            EventosSection(
+              items: _eventosItems,
+              isLoading: _loadingReservations || _loadingSaved,
+              error: _reservationsError ?? _savedError,
+              onRetry: () {
+                _loadReservations();
+                _loadSavedEvents();
+              },
+              emptyMessage: 'Todavía no tienes eventos aquí. Reserva o guarda alguno para verlo.',
+              onItemTap: _openEventosItem,
+              onOwnerTap: _openOwnerProfile,
+            ),
+            _buildPastReservationsTab(),
             _buildFollowingTab(),
           ],
         ),
@@ -150,7 +179,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     );
   }
 
-  Widget _buildReservationsTab({required bool upcoming}) {
+  Widget _buildPastReservationsTab() {
     if (_loadingReservations && _reservations == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -159,21 +188,19 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     }
 
     final reservations = (_reservations ?? [])
-        .where((r) => r.isPast == !upcoming)
+        .where((r) => r.isPast)
         .toList()
       ..sort((a, b) {
         final aDate = a.sessionDate;
         final bDate = b.sessionDate;
         if (aDate == null || bDate == null) return 0;
-        return upcoming ? aDate.compareTo(bDate) : bDate.compareTo(aDate);
+        return bDate.compareTo(aDate);
       });
 
     if (reservations.isEmpty) {
-      return _EmptyState(
+      return const _EmptyState(
         icon: Icons.event_busy_outlined,
-        message: upcoming
-            ? 'No tienes reservas próximas'
-            : 'Todavía no tienes reservas pasadas',
+        message: 'Todavía no tienes reservas pasadas',
       );
     }
 
@@ -184,51 +211,8 @@ class MySpaceScreenState extends State<MySpaceScreen> {
         itemCount: reservations.length,
         itemBuilder: (context, index) => ReservationCard(
           reservation: reservations[index],
-          onTap: () => _openReservation(reservations[index]),
+          onTap: () => _openEventosItem(EventosItem(event: reservations[index].event, reservation: reservations[index])),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSavedTab() {
-    if (_loadingSaved && _savedEvents == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_savedError != null && _savedEvents == null) {
-      return _ErrorState(onRetry: _loadSavedEvents);
-    }
-
-    final events = _savedEvents ?? [];
-    if (events.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.bookmark_outline,
-        message: 'Todavía no has guardado ningún evento',
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadSavedEvents,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: events.length,
-        itemBuilder: (context, index) {
-          final event = events[index];
-          return EventCard(
-            event: event,
-            onTap: () => _openEvent(event),
-            onOwnerTap: event.ownerUserId == widget.currentUserId
-                ? null
-                : () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PublicProfileScreen(
-                          token: widget.token,
-                          userId: event.ownerUserId,
-                          currentUserId: widget.currentUserId,
-                        ),
-                      ),
-                    ),
-          );
-        },
       ),
     );
   }
