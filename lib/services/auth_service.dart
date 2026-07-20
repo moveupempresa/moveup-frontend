@@ -15,6 +15,12 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
+/// Thrown by [AuthService.getCurrentSession] when the stored token is no
+/// longer valid (expired, tampered with, or the account was deleted), as
+/// opposed to a network hiccup - callers should clear the stored token only
+/// in this case, not on every failure.
+class SessionExpiredException implements Exception {}
+
 class AuthResult {
   final String token;
   final User user;
@@ -41,6 +47,35 @@ class AuthService {
       'username': username,
       'password': password,
     });
+  }
+
+  static Future<AuthResult> getCurrentSession({required String token}) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/users/me'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    if (response.statusCode == 401 || response.statusCode == 404) {
+      throw SessionExpiredException();
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+
+    return AuthResult(
+      token: token,
+      user: User.fromJson(data['user'] as Map<String, dynamic>),
+      profile: Profile.fromJson(data['profile'] as Map<String, dynamic>),
+    );
   }
 
   static Future<void> forgotPassword({required String email}) async {

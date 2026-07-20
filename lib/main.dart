@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:move_up_app/screens/login_screen.dart';
+import 'package:move_up_app/screens/session_gate.dart';
 import 'package:move_up_app/services/theme_service.dart';
 
 void main() async {
@@ -28,7 +28,7 @@ class MainApp extends StatelessWidget {
           theme: ThemeData(useMaterial3: true, brightness: Brightness.light),
           darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.dark),
           themeMode: mode,
-          home: const LoginScreen(),
+          home: const SessionGate(),
         );
       },
     );

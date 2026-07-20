@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/auth_storage_service.dart';
 import 'home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -77,6 +78,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         username: _usernameController.text.trim(),
         password: _passwordController.text,
       );
+      await AuthStorageService.saveToken(result.token);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

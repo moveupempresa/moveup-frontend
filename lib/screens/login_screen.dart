@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/auth_storage_service.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -51,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      await AuthStorageService.saveToken(result.token);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
