@@ -14,64 +14,119 @@ class FollowingProfileCard extends StatelessWidget {
     final location = [profile.city, profile.country].where((s) => s.isNotEmpty).join(', ');
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundImage: profile.profileImage != null
-                    ? NetworkImage(ApiConfig.mediaUrl(profile.profileImage!))
-                    : null,
-                child: profile.profileImage == null
-                    ? Text(
-                        profile.name.isNotEmpty ? profile.name[0].toUpperCase() : '?',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: profile.profileImage != null
+                  ? Image.network(
+                      ApiConfig.mediaUrl(profile.profileImage!),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallbackAvatar(context),
+                    )
+                  : _fallbackAvatar(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          profile.name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_outlined, color: Theme.of(context).colorScheme.outline),
+                    ],
+                  ),
+                  if (profile.artisticName.isNotEmpty) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      profile.name,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      profile.artisticName,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (location.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        location,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 2),
+                  ],
+                  const SizedBox(height: 8),
+                  if (location.isNotEmpty) ...[
+                    _infoRow(context, Icons.place_outlined, location),
+                    const SizedBox(height: 4),
+                  ],
+                  if (profile.experience > 0) ...[
+                    _infoRow(
+                      context,
+                      Icons.military_tech_outlined,
+                      '${profile.experience} ${profile.experience == 1 ? 'año' : 'años'} de experiencia',
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  _infoRow(
+                    context,
+                    Icons.people_outline,
+                    profile.followersCount == 1
+                        ? '1 seguidor'
+                        : '${profile.followersCount} seguidores',
+                  ),
+                  if (profile.bio.isNotEmpty) ...[
+                    const SizedBox(height: 8),
                     Text(
-                      profile.followersCount == 1
-                          ? '1 seguidor'
-                          : '${profile.followersCount} seguidores',
+                      profile.bio,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.outline,
                           ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
+                ],
               ),
-              Icon(Icons.chevron_right_outlined, color: Theme.of(context).colorScheme.outline),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(BuildContext context, IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Theme.of(context).colorScheme.outline),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _fallbackAvatar(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Text(
+        profile.name.isNotEmpty ? profile.name[0].toUpperCase() : '?',
+        style: Theme.of(context).textTheme.displayMedium,
       ),
     );
   }
