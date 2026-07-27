@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../models/calendar_note.dart';
 import '../models/event.dart';
+import '../models/pending_request.dart';
 import '../models/popular_profile.dart';
 import '../models/reservation.dart';
+import '../services/auth_service.dart';
+import '../services/calendar_note_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
 import '../services/user_service.dart';
 import '../widgets/eventos_section.dart';
 import '../widgets/following_profile_card.dart';
+import '../widgets/pending_request_card.dart';
 import '../widgets/reservation_card.dart';
 import 'event_detail_screen.dart';
 import 'public_profile_screen.dart';
@@ -15,8 +20,14 @@ import 'public_profile_screen.dart';
 class MySpaceScreen extends StatefulWidget {
   final String token;
   final String currentUserId;
+  final bool isPro;
 
-  const MySpaceScreen({super.key, required this.token, required this.currentUserId});
+  const MySpaceScreen({
+    super.key,
+    required this.token,
+    required this.currentUserId,
+    required this.isPro,
+  });
 
   @override
   MySpaceScreenState createState() => MySpaceScreenState();
@@ -35,18 +46,33 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   bool _loadingFollowing = false;
   String? _followingError;
 
+  List<PendingRequest>? _pendingRequests;
+  bool _loadingPendingRequests = false;
+  String? _pendingRequestsError;
+  final Set<String> _processingRequestIds = {};
+
+  List<CalendarNote>? _calendarNotes;
+
+  Map<String, CalendarNote> get _notesByDate => {
+        for (final n in _calendarNotes ?? <CalendarNote>[]) n.date: n,
+      };
+
   @override
   void initState() {
     super.initState();
     _loadReservations();
     _loadSavedEvents();
     _loadFollowing();
+    _loadCalendarNotes();
+    if (widget.isPro) _loadPendingRequests();
   }
 
   void refreshMySpace() {
     _loadReservations();
     _loadSavedEvents();
     _loadFollowing();
+    _loadCalendarNotes();
+    if (widget.isPro) _loadPendingRequests();
   }
 
   Future<void> _loadReservations() async {
@@ -91,6 +117,90 @@ class MySpaceScreenState extends State<MySpaceScreen> {
       if (mounted) setState(() => _followingError = e.toString());
     } finally {
       if (mounted) setState(() => _loadingFollowing = false);
+    }
+  }
+
+  Future<void> _loadPendingRequests() async {
+    setState(() {
+      _loadingPendingRequests = true;
+      _pendingRequestsError = null;
+    });
+    try {
+      final requests = await RegistrationService.getMyPendingRequests(token: widget.token);
+      if (mounted) setState(() => _pendingRequests = requests);
+    } catch (e) {
+      if (mounted) setState(() => _pendingRequestsError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingPendingRequests = false);
+    }
+  }
+
+  Future<void> _respondToRequest(PendingRequest request, {required bool approve}) async {
+    setState(() => _processingRequestIds.add(request.id));
+    try {
+      approve
+          ? await RegistrationService.approvePackRequest(
+              token: widget.token,
+              eventId: request.eventId,
+              packId: request.packId,
+              userId: request.userId,
+            )
+          : await RegistrationService.rejectPackRequest(
+              token: widget.token,
+              eventId: request.eventId,
+              packId: request.packId,
+              userId: request.userId,
+            );
+      if (mounted) {
+        setState(() {
+          _pendingRequests = _pendingRequests?.where((r) => r.id != request.id).toList();
+        });
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _processingRequestIds.remove(request.id));
+    }
+  }
+
+  Future<void> _loadCalendarNotes() async {
+    try {
+      final notes = await CalendarNoteService.getMyNotes(token: widget.token);
+      if (mounted) setState(() => _calendarNotes = notes);
+    } catch (_) {
+      // Keep whatever notes are already loaded if a background refresh fails.
+    }
+  }
+
+  Future<void> _saveCalendarNote(String date, String text) async {
+    try {
+      final note = await CalendarNoteService.setNote(token: widget.token, date: date, text: text);
+      if (mounted) {
+        setState(() {
+          _calendarNotes = [...?_calendarNotes?.where((n) => n.date != date), note];
+        });
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _deleteCalendarNote(String date) async {
+    try {
+      await CalendarNoteService.deleteNote(token: widget.token, date: date);
+      if (mounted) {
+        setState(() {
+          _calendarNotes = _calendarNotes?.where((n) => n.date != date).toList();
+        });
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -143,17 +253,18 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: widget.isPro ? 4 : 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Mi espacio'),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [
-              Tab(text: 'Eventos'),
-              Tab(text: 'Pasadas'),
-              Tab(text: 'Siguiendo'),
+              const Tab(text: 'Eventos'),
+              const Tab(text: 'Pasadas'),
+              const Tab(text: 'Siguiendo'),
+              if (widget.isPro) const Tab(text: 'Solicitudes'),
             ],
           ),
         ),
@@ -170,9 +281,13 @@ class MySpaceScreenState extends State<MySpaceScreen> {
               emptyMessage: 'Todavía no tienes eventos aquí. Reserva o guarda alguno para verlo.',
               onItemTap: _openEventosItem,
               onOwnerTap: _openOwnerProfile,
+              notesByDate: _notesByDate,
+              onSaveNote: _saveCalendarNote,
+              onDeleteNote: _deleteCalendarNote,
             ),
             _buildPastReservationsTab(),
             _buildFollowingTab(),
+            if (widget.isPro) _buildPendingRequestsTab(),
           ],
         ),
       ),
@@ -251,6 +366,40 @@ class MySpaceScreenState extends State<MySpaceScreen> {
                 ),
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPendingRequestsTab() {
+    if (_loadingPendingRequests && _pendingRequests == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_pendingRequestsError != null && _pendingRequests == null) {
+      return _ErrorState(onRetry: _loadPendingRequests);
+    }
+
+    final requests = _pendingRequests ?? [];
+    if (requests.isEmpty) {
+      return const _EmptyState(
+        icon: Icons.pending_actions_outlined,
+        message: 'No tienes solicitudes pendientes',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadPendingRequests,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: requests.length,
+        itemBuilder: (context, index) {
+          final request = requests[index];
+          return PendingRequestCard(
+            request: request,
+            isProcessing: _processingRequestIds.contains(request.id),
+            onApprove: () => _respondToRequest(request, approve: true),
+            onReject: () => _respondToRequest(request, approve: false),
           );
         },
       ),

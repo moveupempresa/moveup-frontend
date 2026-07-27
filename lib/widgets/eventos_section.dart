@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../models/calendar_note.dart';
 import '../models/event.dart';
 import '../models/reservation.dart';
 import 'event_card.dart';
@@ -27,6 +28,9 @@ class EventosSection extends StatefulWidget {
   final String emptyMessage;
   final void Function(EventosItem item) onItemTap;
   final void Function(Event event)? onOwnerTap;
+  final Map<String, CalendarNote> notesByDate;
+  final Future<void> Function(String date, String text) onSaveNote;
+  final Future<void> Function(String date) onDeleteNote;
 
   const EventosSection({
     super.key,
@@ -37,6 +41,9 @@ class EventosSection extends StatefulWidget {
     required this.emptyMessage,
     required this.onItemTap,
     this.onOwnerTap,
+    required this.notesByDate,
+    required this.onSaveNote,
+    required this.onDeleteNote,
   });
 
   @override
@@ -65,6 +72,10 @@ class _EventosSectionState extends State<EventosSection> {
   // those with .toLocal() can shift them onto the wrong calendar day, so just
   // read the y/m/d fields directly instead.
   DateTime _calendarDayKey(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  // The plain 'YYYY-MM-DD' key the backend uses to identify a personal note.
+  String _dateKey(DateTime day) =>
+      '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
 
   DateTime? _itemDayKey(EventosItem item) {
     final reservationDate = item.reservation?.sessionDate;
@@ -197,6 +208,7 @@ class _EventosSectionState extends State<EventosSection> {
     final selectedItems = itemsByDay[selectedDay] ?? const <EventosItem>[];
     final attendingColor = Theme.of(context).colorScheme.primary;
     final savedColor = Theme.of(context).colorScheme.tertiary;
+    final noteColor = Theme.of(context).colorScheme.secondary;
 
     return Column(
       children: [
@@ -208,6 +220,8 @@ class _EventosSectionState extends State<EventosSection> {
               _legendDot(attendingColor, 'Asistes'),
               const SizedBox(width: 16),
               _legendDot(savedColor, 'Guardado'),
+              const SizedBox(width: 16),
+              _legendDot(noteColor, 'Nota'),
             ],
           ),
         ),
@@ -234,9 +248,10 @@ class _EventosSectionState extends State<EventosSection> {
           ),
           calendarBuilders: CalendarBuilders<EventosItem>(
             markerBuilder: (context, day, dayItems) {
-              if (dayItems.isEmpty) return null;
               final hasAttending = dayItems.any((i) => i.isAttending);
               final hasSaved = dayItems.any((i) => !i.isAttending);
+              final hasNote = widget.notesByDate.containsKey(_dateKey(day));
+              if (!hasAttending && !hasSaved && !hasNote) return null;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(
@@ -245,6 +260,8 @@ class _EventosSectionState extends State<EventosSection> {
                     if (hasAttending) _dot(attendingColor),
                     if (hasAttending && hasSaved) const SizedBox(width: 3),
                     if (hasSaved) _dot(savedColor),
+                    if ((hasAttending || hasSaved) && hasNote) const SizedBox(width: 3),
+                    if (hasNote) _dot(noteColor),
                   ],
                 ),
               );
@@ -269,8 +286,94 @@ class _EventosSectionState extends State<EventosSection> {
                   children: selectedItems.map(_cardFor).toList(),
                 ),
         ),
+        _buildNoteSection(context, selectedDay),
       ],
     );
+  }
+
+  Widget _buildNoteSection(BuildContext context, DateTime selectedDay) {
+    final dateKey = _dateKey(selectedDay);
+    final note = widget.notesByDate[dateKey];
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: note == null
+          ? InkWell(
+              onTap: () => _editNote(context, dateKey, null),
+              child: Row(
+                children: [
+                  Icon(Icons.edit_note_outlined,
+                      size: 18, color: Theme.of(context).colorScheme.outline),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Añadir nota',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                  ),
+                ],
+              ),
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.sticky_note_2_outlined,
+                    size: 18, color: Theme.of(context).colorScheme.secondary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(note.text, style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Editar nota',
+                  onPressed: () => _editNote(context, dateKey, note),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Eliminar nota',
+                  onPressed: () => widget.onDeleteNote(dateKey),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Future<void> _editNote(BuildContext context, String dateKey, CalendarNote? existing) async {
+    final controller = TextEditingController(text: existing?.text ?? '');
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nota'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+          maxLength: 1000,
+          decoration: const InputDecoration(hintText: 'Escribe una nota para este día'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (text != null && text.isNotEmpty) {
+      await widget.onSaveNote(dateKey, text);
+    }
   }
 
   Widget _legendDot(Color color, String label) {

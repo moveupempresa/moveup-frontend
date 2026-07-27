@@ -38,7 +38,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final screens = [
       ExploreScreen(key: _exploreKey, token: widget.token, currentUserId: widget.user.id),
       CreateScreen(user: widget.user, token: widget.token),
-      MySpaceScreen(key: _mySpaceKey, token: widget.token, currentUserId: widget.user.id),
+      MySpaceScreen(
+        key: _mySpaceKey,
+        token: widget.token,
+        currentUserId: widget.user.id,
+        isPro: widget.user.subscriptionPlan == SubscriptionPlan.pro,
+      ),
       ProfileScreen(
         key: _profileKey,
         user: widget.user,
