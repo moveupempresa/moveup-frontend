@@ -126,6 +126,31 @@ class UserService {
         .toList();
   }
 
+  static Future<List<PopularProfile>> searchProfiles({
+    required String token,
+    required String query,
+  }) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/users/search').replace(queryParameters: {'q': query}),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return (data['profiles'] as List<dynamic>)
+        .map((p) => PopularProfile.fromJson(p as Map<String, dynamic>))
+        .toList();
+  }
+
   static Future<(bool, int)> followUser({
     required String token,
     required String userId,

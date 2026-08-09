@@ -1,18 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/event.dart';
 import '../models/explore_sections.dart';
 import '../models/popular_profile.dart';
 import '../services/event_service.dart';
+import '../services/user_service.dart';
 import '../widgets/event_card.dart';
 import '../widgets/event_mini_card.dart';
+import '../widgets/following_profile_card.dart';
 import '../widgets/profile_mini_card.dart';
 import 'event_detail_screen.dart';
 import 'public_profile_screen.dart';
 
-const _carouselKeys = ['city', 'style', 'username', 'price', 'date', 'eventType'];
+const _carouselKeys = ['city', 'style', 'price', 'date', 'eventType'];
 
 enum _DatePickMode { single, range }
+
+enum _ExploreMode { events, users }
 
 class ExploreScreen extends StatefulWidget {
   final String token;
@@ -25,6 +31,8 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class ExploreScreenState extends State<ExploreScreen> {
+  _ExploreMode _mode = _ExploreMode.events;
+
   final _searchController = TextEditingController();
 
   List<Event>? _events;
@@ -36,7 +44,7 @@ class ExploreScreenState extends State<ExploreScreen> {
   String? _sectionsError;
 
   // null means the search field is in "title" mode. Otherwise it's the key
-  // of the text filter (city/style/username/price) currently being typed.
+  // of the text filter (city/style/price) currently being typed.
   String? _activeFilterKey;
   // Only 'eventType' uses an inline picker separate from the search field.
   String? _expandedPicker;
@@ -44,7 +52,6 @@ class ExploreScreenState extends State<ExploreScreen> {
   String? _searchTitle;
   String? _filterCity;
   String? _filterStyle;
-  String? _filterUsername;
   DateTime? _filterDateFrom;
   DateTime? _filterDateTo;
   double? _filterMaxPrice;
@@ -53,12 +60,17 @@ class ExploreScreenState extends State<ExploreScreen> {
   bool get _hasFilterValues =>
       _filterCity != null ||
       _filterStyle != null ||
-      _filterUsername != null ||
       _filterDateFrom != null ||
       _filterMaxPrice != null ||
       _filterEventType != null;
 
   bool get _isSearching => _hasFilterValues || _searchTitle != null;
+
+  final _userSearchController = TextEditingController();
+  List<PopularProfile>? _userSearchResults;
+  bool _loadingUserSearch = false;
+  String? _userSearchError;
+  Timer? _userSearchDebounce;
 
   @override
   void initState() {
@@ -69,7 +81,38 @@ class ExploreScreenState extends State<ExploreScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _userSearchController.dispose();
+    _userSearchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onUserSearchChanged(String query) {
+    _userSearchDebounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _userSearchResults = null;
+        _loadingUserSearch = false;
+        _userSearchError = null;
+      });
+      return;
+    }
+    _userSearchDebounce = Timer(const Duration(milliseconds: 400), () => _searchUsers(trimmed));
+  }
+
+  Future<void> _searchUsers(String query) async {
+    setState(() {
+      _loadingUserSearch = true;
+      _userSearchError = null;
+    });
+    try {
+      final results = await UserService.searchProfiles(token: widget.token, query: query);
+      if (mounted) setState(() => _userSearchResults = results);
+    } catch (e) {
+      if (mounted) setState(() => _userSearchError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingUserSearch = false);
+    }
   }
 
   Future<void> _loadEvents() async {
@@ -83,7 +126,6 @@ class ExploreScreenState extends State<ExploreScreen> {
         title: _searchTitle,
         city: _filterCity,
         style: _filterStyle,
-        username: _filterUsername,
         dateFrom: _filterDateFrom,
         // Include the whole last day of the range, not just its midnight.
         dateTo: _filterDateTo?.add(const Duration(hours: 23, minutes: 59, seconds: 59)),
@@ -121,7 +163,6 @@ class ExploreScreenState extends State<ExploreScreen> {
   String _filterLabel(String key) => switch (key) {
         'city' => 'Ciudad',
         'style' => 'Estilo',
-        'username' => 'Usuario',
         'price' => 'Precio',
         'date' => 'Fecha',
         'eventType' => 'Tipo de evento',
@@ -132,7 +173,6 @@ class ExploreScreenState extends State<ExploreScreen> {
   String? _filterValue(String key) => switch (key) {
         'city' => _filterCity,
         'style' => _filterStyle,
-        'username' => _filterUsername,
         'price' => _filterMaxPrice != null ? '${_filterMaxPrice!.toStringAsFixed(0)} €' : null,
         'date' => _dateFilterLabel(),
         'eventType' => _filterEventType?.label,
@@ -152,7 +192,6 @@ class ExploreScreenState extends State<ExploreScreen> {
         null => _searchTitle,
         'city' => _filterCity,
         'style' => _filterStyle,
-        'username' => _filterUsername,
         'price' => _filterMaxPrice?.toStringAsFixed(0),
         _ => null,
       };
@@ -161,24 +200,22 @@ class ExploreScreenState extends State<ExploreScreen> {
         null => 'Buscar eventos por nombre',
         'city' => 'Ciudad',
         'style' => 'Estilo (#urbano #rave)',
-        'username' => 'Usuario',
         'price' => 'Precio máximo (ej: 30)',
         _ => '',
       };
 
   TextCapitalization get _activeTextCapitalization => switch (_activeFilterKey) {
-        null || 'username' || 'price' => TextCapitalization.none,
+        null || 'price' => TextCapitalization.none,
         _ => TextCapitalization.words,
       };
 
-  // Everything already set for title/city/style/username/price, other than
-  // whatever is currently being typed, chained together with "; ".
+  // Everything already set for title/city/style/price, other than whatever
+  // is currently being typed, chained together with "; ".
   String _committedPrefix() {
     final values = <String?>[
       _activeFilterKey == null ? null : _searchTitle,
       _activeFilterKey == 'city' ? null : _filterCity,
       _activeFilterKey == 'style' ? null : _filterStyle,
-      _activeFilterKey == 'username' ? null : _filterUsername,
       _activeFilterKey == 'price' ? null : _filterMaxPrice?.toStringAsFixed(0),
     ].whereType<String>().toList();
     return values.isEmpty ? '' : '${values.join('; ')}; ';
@@ -193,8 +230,6 @@ class ExploreScreenState extends State<ExploreScreen> {
         _filterCity = value.isEmpty ? null : value;
       case 'style':
         _filterStyle = value.isEmpty ? null : value;
-      case 'username':
-        _filterUsername = value.isEmpty ? null : value;
       case 'price':
         _filterMaxPrice = value.isEmpty ? null : double.tryParse(value.replaceAll(',', '.'));
     }
@@ -226,8 +261,6 @@ class ExploreScreenState extends State<ExploreScreen> {
           _filterCity = null;
         case 'style':
           _filterStyle = null;
-        case 'username':
-          _filterUsername = null;
         case 'price':
           _filterMaxPrice = null;
       }
@@ -333,8 +366,6 @@ class ExploreScreenState extends State<ExploreScreen> {
           _filterCity = null;
         case 'style':
           _filterStyle = null;
-        case 'username':
-          _filterUsername = null;
         case 'date':
           _filterDateFrom = null;
           _filterDateTo = null;
@@ -352,7 +383,6 @@ class ExploreScreenState extends State<ExploreScreen> {
     setState(() {
       _filterCity = null;
       _filterStyle = null;
-      _filterUsername = null;
       _filterDateFrom = null;
       _filterDateTo = null;
       _filterMaxPrice = null;
@@ -374,46 +404,194 @@ class ExploreScreenState extends State<ExploreScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: _activeHint,
-                prefixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  tooltip: 'Buscar',
-                  onPressed: () => _submitSearch(_searchController.text),
+            child: SegmentedButton<_ExploreMode>(
+              segments: const [
+                ButtonSegment(
+                  value: _ExploreMode.events,
+                  label: Text('Eventos'),
+                  icon: Icon(Icons.event_outlined),
                 ),
-                prefixText: _committedPrefix(),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: _clearActive,
-                      )
-                    : null,
-                isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              textCapitalization: _activeTextCapitalization,
-              keyboardType: _activeFilterKey == 'price'
-                  ? const TextInputType.numberWithOptions(decimal: true)
-                  : null,
-              textInputAction: TextInputAction.search,
-              onChanged: (_) => setState(() {}),
-              onSubmitted: _submitSearch,
+                ButtonSegment(
+                  value: _ExploreMode.users,
+                  label: Text('Usuarios'),
+                  icon: Icon(Icons.people_outline),
+                ),
+              ],
+              selected: {_mode},
+              onSelectionChanged: (selection) => setState(() => _mode = selection.first),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: _buildFilterCarousel(context),
-          ),
-          if (_expandedPicker == 'eventType') _buildEventTypeChips(context),
-          if (_hasFilterValues) _buildActiveFilterChips(context),
           Expanded(
-            child: _isSearching
-                ? RefreshIndicator(onRefresh: _loadEvents, child: _buildBody(context))
-                : RefreshIndicator(onRefresh: _loadSections, child: _buildSections(context)),
+            child: _mode == _ExploreMode.events
+                ? _buildEventsMode(context)
+                : _buildUsersMode(context),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEventsMode(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: _activeHint,
+              prefixIcon: IconButton(
+                icon: const Icon(Icons.search),
+                tooltip: 'Buscar',
+                onPressed: () => _submitSearch(_searchController.text),
+              ),
+              prefixText: _committedPrefix(),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: _clearActive,
+                    )
+                  : null,
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            textCapitalization: _activeTextCapitalization,
+            keyboardType: _activeFilterKey == 'price'
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : null,
+            textInputAction: TextInputAction.search,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: _submitSearch,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: _buildFilterCarousel(context),
+        ),
+        if (_expandedPicker == 'eventType') _buildEventTypeChips(context),
+        if (_hasFilterValues) _buildActiveFilterChips(context),
+        Expanded(
+          child: _isSearching
+              ? RefreshIndicator(onRefresh: _loadEvents, child: _buildBody(context))
+              : RefreshIndicator(onRefresh: _loadSections, child: _buildSections(context)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUsersMode(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: TextField(
+            controller: _userSearchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar usuarios',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _userSearchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        _userSearchController.clear();
+                        _onUserSearchChanged('');
+                      },
+                    )
+                  : null,
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onChanged: (value) {
+              setState(() {});
+              _onUserSearchChanged(value);
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(child: _buildUserSearchBody(context)),
+      ],
+    );
+  }
+
+  Widget _buildUserSearchBody(BuildContext context) {
+    final query = _userSearchController.text.trim();
+    if (query.length < 2) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(Icons.people_outline, size: 40, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 12),
+          Text(
+            'Busca perfiles por nombre de usuario',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+          ),
+        ],
+      );
+    }
+
+    if (_loadingUserSearch && _userSearchResults == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_userSearchError != null && _userSearchResults == null) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(Icons.error_outline, size: 40, color: Theme.of(context).colorScheme.error),
+          const SizedBox(height: 12),
+          const Text('No se pudieron cargar los resultados', textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton(
+              onPressed: () => _searchUsers(query),
+              child: const Text('Reintentar'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final results = _userSearchResults ?? [];
+    if (results.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(Icons.person_search_outlined,
+              size: 40, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 12),
+          Text(
+            'Ningún perfil coincide con "$query"',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+          ),
+        ],
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _searchUsers(query),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: results.length,
+        itemBuilder: (context, index) {
+          final profile = results[index];
+          return FollowingProfileCard(
+            profile: profile,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PublicProfileScreen(
+                  token: widget.token,
+                  userId: profile.userId,
+                  currentUserId: widget.currentUserId,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -465,9 +643,6 @@ class ExploreScreenState extends State<ExploreScreen> {
     }
     if (_filterStyle != null) {
       chips.add(_summaryChip('Estilo: $_filterStyle', () => _clearFilter('style')));
-    }
-    if (_filterUsername != null) {
-      chips.add(_summaryChip('Usuario: $_filterUsername', () => _clearFilter('username')));
     }
     if (_filterDateFrom != null) {
       chips.add(_summaryChip(_dateFilterLabel()!, () => _clearFilter('date')));
