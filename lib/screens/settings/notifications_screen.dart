@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/app_notification.dart';
+import '../../services/app_version_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/registration_service.dart';
@@ -15,7 +16,17 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  static const _reservationTypes = {
+  static const _myEventsTypes = {
+    NotificationType.newRegistration,
+    NotificationType.signupRequest,
+    NotificationType.packPaid,
+    NotificationType.registrantCancelled,
+    NotificationType.capacityFull,
+    NotificationType.spotFreed,
+    NotificationType.eventReminderOrganizerDay,
+    NotificationType.eventReminderOrganizerHours,
+  };
+  static const _myReservationsTypes = {
     NotificationType.signedUp,
     NotificationType.waitlisted,
     NotificationType.spotAvailable,
@@ -24,15 +35,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.signupRejected,
     NotificationType.registrationRevoked,
     NotificationType.paymentRequired,
+    NotificationType.selfCancelConfirmed,
+    NotificationType.eventCancelled,
+    NotificationType.eventReminderStudent,
   };
-  static const _myEventsTypes = {
-    NotificationType.newRegistration,
-    NotificationType.signupRequest,
-    NotificationType.packPaid,
+  static const _savedEventTypes = {
+    NotificationType.savedEventCapacityLow,
+    NotificationType.savedEventCapacityFull,
+    NotificationType.savedEventSpotFreed,
+    NotificationType.savedEventReminder,
   };
-  static const _followTypes = {
-    NotificationType.followedUser,
+  static const _followedUsersTypes = {
     NotificationType.followedUserNewEvent,
+  };
+  static const _socialTypes = {
+    NotificationType.followedUser,
     NotificationType.newFollower,
   };
 
@@ -40,11 +57,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _loading = true;
   String? _error;
   bool _markedRead = false;
+  bool? _updateAvailable;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _checkAppVersion();
   }
 
   Future<void> _load() async {
@@ -73,6 +92,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _checkAppVersion() async {
+    try {
+      final updateAvailable = await AppVersionService.isUpdateAvailable();
+      if (mounted) setState(() => _updateAvailable = updateAvailable);
+    } catch (_) {
+      if (mounted) setState(() => _updateAvailable = false);
+    }
+  }
+
   void _onSectionExpanded(bool expanded) {
     if (!expanded || _markedRead) return;
     final hasUnread = _notifications?.any((n) => !n.read) ?? false;
@@ -91,23 +119,130 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: ListView(
         children: [
           _buildNotificationSection(
-            title: 'Reservas',
-            icon: Icons.calendar_today_outlined,
-            items: _itemsOfTypes(_reservationTypes),
-          ),
-          _buildNotificationSection(
             title: 'Mis Eventos',
             icon: Icons.school_outlined,
             items: _itemsOfTypes(_myEventsTypes),
           ),
           _buildNotificationSection(
-            title: 'Perfiles seguidos',
-            icon: Icons.bookmark_outline,
-            items: _itemsOfTypes(_followTypes),
+            title: 'Mis Reservas',
+            icon: Icons.calendar_today_outlined,
+            items: _itemsOfTypes(_myReservationsTypes),
           ),
-          const _NotificationSection(title: 'Recordatorios', icon: Icons.alarm_outlined),
+          _buildDiscoverySection(context),
+          _buildAccountSection(context),
         ],
       ),
+    );
+  }
+
+  Widget _buildDiscoverySection(BuildContext context) {
+    final savedItems = _itemsOfTypes(_savedEventTypes);
+    final followedItems = _itemsOfTypes(_followedUsersTypes);
+    final unreadCount =
+        savedItems.where((n) => !n.read).length + followedItems.where((n) => !n.read).length;
+
+    return Column(
+      children: [
+        ExpansionTile(
+          leading: Badge(
+            isLabelVisible: unreadCount > 0,
+            label: Text('$unreadCount'),
+            child: const Icon(Icons.explore_outlined),
+          ),
+          title: const Text('Descubrimiento'),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: _buildNotificationSection(
+                title: 'Eventos guardados',
+                icon: Icons.bookmark_outline,
+                items: savedItems,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: _buildNotificationSection(
+                title: 'Usuarios que sigo',
+                icon: Icons.person_search_outlined,
+                items: followedItems,
+              ),
+            ),
+          ],
+        ),
+        const Divider(height: 1),
+      ],
+    );
+  }
+
+  Widget _buildAccountSection(BuildContext context) {
+    final socialItems = _itemsOfTypes(_socialTypes);
+    final unreadCount =
+        socialItems.where((n) => !n.read).length + (_updateAvailable == true ? 1 : 0);
+
+    return Column(
+      children: [
+        ExpansionTile(
+          leading: Badge(
+            isLabelVisible: unreadCount > 0,
+            label: Text('$unreadCount'),
+            child: const Icon(Icons.person_outline),
+          ),
+          title: const Text('Cuenta'),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: _buildNotificationSection(
+                title: 'Social',
+                icon: Icons.people_alt_outlined,
+                items: socialItems,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: _buildSystemSection(context),
+            ),
+          ],
+        ),
+        const Divider(height: 1),
+      ],
+    );
+  }
+
+  Widget _buildSystemSection(BuildContext context) {
+    return Column(
+      children: [
+        ExpansionTile(
+          leading: Badge(
+            isLabelVisible: _updateAvailable == true,
+            label: const Text('1'),
+            child: const Icon(Icons.settings_outlined),
+          ),
+          title: const Text('Sistema'),
+          children: [
+            if (_updateAvailable == true)
+              ListTile(
+                leading: Icon(Icons.system_update_alt_outlined,
+                    color: Theme.of(context).colorScheme.primary),
+                title: const Text(
+                  'Nueva versión disponible',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text('Actualiza la app para disfrutar de las últimas novedades'),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text(
+                  'Sin novedades todavía',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                ),
+              ),
+          ],
+        ),
+        const Divider(height: 1),
+      ],
     );
   }
 
@@ -213,6 +348,18 @@ class _NotificationTileState extends State<_NotificationTile> {
         NotificationType.packPaid => Icons.payments_outlined,
         NotificationType.registrationRevoked => Icons.event_busy_outlined,
         NotificationType.paymentRequired => Icons.hourglass_bottom,
+        NotificationType.registrantCancelled => Icons.person_remove_outlined,
+        NotificationType.selfCancelConfirmed => Icons.event_busy_outlined,
+        NotificationType.capacityFull => Icons.groups_outlined,
+        NotificationType.spotFreed => Icons.event_seat_outlined,
+        NotificationType.eventCancelled => Icons.cancel_outlined,
+        NotificationType.savedEventCapacityLow => Icons.bookmark_outline,
+        NotificationType.savedEventCapacityFull => Icons.bookmark_outline,
+        NotificationType.savedEventSpotFreed => Icons.bookmark_outline,
+        NotificationType.eventReminderOrganizerDay => Icons.today_outlined,
+        NotificationType.eventReminderOrganizerHours => Icons.access_time_outlined,
+        NotificationType.eventReminderStudent => Icons.today_outlined,
+        NotificationType.savedEventReminder => Icons.today_outlined,
       };
 
   Future<void> _respond(bool approve) async {
@@ -300,26 +447,6 @@ class _NotificationTileState extends State<_NotificationTile> {
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: _trailing,
-    );
-  }
-}
-
-class _NotificationSection extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  const _NotificationSection({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ExpansionTile(
-          leading: Icon(icon),
-          title: Text(title),
-        ),
-        const Divider(height: 1),
-      ],
     );
   }
 }

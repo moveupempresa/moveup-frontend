@@ -12,7 +12,19 @@ enum NotificationType {
   signupRejected('signup_rejected'),
   packPaid('pack_paid'),
   registrationRevoked('registration_revoked'),
-  paymentRequired('payment_required');
+  paymentRequired('payment_required'),
+  registrantCancelled('registrant_cancelled'),
+  selfCancelConfirmed('self_cancel_confirmed'),
+  capacityFull('capacity_full'),
+  spotFreed('spot_freed'),
+  eventCancelled('event_cancelled'),
+  savedEventCapacityLow('saved_event_capacity_low'),
+  savedEventCapacityFull('saved_event_capacity_full'),
+  savedEventSpotFreed('saved_event_spot_freed'),
+  eventReminderOrganizerDay('event_reminder_organizer_day'),
+  eventReminderOrganizerHours('event_reminder_organizer_hours'),
+  eventReminderStudent('event_reminder_student'),
+  savedEventReminder('saved_event_reminder');
 
   const NotificationType(this.value);
   final String value;
