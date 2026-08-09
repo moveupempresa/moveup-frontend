@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/calendario_tab.dart';
+
 class MySpaceScreen extends StatefulWidget {
   final String token;
   final String currentUserId;
@@ -38,13 +40,13 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             ],
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
-            SizedBox.shrink(),
-            SizedBox.shrink(),
-            SizedBox.shrink(),
-            SizedBox.shrink(),
-            SizedBox.shrink(),
+            const SizedBox.shrink(),
+            const SizedBox.shrink(),
+            const SizedBox.shrink(),
+            const SizedBox.shrink(),
+            CalendarioTab(token: widget.token, currentUserId: widget.currentUserId),
           ],
         ),
       ),
