@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 
+import '../models/cancelled_reservation.dart';
 import '../models/event.dart';
 import '../models/popular_profile.dart';
+import '../models/reservation.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
+import '../services/registration_service.dart';
 import '../services/user_service.dart';
 import '../widgets/calendario_tab.dart';
+import '../widgets/cancelled_reservation_card.dart';
 import '../widgets/events_locked_banner.dart';
 import '../widgets/following_profile_card.dart';
 import '../widgets/profile_events_section.dart';
+import '../widgets/reservation_card.dart';
 import 'event_detail_screen.dart';
 import 'public_profile_screen.dart';
 import 'settings/pro_plan_screen.dart';
 
 enum _NetworkMode { following, followers }
+
+enum _ReservationsMode { proximas, finalizadas, canceladas }
 
 class MySpaceScreen extends StatefulWidget {
   final String token;
@@ -42,6 +49,14 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   bool _loadingSaved = false;
   String? _savedError;
 
+  _ReservationsMode _reservationsMode = _ReservationsMode.proximas;
+  List<Reservation>? _reservations;
+  bool _loadingReservations = false;
+  String? _reservationsError;
+  List<CancelledReservation>? _cancelledReservations;
+  bool _loadingCancelled = false;
+  String? _cancelledError;
+
   _NetworkMode _networkMode = _NetworkMode.following;
   List<PopularProfile>? _following;
   bool _loadingFollowing = false;
@@ -55,6 +70,8 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     super.initState();
     if (_isPro) _loadEvents();
     _loadSavedEvents();
+    _loadReservations();
+    _loadCancelledReservations();
     _loadFollowing();
     _loadFollowers();
   }
@@ -62,6 +79,8 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   void refreshMySpace() {
     if (_isPro) _loadEvents();
     _loadSavedEvents();
+    _loadReservations();
+    _loadCancelledReservations();
     _loadFollowing();
     _loadFollowers();
   }
@@ -96,6 +115,41 @@ class MySpaceScreenState extends State<MySpaceScreen> {
       if (mounted) setState(() => _savedError = e.toString());
     } finally {
       if (mounted) setState(() => _loadingSaved = false);
+    }
+  }
+
+  Future<void> _loadReservations() async {
+    setState(() {
+      _loadingReservations = true;
+      _reservationsError = null;
+    });
+    try {
+      final reservations = await RegistrationService.getMyReservations(
+        token: widget.token,
+      );
+      if (mounted) setState(() => _reservations = reservations);
+    } catch (e) {
+      if (mounted) setState(() => _reservationsError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingReservations = false);
+    }
+  }
+
+  Future<void> _loadCancelledReservations() async {
+    setState(() {
+      _loadingCancelled = true;
+      _cancelledError = null;
+    });
+    try {
+      final cancellations =
+          await RegistrationService.getMyCancelledReservations(
+            token: widget.token,
+          );
+      if (mounted) setState(() => _cancelledReservations = cancellations);
+    } catch (e) {
+      if (mounted) setState(() => _cancelledError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingCancelled = false);
     }
   }
 
@@ -151,7 +205,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
         body: TabBarView(
           children: [
             _buildMyEventsTab(context),
-            const SizedBox.shrink(),
+            _buildMisReservasTab(context),
             _buildGuardadosTab(context),
             _buildMiRedTab(context),
             CalendarioTab(
@@ -215,6 +269,188 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMisReservasTab(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SegmentedButton<_ReservationsMode>(
+            segments: const [
+              ButtonSegment(
+                value: _ReservationsMode.proximas,
+                label: Text('Próximas'),
+              ),
+              ButtonSegment(
+                value: _ReservationsMode.finalizadas,
+                label: Text('Finalizadas'),
+              ),
+              ButtonSegment(
+                value: _ReservationsMode.canceladas,
+                label: Text('Canceladas'),
+              ),
+            ],
+            selected: {_reservationsMode},
+            onSelectionChanged: (selection) =>
+                setState(() => _reservationsMode = selection.first),
+          ),
+        ),
+        Expanded(
+          child: switch (_reservationsMode) {
+            _ReservationsMode.proximas => _buildReservationsList(isPast: false),
+            _ReservationsMode.finalizadas => _buildReservationsList(
+              isPast: true,
+            ),
+            _ReservationsMode.canceladas => _buildCancelledList(),
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReservationsList({required bool isPast}) {
+    if (_loadingReservations && _reservations == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_reservationsError != null && _reservations == null) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No se pudo cargar la información',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton(
+              onPressed: _loadReservations,
+              child: const Text('Reintentar'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final results = (_reservations ?? [])
+        .where((r) => r.isPast == isPast)
+        .toList();
+    if (results.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(
+            Icons.event_busy_outlined,
+            size: 40,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isPast
+                ? 'Todavía no tienes reservas finalizadas'
+                : 'Todavía no tienes reservas próximas',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadReservations,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: results.length,
+        itemBuilder: (context, index) {
+          final reservation = results[index];
+          return ReservationCard(
+            reservation: reservation,
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EventDetailScreen(
+                    token: widget.token,
+                    event: reservation.event,
+                    currentUserId: widget.currentUserId,
+                  ),
+                ),
+              );
+              _loadReservations();
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCancelledList() {
+    if (_loadingCancelled && _cancelledReservations == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_cancelledError != null && _cancelledReservations == null) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No se pudo cargar la información',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton(
+              onPressed: _loadCancelledReservations,
+              child: const Text('Reintentar'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final results = _cancelledReservations ?? [];
+    if (results.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(
+            Icons.event_busy_outlined,
+            size: 40,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Todavía no tienes reservas canceladas',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadCancelledReservations,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: results.length,
+        itemBuilder: (context, index) =>
+            CancelledReservationCard(cancellation: results[index]),
       ),
     );
   }
