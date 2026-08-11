@@ -6,6 +6,7 @@ import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/events_locked_banner.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/profile_events_section.dart';
 import 'edit_profile_screen.dart';
@@ -289,7 +290,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             onRetry: _loadEvents,
             emptyMessage: 'Todavía no tienes eventos publicados',
             lockedBanner: _user.subscriptionPlan == SubscriptionPlan.free
-                ? _EventsLockedBanner(
+                ? EventsLockedBanner(
                     onUpgrade: () async {
                       final updatedUser = await Navigator.of(context).push(
                         MaterialPageRoute(
@@ -325,34 +326,3 @@ class ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _EventsLockedBanner extends StatelessWidget {
-  final VoidCallback onUpgrade;
-
-  const _EventsLockedBanner({required this.onUpgrade});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.lock_outline, size: 32),
-          const SizedBox(height: 8),
-          const Text(
-            'Los eventos son exclusivos del plan Pro',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: onUpgrade,
-            child: const Text('Ver plan Pro'),
-          ),
-        ],
-      ),
-    );
-  }
-}
