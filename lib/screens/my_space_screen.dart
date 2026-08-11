@@ -38,6 +38,10 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   bool _loadingEvents = false;
   String? _eventsError;
 
+  List<Event>? _savedEvents;
+  bool _loadingSaved = false;
+  String? _savedError;
+
   _NetworkMode _networkMode = _NetworkMode.following;
   List<PopularProfile>? _following;
   bool _loadingFollowing = false;
@@ -50,12 +54,14 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   void initState() {
     super.initState();
     if (_isPro) _loadEvents();
+    _loadSavedEvents();
     _loadFollowing();
     _loadFollowers();
   }
 
   void refreshMySpace() {
     if (_isPro) _loadEvents();
+    _loadSavedEvents();
     _loadFollowing();
     _loadFollowers();
   }
@@ -72,6 +78,24 @@ class MySpaceScreenState extends State<MySpaceScreen> {
       if (mounted) setState(() => _eventsError = e.toString());
     } finally {
       if (mounted) setState(() => _loadingEvents = false);
+    }
+  }
+
+  Future<void> _loadSavedEvents() async {
+    setState(() {
+      _loadingSaved = true;
+      _savedError = null;
+    });
+    try {
+      final events = await EventService.getPublicEvents(
+        token: widget.token,
+        savedOnly: true,
+      );
+      if (mounted) setState(() => _savedEvents = events);
+    } catch (e) {
+      if (mounted) setState(() => _savedError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingSaved = false);
     }
   }
 
@@ -128,7 +152,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
           children: [
             _buildMyEventsTab(context),
             const SizedBox.shrink(),
-            const SizedBox.shrink(),
+            _buildGuardadosTab(context),
             _buildMiRedTab(context),
             CalendarioTab(
               token: widget.token,
@@ -188,6 +212,36 @@ class MySpaceScreenState extends State<MySpaceScreen> {
                 ),
               );
               if (changed == true) _loadEvents();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuardadosTab(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _loadSavedEvents,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          ProfileEventsSection(
+            events: _savedEvents,
+            isLoading: _loadingSaved,
+            error: _savedError,
+            onRetry: _loadSavedEvents,
+            emptyMessage: 'Todavía no has guardado ningún evento',
+            onEventTap: (e) async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EventDetailScreen(
+                    token: widget.token,
+                    event: e,
+                    currentUserId: widget.currentUserId,
+                  ),
+                ),
+              );
+              _loadSavedEvents();
             },
           ),
         ],
