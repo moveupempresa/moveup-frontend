@@ -55,6 +55,22 @@ class EventCard extends StatelessWidget {
     0,
   ]);
 
+  // A diagonal glass-like highlight sweeping across the thumbnail, giving
+  // active events a glossy, "alive" feel that contrasts with the flat,
+  // desaturated look of finished ones.
+  static const _shineGradient = LinearGradient(
+    begin: Alignment(-1, -1),
+    end: Alignment(1, 1),
+    colors: [
+      Colors.transparent,
+      Colors.white24,
+      Colors.white60,
+      Colors.white24,
+      Colors.transparent,
+    ],
+    stops: [0.0, 0.35, 0.47, 0.6, 1.0],
+  );
+
   String _eventDate() {
     final sessions = event.sessions;
     if (sessions != null && sessions.isNotEmpty) {
@@ -94,6 +110,8 @@ class EventCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
       color: isPast ? Theme.of(context).colorScheme.surfaceContainerLow : null,
+      elevation: isPast ? 0 : 4,
+      shadowColor: isPast ? null : Theme.of(context).colorScheme.primary,
       child: InkWell(
         onTap: onTap,
         child: Row(
@@ -105,6 +123,14 @@ class EventCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   _buildThumbnail(context, isPast),
+                  if (!isPast)
+                    const Positioned.fill(
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(gradient: _shineGradient),
+                        ),
+                      ),
+                    ),
                   if (isPast)
                     Positioned(
                       left: 4,
