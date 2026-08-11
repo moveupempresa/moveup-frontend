@@ -52,9 +52,13 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadNotificationStatus() async {
     try {
-      final notifications = await NotificationService.getMyNotifications(token: widget.token);
+      final notifications = await NotificationService.getMyNotifications(
+        token: widget.token,
+      );
       if (mounted) {
-        setState(() => _hasUnreadNotifications = notifications.any((n) => !n.read));
+        setState(
+          () => _hasUnreadNotifications = notifications.any((n) => !n.read),
+        );
       }
     } catch (_) {
       // Keep the current badge state if this background check fails.
@@ -83,7 +87,8 @@ class ProfileScreenState extends State<ProfileScreen> {
   Future<void> _editProfile() async {
     final updated = await Navigator.of(context).push<Profile>(
       MaterialPageRoute(
-        builder: (_) => EditProfileScreen(profile: _profile, token: widget.token),
+        builder: (_) =>
+            EditProfileScreen(profile: _profile, token: widget.token),
       ),
     );
     if (updated != null) setState(() => _profile = updated);
@@ -108,7 +113,9 @@ class ProfileScreenState extends State<ProfileScreen> {
             tooltip: 'Notificaciones',
             onPressed: () async {
               await Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => NotificationsScreen(token: widget.token)),
+                MaterialPageRoute(
+                  builder: (_) => NotificationsScreen(token: widget.token),
+                ),
               );
               _loadNotificationStatus();
             },
@@ -119,10 +126,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               final updatedUser = await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => SettingsScreen(
-                    token: widget.token,
-                    user: _user,
-                  ),
+                  builder: (_) =>
+                      SettingsScreen(token: widget.token, user: _user),
                 ),
               );
               if (updatedUser != null) setState(() => _user = updatedUser);
@@ -130,8 +135,36 @@ class ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
+      body: DefaultTabController(
+        length: 2,
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverToBoxAdapter(child: _buildHeader(context, name)),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _TabBarDelegate(
+                TabBar(
+                  tabs: const [
+                    Tab(text: 'Galería'),
+                    Tab(text: 'Eventos'),
+                  ],
+                  labelColor: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+          body: TabBarView(
+            children: [_buildGaleriaTab(context), _buildEventosTab(context)],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, String name) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+      child: Column(
         children: [
           Center(
             child: CircleAvatar(
@@ -158,21 +191,22 @@ class ProfileScreenState extends State<ProfileScreen> {
             Text(
               _profile.artisticName,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                fontStyle: FontStyle.italic,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
           if (_profile.city.isNotEmpty || _profile.country.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              [_profile.city, _profile.country]
-                  .where((s) => s.isNotEmpty)
-                  .join(', '),
+              [
+                _profile.city,
+                _profile.country,
+              ].where((s) => s.isNotEmpty).join(', '),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -181,8 +215,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             Text(
               '${_profile.experience} ${_profile.experience == 1 ? 'año' : 'años'} de experiencia',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -190,10 +224,11 @@ class ProfileScreenState extends State<ProfileScreen> {
           Text(
             _profile.bio.isNotEmpty ? _profile.bio : 'Sin biografía',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontStyle:
-                      _profile.bio.isEmpty ? FontStyle.italic : FontStyle.normal,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+              fontStyle: _profile.bio.isEmpty
+                  ? FontStyle.italic
+                  : FontStyle.normal,
+              color: Theme.of(context).colorScheme.outline,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -201,128 +236,184 @@ class ProfileScreenState extends State<ProfileScreen> {
             onPressed: _editProfile,
             child: const Text('Editar perfil'),
           ),
-          const SizedBox(height: 32),
-          Text('Galería', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          _profile.gallery.isEmpty
-              ? Container(
-                  height: 96,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text('Sin imágenes todavía'),
-                )
-              : GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 4,
-                    mainAxisSpacing: 4,
-                    childAspectRatio: 0.75,
-                  ),
-                  itemCount: _profile.gallery.length,
-                  itemBuilder: (context, index) {
-                    final album = _profile.gallery[index];
-                    final isVideo = album.isVideo;
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          GestureDetector(
-                            onTap: isVideo
-                                ? null
-                                : () => showImageViewer(
-                                      context,
-                                      album.urls.map(ApiConfig.mediaUrl).toList(),
-                                    ),
-                            child: isVideo
-                                ? Container(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    alignment: Alignment.center,
-                                    child: Icon(
-                                      Icons.play_circle_outline,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                      size: 32,
-                                    ),
-                                  )
-                                : Image.network(
-                                    ApiConfig.mediaUrl(album.urls.first),
-                                    fit: BoxFit.cover,
-                                  ),
-                          ),
-                          if (album.urls.length > 1)
-                            Positioned(
-                              bottom: 4,
-                              left: 4,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.photo_library, size: 11, color: Colors.white),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      '${album.urls.length}',
-                                      style: const TextStyle(color: Colors.white, fontSize: 11),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-          const SizedBox(height: 32),
-          ProfileEventsSection(
-            events: _events,
-            isLoading: _loadingEvents,
-            error: _eventsError,
-            onRetry: _loadEvents,
-            emptyMessage: 'Todavía no tienes eventos publicados',
-            lockedBanner: _user.subscriptionPlan == SubscriptionPlan.free
-                ? EventsLockedBanner(
-                    onUpgrade: () async {
-                      final updatedUser = await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProPlanScreen(
-                            token: widget.token,
-                            subscriptionPlan: SubscriptionPlan.free,
-                          ),
-                        ),
-                      );
-                      if (updatedUser != null) {
-                        setState(() => _user = updatedUser);
-                        _loadEvents();
-                      }
-                    },
-                  )
-                : null,
-            onEventTap: (e) async {
-              final changed = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(
-                  builder: (_) => EventDetailScreen(
-                    token: widget.token,
-                    event: e,
-                    currentUserId: _user.id,
-                  ),
-                ),
-              );
-              if (changed == true) _loadEvents();
-            },
-          ),
         ],
       ),
     );
   }
+
+  Widget _buildGaleriaTab(BuildContext context) {
+    if (_profile.gallery.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(
+            Icons.photo_library_outlined,
+            size: 40,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Sin imágenes todavía',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: _profile.gallery.length,
+      itemBuilder: (context, index) {
+        final album = _profile.gallery[index];
+        final isVideo = album.isVideo;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              GestureDetector(
+                onTap: isVideo
+                    ? null
+                    : () => showImageViewer(
+                        context,
+                        album.urls.map(ApiConfig.mediaUrl).toList(),
+                      ),
+                child: isVideo
+                    ? Container(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.play_circle_outline,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 32,
+                        ),
+                      )
+                    : Image.network(
+                        ApiConfig.mediaUrl(album.urls.first),
+                        fit: BoxFit.cover,
+                      ),
+              ),
+              if (album.urls.length > 1)
+                Positioned(
+                  bottom: 4,
+                  left: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.photo_library,
+                          size: 11,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${album.urls.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEventosTab(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ProfileEventsSection(
+          events: _events,
+          isLoading: _loadingEvents,
+          error: _eventsError,
+          onRetry: _loadEvents,
+          emptyMessage: 'Todavía no tienes eventos publicados',
+          lockedBanner: _user.subscriptionPlan == SubscriptionPlan.free
+              ? EventsLockedBanner(
+                  onUpgrade: () async {
+                    final updatedUser = await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProPlanScreen(
+                          token: widget.token,
+                          subscriptionPlan: SubscriptionPlan.free,
+                        ),
+                      ),
+                    );
+                    if (updatedUser != null) {
+                      setState(() => _user = updatedUser);
+                      _loadEvents();
+                    }
+                  },
+                )
+              : null,
+          onEventTap: (e) async {
+            final changed = await Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => EventDetailScreen(
+                  token: widget.token,
+                  event: e,
+                  currentUserId: _user.id,
+                ),
+              ),
+            );
+            if (changed == true) _loadEvents();
+          },
+        ),
+      ],
+    );
+  }
 }
 
+class _TabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+
+  _TabBarDelegate(this.tabBar);
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _TabBarDelegate oldDelegate) =>
+      tabBar != oldDelegate.tabBar;
+}
