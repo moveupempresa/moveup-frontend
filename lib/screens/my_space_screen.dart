@@ -82,7 +82,11 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             const SizedBox.shrink(),
             const SizedBox.shrink(),
             const SizedBox.shrink(),
-            CalendarioTab(token: widget.token, currentUserId: widget.currentUserId),
+            CalendarioTab(
+              token: widget.token,
+              currentUserId: widget.currentUserId,
+              isPro: _isPro,
+            ),
           ],
         ),
       ),
@@ -116,7 +120,11 @@ class MySpaceScreenState extends State<MySpaceScreen> {
                         ),
                       );
                       if (updatedUser != null) {
-                        setState(() => _isPro = updatedUser.subscriptionPlan == SubscriptionPlan.pro);
+                        setState(
+                          () => _isPro =
+                              updatedUser.subscriptionPlan ==
+                              SubscriptionPlan.pro,
+                        );
                         if (_isPro) _loadEvents();
                       }
                     },

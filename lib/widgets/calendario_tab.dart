@@ -15,12 +15,18 @@ import 'event_card.dart';
 import 'reservation_card.dart';
 
 /// One event the user is either attending (has an upcoming reservation for
-/// it) or has saved, merged so the same event never shows up twice.
+/// it), organizes, or has saved, merged so the same event never shows up
+/// twice.
 class _CalendarItem {
   final Event event;
   final Reservation? reservation;
+  final bool isOwned;
 
-  const _CalendarItem({required this.event, this.reservation});
+  const _CalendarItem({
+    required this.event,
+    this.reservation,
+    this.isOwned = false,
+  });
 
   bool get isAttending => reservation != null;
 }
@@ -31,8 +37,14 @@ const _weekdayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 class CalendarioTab extends StatefulWidget {
   final String token;
   final String currentUserId;
+  final bool isPro;
 
-  const CalendarioTab({super.key, required this.token, required this.currentUserId});
+  const CalendarioTab({
+    super.key,
+    required this.token,
+    required this.currentUserId,
+    required this.isPro,
+  });
 
   @override
   State<CalendarioTab> createState() => _CalendarioTabState();
@@ -41,6 +53,7 @@ class CalendarioTab extends StatefulWidget {
 class _CalendarioTabState extends State<CalendarioTab> {
   List<Reservation>? _reservations;
   List<Event>? _savedEvents;
+  List<Event>? _createdEvents;
   List<CalendarNote>? _notes;
   bool _loading = false;
   String? _error;
@@ -48,22 +61,35 @@ class _CalendarioTabState extends State<CalendarioTab> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   late DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  final _weekScrollController = ScrollController(initialScrollOffset: 7 * _hourHeight);
+  final _weekScrollController = ScrollController(
+    initialScrollOffset: 7 * _hourHeight,
+  );
 
   Map<String, CalendarNote> get _notesByDate => {
-        for (final n in _notes ?? <CalendarNote>[]) n.date: n,
-      };
+    for (final n in _notes ?? <CalendarNote>[]) n.date: n,
+  };
 
   List<_CalendarItem>? get _items {
-    if (_reservations == null && _savedEvents == null) return null;
+    if (_reservations == null &&
+        _savedEvents == null &&
+        _createdEvents == null) {
+      return null;
+    }
 
     final byEventId = <String, _CalendarItem>{};
     for (final r in (_reservations ?? []).where((r) => !r.isPast)) {
       final existing = byEventId[r.event.id];
       final existingDate = existing?.reservation?.sessionDate;
-      final shouldReplace = existing == null ||
-          (r.sessionDate != null && (existingDate == null || r.sessionDate!.isBefore(existingDate)));
-      if (shouldReplace) byEventId[r.event.id] = _CalendarItem(event: r.event, reservation: r);
+      final shouldReplace =
+          existing == null ||
+          (r.sessionDate != null &&
+              (existingDate == null || r.sessionDate!.isBefore(existingDate)));
+      if (shouldReplace) {
+        byEventId[r.event.id] = _CalendarItem(event: r.event, reservation: r);
+      }
+    }
+    for (final e in (_createdEvents ?? [])) {
+      byEventId.putIfAbsent(e.id, () => _CalendarItem(event: e, isOwned: true));
     }
     for (final e in (_savedEvents ?? [])) {
       byEventId.putIfAbsent(e.id, () => _CalendarItem(event: e));
@@ -93,12 +119,16 @@ class _CalendarioTabState extends State<CalendarioTab> {
         RegistrationService.getMyReservations(token: widget.token),
         EventService.getPublicEvents(token: widget.token, savedOnly: true),
         CalendarNoteService.getMyNotes(token: widget.token),
+        widget.isPro
+            ? EventService.getMyEvents(token: widget.token)
+            : Future.value(<Event>[]),
       ]);
       if (mounted) {
         setState(() {
           _reservations = results[0] as List<Reservation>;
           _savedEvents = results[1] as List<Event>;
           _notes = results[2] as List<CalendarNote>;
+          _createdEvents = results[3] as List<Event>;
         });
       }
     } catch (e) {
@@ -177,7 +207,10 @@ class _CalendarioTabState extends State<CalendarioTab> {
 
   Widget _cardFor(_CalendarItem item) {
     return item.isAttending
-        ? ReservationCard(reservation: item.reservation!, onTap: () => _openItem(item))
+        ? ReservationCard(
+            reservation: item.reservation!,
+            onTap: () => _openItem(item),
+          )
         : EventCard(
             event: item.event,
             onTap: () => _openItem(item),
@@ -213,7 +246,11 @@ class _CalendarioTabState extends State<CalendarioTab> {
 
   Future<void> _saveNote(String date, String text) async {
     try {
-      final note = await CalendarNoteService.setNote(token: widget.token, date: date, text: text);
+      final note = await CalendarNoteService.setNote(
+        token: widget.token,
+        date: date,
+        text: text,
+      );
       if (mounted) {
         setState(() {
           _notes = [...?_notes?.where((n) => n.date != date), note];
@@ -221,7 +258,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -234,7 +273,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -248,11 +289,23 @@ class _CalendarioTabState extends State<CalendarioTab> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          Icon(Icons.error_outline, size: 40, color: Theme.of(context).colorScheme.error),
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.error,
+          ),
           const SizedBox(height: 12),
-          const Text('No se pudo cargar la información', textAlign: TextAlign.center),
+          const Text(
+            'No se pudo cargar la información',
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 12),
-          Center(child: TextButton(onPressed: _loadAll, child: const Text('Reintentar'))),
+          Center(
+            child: TextButton(
+              onPressed: _loadAll,
+              child: const Text('Reintentar'),
+            ),
+          ),
         ],
       );
     }
@@ -270,19 +323,37 @@ class _CalendarioTabState extends State<CalendarioTab> {
               ButtonSegment(value: CalendarFormat.week, label: Text('Semana')),
             ],
             selected: {_calendarFormat},
-            onSelectionChanged: (selection) => setState(() => _calendarFormat = selection.first),
+            onSelectionChanged: (selection) =>
+                setState(() => _calendarFormat = selection.first),
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 16,
+            runSpacing: 4,
             children: [
-              _legendDot(context, Theme.of(context).colorScheme.primary, 'Asistes'),
-              const SizedBox(width: 16),
-              _legendDot(context, Theme.of(context).colorScheme.tertiary, 'Guardado'),
-              const SizedBox(width: 16),
-              _legendDot(context, Theme.of(context).colorScheme.secondary, 'Nota'),
+              _legendDot(
+                context,
+                Theme.of(context).colorScheme.primary,
+                'Asistes',
+              ),
+              _legendDot(
+                context,
+                Theme.of(context).colorScheme.error,
+                'Tus eventos',
+              ),
+              _legendDot(
+                context,
+                Theme.of(context).colorScheme.tertiary,
+                'Guardado',
+              ),
+              _legendDot(
+                context,
+                Theme.of(context).colorScheme.secondary,
+                'Nota',
+              ),
             ],
           ),
         ),
@@ -303,6 +374,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
     final selectedDay = _selectedDay ?? _calendarDayKey(_focusedDay);
     final selectedItems = itemsByDay[selectedDay] ?? const <_CalendarItem>[];
     final attendingColor = Theme.of(context).colorScheme.primary;
+    final ownedColor = Theme.of(context).colorScheme.error;
     final savedColor = Theme.of(context).colorScheme.tertiary;
     final noteColor = Theme.of(context).colorScheme.secondary;
 
@@ -316,8 +388,10 @@ class _CalendarioTabState extends State<CalendarioTab> {
             focusedDay: _focusedDay,
             locale: 'es_ES',
             calendarFormat: CalendarFormat.month,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay ?? _focusedDay, day),
-            eventLoader: (day) => itemsByDay[_calendarDayKey(day)] ?? const <_CalendarItem>[],
+            selectedDayPredicate: (day) =>
+                isSameDay(_selectedDay ?? _focusedDay, day),
+            eventLoader: (day) =>
+                itemsByDay[_calendarDayKey(day)] ?? const <_CalendarItem>[],
             onDaySelected: (selected, focused) {
               setState(() {
                 _selectedDay = _calendarDayKey(selected);
@@ -326,7 +400,10 @@ class _CalendarioTabState extends State<CalendarioTab> {
             },
             onPageChanged: (focused) => _focusedDay = focused,
             calendarStyle: CalendarStyle(
-              selectedDecoration: BoxDecoration(color: attendingColor, shape: BoxShape.circle),
+              selectedDecoration: BoxDecoration(
+                color: attendingColor,
+                shape: BoxShape.circle,
+              ),
               todayDecoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primaryContainer,
                 shape: BoxShape.circle,
@@ -335,25 +412,36 @@ class _CalendarioTabState extends State<CalendarioTab> {
             calendarBuilders: CalendarBuilders<_CalendarItem>(
               markerBuilder: (context, day, dayItems) {
                 final hasAttending = dayItems.any((i) => i.isAttending);
-                final hasSaved = dayItems.any((i) => !i.isAttending);
+                final hasOwned = dayItems.any((i) => i.isOwned);
+                final hasSaved = dayItems.any(
+                  (i) => !i.isAttending && !i.isOwned,
+                );
                 final hasNote = _notesByDate.containsKey(_dateKey(day));
-                if (!hasAttending && !hasSaved && !hasNote) return null;
+                final dots = [
+                  if (hasAttending) attendingColor,
+                  if (hasOwned) ownedColor,
+                  if (hasSaved) savedColor,
+                  if (hasNote) noteColor,
+                ];
+                if (dots.isEmpty) return null;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (hasAttending) _dot(attendingColor),
-                      if (hasAttending && hasSaved) const SizedBox(width: 3),
-                      if (hasSaved) _dot(savedColor),
-                      if ((hasAttending || hasSaved) && hasNote) const SizedBox(width: 3),
-                      if (hasNote) _dot(noteColor),
+                      for (var i = 0; i < dots.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 3),
+                        _dot(dots[i]),
+                      ],
                     ],
                   ),
                 );
               },
             ),
-            headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
           ),
           const SizedBox(height: 12),
           if (selectedItems.isEmpty)
@@ -362,8 +450,8 @@ class _CalendarioTabState extends State<CalendarioTab> {
               child: Text(
                 'Sin eventos este día',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
+                  color: Theme.of(context).colorScheme.outline,
+                ),
               ),
             )
           else
@@ -380,11 +468,15 @@ class _CalendarioTabState extends State<CalendarioTab> {
   // Calendar-day arithmetic, not elapsed-time arithmetic: constructing a
   // DateTime from y/m/d fields (rather than adding a Duration) keeps this
   // correct across DST transitions, which Spain observes.
-  DateTime _addDays(DateTime day, int days) => DateTime(day.year, day.month, day.day + days);
+  DateTime _addDays(DateTime day, int days) =>
+      DateTime(day.year, day.month, day.day + days);
 
   DateTime _weekStartFor(DateTime day) => _addDays(day, -(day.weekday - 1));
 
-  Widget _buildWeekView(BuildContext context, Map<DateTime, List<_CalendarItem>> itemsByDay) {
+  Widget _buildWeekView(
+    BuildContext context,
+    Map<DateTime, List<_CalendarItem>> itemsByDay,
+  ) {
     final weekStart = _weekStartFor(_calendarDayKey(_focusedDay));
     final weekDays = List.generate(7, (i) => _addDays(weekStart, i));
     final today = _calendarDayKey(DateTime.now());
@@ -409,9 +501,16 @@ class _CalendarioTabState extends State<CalendarioTab> {
                     Expanded(
                       child: Row(
                         children: weekDays
-                            .map((day) => Expanded(
-                                  child: _buildDayColumn(context, day, today, itemsByDay),
-                                ))
+                            .map(
+                              (day) => Expanded(
+                                child: _buildDayColumn(
+                                  context,
+                                  day,
+                                  today,
+                                  itemsByDay,
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                     ),
@@ -429,8 +528,18 @@ class _CalendarioTabState extends State<CalendarioTab> {
   Widget _buildWeekNavHeader(BuildContext context, DateTime weekStart) {
     final weekEnd = weekStart.add(const Duration(days: 6));
     const months = [
-      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-      'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic',
     ];
     final label = weekStart.month == weekEnd.month
         ? '${weekStart.day} - ${weekEnd.day} ${months[weekStart.month - 1]}. ${weekEnd.year}'
@@ -444,20 +553,26 @@ class _CalendarioTabState extends State<CalendarioTab> {
           IconButton(
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Semana anterior',
-            onPressed: () => setState(() => _focusedDay = _addDays(_focusedDay, -7)),
+            onPressed: () =>
+                setState(() => _focusedDay = _addDays(_focusedDay, -7)),
           ),
           Text(label, style: Theme.of(context).textTheme.titleSmall),
           IconButton(
             icon: const Icon(Icons.chevron_right),
             tooltip: 'Semana siguiente',
-            onPressed: () => setState(() => _focusedDay = _addDays(_focusedDay, 7)),
+            onPressed: () =>
+                setState(() => _focusedDay = _addDays(_focusedDay, 7)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWeekDayHeader(BuildContext context, List<DateTime> weekDays, DateTime today) {
+  Widget _buildWeekDayHeader(
+    BuildContext context,
+    List<DateTime> weekDays,
+    DateTime today,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(left: 40, right: 4, bottom: 4),
       child: Row(
@@ -472,8 +587,8 @@ class _CalendarioTabState extends State<CalendarioTab> {
                   Text(
                     _weekdayLabels[day.weekday - 1],
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   CircleAvatar(
@@ -481,13 +596,17 @@ class _CalendarioTabState extends State<CalendarioTab> {
                     backgroundColor: isSelected
                         ? Theme.of(context).colorScheme.primary
                         : isToday
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : Colors.transparent,
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Colors.transparent,
                     child: Text(
                       '${day.day}',
                       style: TextStyle(
-                        color: isSelected ? Theme.of(context).colorScheme.onPrimary : null,
-                        fontWeight: isToday || isSelected ? FontWeight.bold : null,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : null,
+                        fontWeight: isToday || isSelected
+                            ? FontWeight.bold
+                            : null,
                       ),
                     ),
                   ),
@@ -514,8 +633,8 @@ class _CalendarioTabState extends State<CalendarioTab> {
             child: Text(
               '${hour.toString().padLeft(2, '0')}:00',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           );
         }),
@@ -531,7 +650,21 @@ class _CalendarioTabState extends State<CalendarioTab> {
   ) {
     final dayItems = itemsByDay[day] ?? const <_CalendarItem>[];
     final attendingColor = Theme.of(context).colorScheme.primary;
+    final ownedColor = Theme.of(context).colorScheme.error;
     final savedColor = Theme.of(context).colorScheme.tertiary;
+
+    Color blockColor(_CalendarItem item) {
+      if (item.isAttending) return attendingColor;
+      if (item.isOwned) return ownedColor;
+      return savedColor;
+    }
+
+    Color blockTextColor(_CalendarItem item) {
+      final scheme = Theme.of(context).colorScheme;
+      if (item.isAttending) return scheme.onPrimary;
+      if (item.isOwned) return scheme.onError;
+      return scheme.onTertiary;
+    }
 
     final blocks = <Widget>[];
     for (final item in dayItems) {
@@ -541,39 +674,44 @@ class _CalendarioTabState extends State<CalendarioTab> {
       final end = session.endDatetime.toLocal();
       final top = (start.hour * 60 + start.minute) / 60 * _hourHeight;
       final durationMinutes = end.difference(start).inMinutes;
-      final height = (durationMinutes / 60 * _hourHeight).clamp(28.0, 24 * _hourHeight);
+      final height = (durationMinutes / 60 * _hourHeight).clamp(
+        28.0,
+        24 * _hourHeight,
+      );
 
-      blocks.add(Positioned(
-        top: top,
-        left: 2,
-        right: 2,
-        height: height,
-        child: InkWell(
-          onTap: () => _openItem(item),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: (item.isAttending ? attendingColor : savedColor).withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              item.event.title,
-              maxLines: height > 40 ? 2 : 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: item.isAttending
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onTertiary,
-                  ),
+      blocks.add(
+        Positioned(
+          top: top,
+          left: 2,
+          right: 2,
+          height: height,
+          child: InkWell(
+            onTap: () => _openItem(item),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: blockColor(item).withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                item.event.title,
+                maxLines: height > 40 ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: blockTextColor(item)),
+              ),
             ),
           ),
         ),
-      ));
+      );
     }
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        border: Border(
+          left: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
       ),
       child: Stack(
         children: [
@@ -584,7 +722,11 @@ class _CalendarioTabState extends State<CalendarioTab> {
                 height: _hourHeight,
                 decoration: BoxDecoration(
                   border: Border(
-                    top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                    top: BorderSide(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
                   ),
                 ),
               ),
@@ -604,7 +746,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
       top: top,
       left: 0,
       right: 0,
-      child: Container(height: 2, color: Theme.of(context).colorScheme.error),
+      child: Container(height: 2, color: Theme.of(context).colorScheme.primary),
     );
   }
 
@@ -625,14 +767,17 @@ class _CalendarioTabState extends State<CalendarioTab> {
               onTap: () => _editNote(context, dateKey, null),
               child: Row(
                 children: [
-                  Icon(Icons.edit_note_outlined,
-                      size: 18, color: Theme.of(context).colorScheme.outline),
+                  Icon(
+                    Icons.edit_note_outlined,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Añadir nota',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
@@ -640,13 +785,19 @@ class _CalendarioTabState extends State<CalendarioTab> {
           : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.sticky_note_2_outlined,
-                    size: 18, color: Theme.of(context).colorScheme.secondary),
+                Icon(
+                  Icons.sticky_note_2_outlined,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(note.text, style: Theme.of(context).textTheme.bodySmall),
+                    child: Text(
+                      note.text,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -666,7 +817,11 @@ class _CalendarioTabState extends State<CalendarioTab> {
     );
   }
 
-  Future<void> _editNote(BuildContext context, String dateKey, CalendarNote? existing) async {
+  Future<void> _editNote(
+    BuildContext context,
+    String dateKey,
+    CalendarNote? existing,
+  ) async {
     final controller = TextEditingController(text: existing?.text ?? '');
     final text = await showDialog<String>(
       context: context,
@@ -677,10 +832,15 @@ class _CalendarioTabState extends State<CalendarioTab> {
           autofocus: true,
           maxLines: 4,
           maxLength: 1000,
-          decoration: const InputDecoration(hintText: 'Escribe una nota para este día'),
+          decoration: const InputDecoration(
+            hintText: 'Escribe una nota para este día',
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
             child: const Text('Guardar'),
@@ -705,8 +865,8 @@ class _CalendarioTabState extends State<CalendarioTab> {
   }
 
   Widget _dot(Color color) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 }
