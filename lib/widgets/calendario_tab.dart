@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/calendar_note.dart';
 import '../models/event.dart';
 import '../models/reservation.dart';
+import '../models/session.dart';
 import '../services/auth_service.dart';
 import '../services/calendar_note_service.dart';
 import '../services/event_service.dart';
@@ -23,6 +24,9 @@ class _CalendarItem {
 
   bool get isAttending => reservation != null;
 }
+
+const _hourHeight = 60.0;
+const _weekdayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 class CalendarioTab extends StatefulWidget {
   final String token;
@@ -44,6 +48,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   late DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  final _weekScrollController = ScrollController(initialScrollOffset: 7 * _hourHeight);
 
   Map<String, CalendarNote> get _notesByDate => {
         for (final n in _notes ?? <CalendarNote>[]) n.date: n,
@@ -70,6 +75,12 @@ class _CalendarioTabState extends State<CalendarioTab> {
   void initState() {
     super.initState();
     _loadAll();
+  }
+
+  @override
+  void dispose() {
+    _weekScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAll() async {
@@ -119,6 +130,17 @@ class _CalendarioTabState extends State<CalendarioTab> {
     final sessions = item.event.sessions;
     if (sessions == null || sessions.isEmpty) return null;
     return _dayKey(sessions.first.startDatetime);
+  }
+
+  // The specific session (with a start/end time) this item occupies on the
+  // given day, used to position its block in the week scheduler.
+  Session? _sessionForDay(_CalendarItem item, DateTime day) {
+    final sessions = item.event.sessions;
+    if (sessions == null) return null;
+    for (final s in sessions) {
+      if (_dayKey(s.startDatetime) == day) return s;
+    }
+    return null;
   }
 
   List<DateTime> _allDayKeys(List<_CalendarItem> items) =>
@@ -237,6 +259,47 @@ class _CalendarioTabState extends State<CalendarioTab> {
 
     final items = _items ?? [];
     final itemsByDay = _groupByDay(items);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SegmentedButton<CalendarFormat>(
+            segments: const [
+              ButtonSegment(value: CalendarFormat.month, label: Text('Mes')),
+              ButtonSegment(value: CalendarFormat.week, label: Text('Semana')),
+            ],
+            selected: {_calendarFormat},
+            onSelectionChanged: (selection) => setState(() => _calendarFormat = selection.first),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _legendDot(context, Theme.of(context).colorScheme.primary, 'Asistes'),
+              const SizedBox(width: 16),
+              _legendDot(context, Theme.of(context).colorScheme.tertiary, 'Guardado'),
+              const SizedBox(width: 16),
+              _legendDot(context, Theme.of(context).colorScheme.secondary, 'Nota'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _calendarFormat == CalendarFormat.month
+              ? _buildMonthView(context, items, itemsByDay)
+              : _buildWeekView(context, itemsByDay),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMonthView(
+    BuildContext context,
+    List<_CalendarItem> items,
+    Map<DateTime, List<_CalendarItem>> itemsByDay,
+  ) {
     final selectedDay = _selectedDay ?? _calendarDayKey(_focusedDay);
     final selectedItems = itemsByDay[selectedDay] ?? const <_CalendarItem>[];
     final attendingColor = Theme.of(context).colorScheme.primary;
@@ -247,30 +310,12 @@ class _CalendarioTabState extends State<CalendarioTab> {
       onRefresh: _loadAll,
       child: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _legendDot(context, attendingColor, 'Asistes'),
-                const SizedBox(width: 16),
-                _legendDot(context, savedColor, 'Guardado'),
-                const SizedBox(width: 16),
-                _legendDot(context, noteColor, 'Nota'),
-              ],
-            ),
-          ),
           TableCalendar<_CalendarItem>(
             firstDay: _calendarFirstDay(items),
             lastDay: _calendarLastDay(items),
             focusedDay: _focusedDay,
             locale: 'es_ES',
-            calendarFormat: _calendarFormat,
-            availableCalendarFormats: const {
-              CalendarFormat.month: 'Mes',
-              CalendarFormat.week: 'Semana',
-            },
-            onFormatChanged: (format) => setState(() => _calendarFormat = format),
+            calendarFormat: CalendarFormat.month,
             selectedDayPredicate: (day) => isSameDay(_selectedDay ?? _focusedDay, day),
             eventLoader: (day) => itemsByDay[_calendarDayKey(day)] ?? const <_CalendarItem>[],
             onDaySelected: (selected, focused) {
@@ -308,7 +353,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
                 );
               },
             ),
-            headerStyle: const HeaderStyle(formatButtonShowsNext: false, titleCentered: true),
+            headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
           ),
           const SizedBox(height: 12),
           if (selectedItems.isEmpty)
@@ -332,13 +377,242 @@ class _CalendarioTabState extends State<CalendarioTab> {
     );
   }
 
+  // Calendar-day arithmetic, not elapsed-time arithmetic: constructing a
+  // DateTime from y/m/d fields (rather than adding a Duration) keeps this
+  // correct across DST transitions, which Spain observes.
+  DateTime _addDays(DateTime day, int days) => DateTime(day.year, day.month, day.day + days);
+
+  DateTime _weekStartFor(DateTime day) => _addDays(day, -(day.weekday - 1));
+
+  Widget _buildWeekView(BuildContext context, Map<DateTime, List<_CalendarItem>> itemsByDay) {
+    final weekStart = _weekStartFor(_calendarDayKey(_focusedDay));
+    final weekDays = List.generate(7, (i) => _addDays(weekStart, i));
+    final today = _calendarDayKey(DateTime.now());
+    final selectedDay = _selectedDay ?? today;
+
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      child: Column(
+        children: [
+          _buildWeekNavHeader(context, weekStart),
+          _buildWeekDayHeader(context, weekDays, today),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _weekScrollController,
+              child: SizedBox(
+                height: 24 * _hourHeight,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHourLabels(context),
+                    Expanded(
+                      child: Row(
+                        children: weekDays
+                            .map((day) => Expanded(
+                                  child: _buildDayColumn(context, day, today, itemsByDay),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _buildNoteSection(context, selectedDay),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeekNavHeader(BuildContext context, DateTime weekStart) {
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    const months = [
+      'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+      'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+    ];
+    final label = weekStart.month == weekEnd.month
+        ? '${weekStart.day} - ${weekEnd.day} ${months[weekStart.month - 1]}. ${weekEnd.year}'
+        : '${weekStart.day} ${months[weekStart.month - 1]}. - ${weekEnd.day} ${months[weekEnd.month - 1]}. ${weekEnd.year}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            tooltip: 'Semana anterior',
+            onPressed: () => setState(() => _focusedDay = _addDays(_focusedDay, -7)),
+          ),
+          Text(label, style: Theme.of(context).textTheme.titleSmall),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            tooltip: 'Semana siguiente',
+            onPressed: () => setState(() => _focusedDay = _addDays(_focusedDay, 7)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeekDayHeader(BuildContext context, List<DateTime> weekDays, DateTime today) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 40, right: 4, bottom: 4),
+      child: Row(
+        children: weekDays.map((day) {
+          final isToday = day == today;
+          final isSelected = day == (_selectedDay ?? today);
+          return Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedDay = day),
+              child: Column(
+                children: [
+                  Text(
+                    _weekdayLabels[day.weekday - 1],
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : isToday
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : Colors.transparent,
+                    child: Text(
+                      '${day.day}',
+                      style: TextStyle(
+                        color: isSelected ? Theme.of(context).colorScheme.onPrimary : null,
+                        fontWeight: isToday || isSelected ? FontWeight.bold : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildHourLabels(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 24 * _hourHeight,
+      child: Stack(
+        children: List.generate(24, (hour) {
+          return Positioned(
+            top: hour * _hourHeight - 8,
+            right: 4,
+            child: Text(
+              '${hour.toString().padLeft(2, '0')}:00',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildDayColumn(
+    BuildContext context,
+    DateTime day,
+    DateTime today,
+    Map<DateTime, List<_CalendarItem>> itemsByDay,
+  ) {
+    final dayItems = itemsByDay[day] ?? const <_CalendarItem>[];
+    final attendingColor = Theme.of(context).colorScheme.primary;
+    final savedColor = Theme.of(context).colorScheme.tertiary;
+
+    final blocks = <Widget>[];
+    for (final item in dayItems) {
+      final session = _sessionForDay(item, day);
+      if (session == null) continue;
+      final start = session.startDatetime.toLocal();
+      final end = session.endDatetime.toLocal();
+      final top = (start.hour * 60 + start.minute) / 60 * _hourHeight;
+      final durationMinutes = end.difference(start).inMinutes;
+      final height = (durationMinutes / 60 * _hourHeight).clamp(28.0, 24 * _hourHeight);
+
+      blocks.add(Positioned(
+        top: top,
+        left: 2,
+        right: 2,
+        height: height,
+        child: InkWell(
+          onTap: () => _openItem(item),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: (item.isAttending ? attendingColor : savedColor).withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              item.event.title,
+              maxLines: height > 40 ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: item.isAttending
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onTertiary,
+                  ),
+            ),
+          ),
+        ),
+      ));
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+      ),
+      child: Stack(
+        children: [
+          Column(
+            children: List.generate(
+              24,
+              (hour) => Container(
+                height: _hourHeight,
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (day == today) _buildNowIndicator(context),
+          ...blocks,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNowIndicator(BuildContext context) {
+    final now = DateTime.now();
+    final top = (now.hour * 60 + now.minute) / 60 * _hourHeight;
+    return Positioned(
+      top: top,
+      left: 0,
+      right: 0,
+      child: Container(height: 2, color: Theme.of(context).colorScheme.error),
+    );
+  }
+
   Widget _buildNoteSection(BuildContext context, DateTime selectedDay) {
     final dateKey = _dateKey(selectedDay);
     final note = _notesByDate[dateKey];
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
