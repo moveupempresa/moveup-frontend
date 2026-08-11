@@ -166,15 +166,21 @@ class _CalendarioTabState extends State<CalendarioTab> {
     return sessions.map((s) => _dayKey(s.startDatetime)).toSet().toList();
   }
 
-  // The specific session (with a start/end time) this item occupies on the
-  // given day, used to position its block in the week scheduler.
-  Session? _sessionForDay(_CalendarItem item, DateTime day) {
+  // Every session (with a start/end time) this item occupies on the given
+  // day, used to position its blocks in the week scheduler. An event can run
+  // more than once on the same day (e.g. a morning and an afternoon slot), so
+  // this returns all of them rather than just the first match. A
+  // session-type reservation is narrowed to the exact session it targets,
+  // since other same-day sessions of that event aren't what the user booked.
+  List<Session> _sessionsForDay(_CalendarItem item, DateTime day) {
     final sessions = item.event.sessions;
-    if (sessions == null) return null;
-    for (final s in sessions) {
-      if (_dayKey(s.startDatetime) == day) return s;
+    if (sessions == null) return const [];
+    final dayMatches = sessions.where((s) => _dayKey(s.startDatetime) == day);
+    final reservation = item.reservation;
+    if (reservation != null && reservation.targetType == 'session') {
+      return dayMatches.where((s) => s.id == reservation.targetId).toList();
     }
-    return null;
+    return dayMatches.toList();
   }
 
   List<DateTime> _allDayKeys(List<_CalendarItem> items) =>
@@ -672,43 +678,43 @@ class _CalendarioTabState extends State<CalendarioTab> {
 
     final blocks = <Widget>[];
     for (final item in dayItems) {
-      final session = _sessionForDay(item, day);
-      if (session == null) continue;
-      final start = session.startDatetime.toLocal();
-      final end = session.endDatetime.toLocal();
-      final top = (start.hour * 60 + start.minute) / 60 * _hourHeight;
-      final durationMinutes = end.difference(start).inMinutes;
-      final height = (durationMinutes / 60 * _hourHeight).clamp(
-        28.0,
-        24 * _hourHeight,
-      );
+      for (final session in _sessionsForDay(item, day)) {
+        final start = session.startDatetime.toLocal();
+        final end = session.endDatetime.toLocal();
+        final top = (start.hour * 60 + start.minute) / 60 * _hourHeight;
+        final durationMinutes = end.difference(start).inMinutes;
+        final height = (durationMinutes / 60 * _hourHeight).clamp(
+          28.0,
+          24 * _hourHeight,
+        );
 
-      blocks.add(
-        Positioned(
-          top: top,
-          left: 2,
-          right: 2,
-          height: height,
-          child: InkWell(
-            onTap: () => _openItem(item),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              decoration: BoxDecoration(
-                color: blockColor(item).withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                item.event.title,
-                maxLines: height > 40 ? 2 : 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: blockTextColor(item)),
+        blocks.add(
+          Positioned(
+            top: top,
+            left: 2,
+            right: 2,
+            height: height,
+            child: InkWell(
+              onTap: () => _openItem(item),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: blockColor(item).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  item.event.title,
+                  maxLines: height > 40 ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: blockTextColor(item)),
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     return Container(
