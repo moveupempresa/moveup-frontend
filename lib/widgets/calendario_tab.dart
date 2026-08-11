@@ -507,7 +507,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
       child: Stack(
         children: List.generate(24, (hour) {
           return Positioned(
-            top: hour * _hourHeight - 8,
+            // Centering each label on its gridline pushes hour 0 above the
+            // top edge, where it gets clipped - keep it non-negative.
+            top: (hour * _hourHeight - 8).clamp(0.0, 24 * _hourHeight - 16),
             right: 4,
             child: Text(
               '${hour.toString().padLeft(2, '0')}:00',
