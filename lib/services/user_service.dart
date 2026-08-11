@@ -104,12 +104,38 @@ class UserService {
     }
   }
 
-  static Future<List<PopularProfile>> getMyFollowing({required String token}) async {
+  static Future<List<PopularProfile>> getMyFollowing({
+    required String token,
+  }) async {
     http.Response response;
     try {
       response = await http
           .get(
             Uri.parse('${ApiConfig.baseUrl}/users/me/following'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return (data['profiles'] as List<dynamic>)
+        .map((p) => PopularProfile.fromJson(p as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<List<PopularProfile>> getMyFollowers({
+    required String token,
+  }) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/users/me/followers'),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 10));
@@ -134,7 +160,9 @@ class UserService {
     try {
       response = await http
           .get(
-            Uri.parse('${ApiConfig.baseUrl}/users/search').replace(queryParameters: {'q': query}),
+            Uri.parse(
+              '${ApiConfig.baseUrl}/users/search',
+            ).replace(queryParameters: {'q': query}),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 10));
@@ -154,14 +182,12 @@ class UserService {
   static Future<(bool, int)> followUser({
     required String token,
     required String userId,
-  }) =>
-      _followRequest(token: token, userId: userId, unfollow: false);
+  }) => _followRequest(token: token, userId: userId, unfollow: false);
 
   static Future<(bool, int)> unfollowUser({
     required String token,
     required String userId,
-  }) =>
-      _followRequest(token: token, userId: userId, unfollow: true);
+  }) => _followRequest(token: token, userId: userId, unfollow: true);
 
   static Future<(bool, int)> _followRequest({
     required String token,
@@ -173,8 +199,12 @@ class UserService {
       final uri = Uri.parse('${ApiConfig.baseUrl}/users/$userId/follow');
       final headers = {'Authorization': 'Bearer $token'};
       response = unfollow
-          ? await http.delete(uri, headers: headers).timeout(const Duration(seconds: 10))
-          : await http.post(uri, headers: headers).timeout(const Duration(seconds: 10));
+          ? await http
+                .delete(uri, headers: headers)
+                .timeout(const Duration(seconds: 10))
+          : await http
+                .post(uri, headers: headers)
+                .timeout(const Duration(seconds: 10));
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
     }
@@ -190,12 +220,11 @@ class UserService {
     required String token,
     required String accountHolderName,
     required String iban,
-  }) =>
-      _planRequest(
-        token: token,
-        endpoint: 'upgrade-to-pro',
-        body: {'accountHolderName': accountHolderName, 'iban': iban},
-      );
+  }) => _planRequest(
+    token: token,
+    endpoint: 'upgrade-to-pro',
+    body: {'accountHolderName': accountHolderName, 'iban': iban},
+  );
 
   static Future<User> downgradeToFree({required String token}) =>
       _planRequest(token: token, endpoint: 'downgrade-to-free');

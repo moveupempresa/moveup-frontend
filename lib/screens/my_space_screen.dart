@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../models/event.dart';
+import '../models/popular_profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
+import '../services/user_service.dart';
 import '../widgets/calendario_tab.dart';
 import '../widgets/events_locked_banner.dart';
+import '../widgets/following_profile_card.dart';
 import '../widgets/profile_events_section.dart';
 import 'event_detail_screen.dart';
+import 'public_profile_screen.dart';
 import 'settings/pro_plan_screen.dart';
+
+enum _NetworkMode { following, followers }
 
 class MySpaceScreen extends StatefulWidget {
   final String token;
@@ -32,14 +38,26 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   bool _loadingEvents = false;
   String? _eventsError;
 
+  _NetworkMode _networkMode = _NetworkMode.following;
+  List<PopularProfile>? _following;
+  bool _loadingFollowing = false;
+  String? _followingError;
+  List<PopularProfile>? _followers;
+  bool _loadingFollowers = false;
+  String? _followersError;
+
   @override
   void initState() {
     super.initState();
     if (_isPro) _loadEvents();
+    _loadFollowing();
+    _loadFollowers();
   }
 
   void refreshMySpace() {
     if (_isPro) _loadEvents();
+    _loadFollowing();
+    _loadFollowers();
   }
 
   Future<void> _loadEvents() async {
@@ -54,6 +72,36 @@ class MySpaceScreenState extends State<MySpaceScreen> {
       if (mounted) setState(() => _eventsError = e.toString());
     } finally {
       if (mounted) setState(() => _loadingEvents = false);
+    }
+  }
+
+  Future<void> _loadFollowing() async {
+    setState(() {
+      _loadingFollowing = true;
+      _followingError = null;
+    });
+    try {
+      final profiles = await UserService.getMyFollowing(token: widget.token);
+      if (mounted) setState(() => _following = profiles);
+    } catch (e) {
+      if (mounted) setState(() => _followingError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingFollowing = false);
+    }
+  }
+
+  Future<void> _loadFollowers() async {
+    setState(() {
+      _loadingFollowers = true;
+      _followersError = null;
+    });
+    try {
+      final profiles = await UserService.getMyFollowers(token: widget.token);
+      if (mounted) setState(() => _followers = profiles);
+    } catch (e) {
+      if (mounted) setState(() => _followersError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingFollowers = false);
     }
   }
 
@@ -81,7 +129,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             _buildMyEventsTab(context),
             const SizedBox.shrink(),
             const SizedBox.shrink(),
-            const SizedBox.shrink(),
+            _buildMiRedTab(context),
             CalendarioTab(
               token: widget.token,
               currentUserId: widget.currentUserId,
@@ -143,6 +191,132 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMiRedTab(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SegmentedButton<_NetworkMode>(
+            segments: const [
+              ButtonSegment(
+                value: _NetworkMode.following,
+                label: Text('Siguiendo'),
+              ),
+              ButtonSegment(
+                value: _NetworkMode.followers,
+                label: Text('Seguidores'),
+              ),
+            ],
+            selected: {_networkMode},
+            onSelectionChanged: (selection) =>
+                setState(() => _networkMode = selection.first),
+          ),
+        ),
+        Expanded(
+          child: _networkMode == _NetworkMode.following
+              ? _buildProfileList(
+                  profiles: _following,
+                  isLoading: _loadingFollowing,
+                  error: _followingError,
+                  onRetry: _loadFollowing,
+                  emptyMessage: 'Todavía no sigues a ningún perfil',
+                )
+              : _buildProfileList(
+                  profiles: _followers,
+                  isLoading: _loadingFollowers,
+                  error: _followersError,
+                  onRetry: _loadFollowers,
+                  emptyMessage: 'Todavía no tienes seguidores',
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileList({
+    required List<PopularProfile>? profiles,
+    required bool isLoading,
+    required String? error,
+    required VoidCallback onRetry,
+    required String emptyMessage,
+  }) {
+    if (isLoading && profiles == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (error != null && profiles == null) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No se pudo cargar la información',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton(
+              onPressed: onRetry,
+              child: const Text('Reintentar'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final results = profiles ?? [];
+    if (results.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Icon(
+            Icons.people_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            emptyMessage,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        _loadFollowing();
+        _loadFollowers();
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: results.length,
+        itemBuilder: (context, index) {
+          final profile = results[index];
+          return FollowingProfileCard(
+            profile: profile,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PublicProfileScreen(
+                  token: widget.token,
+                  userId: profile.userId,
+                  currentUserId: widget.currentUserId,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
