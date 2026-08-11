@@ -294,6 +294,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
               ),
             ],
             selected: {_reservationsMode},
+            showSelectedIcon: false,
             onSelectionChanged: (selection) =>
                 setState(() => _reservationsMode = selection.first),
           ),
@@ -502,6 +503,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
               ),
             ],
             selected: {_networkMode},
+            showSelectedIcon: false,
             onSelectionChanged: (selection) =>
                 setState(() => _networkMode = selection.first),
           ),

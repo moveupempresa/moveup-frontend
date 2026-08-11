@@ -418,6 +418,7 @@ class ExploreScreenState extends State<ExploreScreen> {
                 ),
               ],
               selected: {_mode},
+              showSelectedIcon: false,
               onSelectionChanged: (selection) => setState(() => _mode = selection.first),
             ),
           ),

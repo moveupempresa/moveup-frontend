@@ -333,6 +333,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
               ButtonSegment(value: CalendarFormat.week, label: Text('Semana')),
             ],
             selected: {_calendarFormat},
+            showSelectedIcon: false,
             onSelectionChanged: (selection) =>
                 setState(() => _calendarFormat = selection.first),
           ),
