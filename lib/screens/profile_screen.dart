@@ -9,6 +9,7 @@ import '../services/notification_service.dart';
 import '../widgets/events_locked_banner.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/profile_events_section.dart';
+import '../widgets/sliver_tab_bar_delegate.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
 import 'settings/notifications_screen.dart';
@@ -142,7 +143,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             SliverToBoxAdapter(child: _buildHeader(context, name)),
             SliverPersistentHeader(
               pinned: true,
-              delegate: _TabBarDelegate(
+              delegate: SliverTabBarDelegate(
                 TabBar(
                   tabs: const [
                     Tab(text: 'Galería'),
@@ -388,32 +389,4 @@ class ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
-}
-
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-
-  _TabBarDelegate(this.tabBar);
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return ColoredBox(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _TabBarDelegate oldDelegate) =>
-      tabBar != oldDelegate.tabBar;
 }
