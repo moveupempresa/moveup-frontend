@@ -12,6 +12,7 @@ class User {
   final String email;
   final String username;
   final SubscriptionPlan subscriptionPlan;
+  final String? phone;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -20,6 +21,7 @@ class User {
     required this.email,
     required this.username,
     required this.subscriptionPlan,
+    this.phone,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -32,6 +34,7 @@ class User {
       subscriptionPlan: SubscriptionPlan.fromString(
         json['subscriptionPlan'] as String,
       ),
+      phone: json['phone'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );

@@ -50,6 +50,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.followedUser,
     NotificationType.newFollower,
   };
+  static const _systemTypes = {NotificationType.phoneNumberRequired};
 
   List<AppNotification>? _notifications;
   bool _loading = true;
@@ -124,7 +125,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final discoveryUnread =
         _unreadCount(_savedEventTypes) + _unreadCount(_followedUsersTypes);
     final accountUnread =
-        _unreadCount(_socialTypes) + (_updateAvailable == true ? 1 : 0);
+        _unreadCount(_socialTypes) +
+        _unreadCount(_systemTypes) +
+        (_updateAvailable == true ? 1 : 0);
 
     return DefaultTabController(
       length: 4,
@@ -196,6 +199,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildAccountTab(BuildContext context) {
+    final systemItems = _itemsOfTypes(_systemTypes);
+    final hasSystemContent = _updateAvailable == true || systemItems.isNotEmpty;
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -204,7 +210,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           _buildNotificationList(_itemsOfTypes(_socialTypes)),
           const Divider(height: 32),
           _sectionHeader(context, 'Sistema', Icons.settings_outlined),
-          _buildSystemContent(context),
+          if (!hasSystemContent)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                'Sin novedades todavía',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            )
+          else ...[
+            if (_updateAvailable == true) _buildVersionTile(context),
+            _buildNotificationList(systemItems, showEmptyState: false),
+          ],
         ],
       ),
     );
@@ -223,34 +242,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildSystemContent(BuildContext context) {
-    if (_updateAvailable == true) {
-      return ListTile(
-        leading: Icon(
-          Icons.system_update_alt_outlined,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        title: const Text(
-          'Nueva versión disponible',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: const Text(
-          'Actualiza la app para disfrutar de las últimas novedades',
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Text(
-        'Sin novedades todavía',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.outline,
-        ),
+  Widget _buildVersionTile(BuildContext context) {
+    return ListTile(
+      leading: Icon(
+        Icons.system_update_alt_outlined,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: const Text(
+        'Nueva versión disponible',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      subtitle: const Text(
+        'Actualiza la app para disfrutar de las últimas novedades',
       ),
     );
   }
 
-  Widget _buildNotificationList(List<AppNotification> items) {
+  Widget _buildNotificationList(
+    List<AppNotification> items, {
+    bool showEmptyState = true,
+  }) {
     if (_loading && _notifications == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 32),
@@ -270,6 +281,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
     if (items.isEmpty) {
+      if (!showEmptyState) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Text(
@@ -360,6 +372,7 @@ class _NotificationTileState extends State<_NotificationTile> {
     NotificationType.eventReminderOrganizerHours => Icons.access_time_outlined,
     NotificationType.eventReminderStudent => Icons.today_outlined,
     NotificationType.savedEventReminder => Icons.today_outlined,
+    NotificationType.phoneNumberRequired => Icons.phone_outlined,
   };
 
   Future<void> _respond(bool approve) async {

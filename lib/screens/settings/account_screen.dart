@@ -22,6 +22,7 @@ class _AccountScreenState extends State<AccountScreen> {
   bool _emailNotifications = true;
   bool _automaticReminders = true;
   bool _isChangingUsername = false;
+  bool _isChangingPhone = false;
   late User _user;
 
   @override
@@ -78,18 +79,70 @@ class _AccountScreenState extends State<AccountScreen> {
       Navigator.of(context).pop(_user);
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _isChangingUsername = false);
     }
   }
 
+  Future<void> _changePhone() async {
+    final controller = TextEditingController(text: _user.phone ?? '');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Número de teléfono'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Teléfono',
+            hintText: '+34 600 000 000',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final newPhone = controller.text.trim();
+    if (newPhone.isEmpty || newPhone == _user.phone) return;
+
+    setState(() => _isChangingPhone = true);
+    try {
+      final updatedUser = await UserService.changePhone(
+        token: widget.token,
+        phone: newPhone,
+      );
+      if (!mounted) return;
+      setState(() => _user = updatedUser);
+      Navigator.of(context).pop(_user);
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isChangingPhone = false);
+    }
+  }
+
   Future<void> _changeEmail() async {
     final updatedUser = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ChangeEmailScreen(token: widget.token),
-      ),
+      MaterialPageRoute(builder: (_) => ChangeEmailScreen(token: widget.token)),
     );
     if (updatedUser != null && mounted) {
       setState(() => _user = updatedUser);
@@ -133,7 +186,9 @@ class _AccountScreenState extends State<AccountScreen> {
       );
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -164,6 +219,19 @@ class _AccountScreenState extends State<AccountScreen> {
             subtitle: Text(_user.email),
             trailing: const Icon(Icons.chevron_right),
             onTap: _changeEmail,
+          ),
+          ListTile(
+            leading: _isChangingPhone
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.phone_outlined),
+            title: const Text('Teléfono'),
+            subtitle: Text(_user.phone ?? 'Añadir número'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _isChangingPhone ? null : _changePhone,
           ),
           const Divider(height: 32),
           _sectionHeader('Notificaciones'),
@@ -220,8 +288,8 @@ class _AccountScreenState extends State<AccountScreen> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }

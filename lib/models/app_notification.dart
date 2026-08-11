@@ -24,7 +24,8 @@ enum NotificationType {
   eventReminderOrganizerDay('event_reminder_organizer_day'),
   eventReminderOrganizerHours('event_reminder_organizer_hours'),
   eventReminderStudent('event_reminder_student'),
-  savedEventReminder('saved_event_reminder');
+  savedEventReminder('saved_event_reminder'),
+  phoneNumberRequired('phone_number_required');
 
   const NotificationType(this.value);
   final String value;
@@ -58,7 +59,8 @@ class AppNotification {
     this.isPending,
   });
 
-  factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
+  factory AppNotification.fromJson(Map<String, dynamic> json) =>
+      AppNotification(
         id: json['id'] as String,
         type: NotificationType.fromValue(json['type'] as String),
         message: json['message'] as String,

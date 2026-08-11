@@ -35,6 +35,32 @@ class UserService {
     return User.fromJson(data['user'] as Map<String, dynamic>);
   }
 
+  static Future<User> changePhone({
+    required String token,
+    required String phone,
+  }) async {
+    http.Response response;
+    try {
+      response = await http
+          .patch(
+            Uri.parse('${ApiConfig.baseUrl}/users/me/phone'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'phone': phone}),
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return User.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
   static Future<void> requestEmailChange({
     required String token,
     required String newEmail,
