@@ -154,12 +154,16 @@ class _CalendarioTabState extends State<CalendarioTab> {
   String _dateKey(DateTime day) =>
       '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
 
-  DateTime? _itemDayKey(_CalendarItem item) {
+  // A reservation targets one specific session/pack occurrence, so it only
+  // occupies its one sessionDate. An owned or saved event isn't scoped to a
+  // single session though - it should appear on every day it runs, not just
+  // its first one.
+  List<DateTime> _itemDayKeys(_CalendarItem item) {
     final reservationDate = item.reservation?.sessionDate;
-    if (reservationDate != null) return _dayKey(reservationDate);
+    if (reservationDate != null) return [_dayKey(reservationDate)];
     final sessions = item.event.sessions;
-    if (sessions == null || sessions.isEmpty) return null;
-    return _dayKey(sessions.first.startDatetime);
+    if (sessions == null || sessions.isEmpty) return const [];
+    return sessions.map((s) => _dayKey(s.startDatetime)).toSet().toList();
   }
 
   // The specific session (with a start/end time) this item occupies on the
@@ -174,14 +178,14 @@ class _CalendarioTabState extends State<CalendarioTab> {
   }
 
   List<DateTime> _allDayKeys(List<_CalendarItem> items) =>
-      items.map(_itemDayKey).whereType<DateTime>().toList();
+      items.expand(_itemDayKeys).toList();
 
   Map<DateTime, List<_CalendarItem>> _groupByDay(List<_CalendarItem> items) {
     final map = <DateTime, List<_CalendarItem>>{};
     for (final item in items) {
-      final day = _itemDayKey(item);
-      if (day == null) continue;
-      map.putIfAbsent(day, () => []).add(item);
+      for (final day in _itemDayKeys(item)) {
+        map.putIfAbsent(day, () => []).add(item);
+      }
     }
     return map;
   }
