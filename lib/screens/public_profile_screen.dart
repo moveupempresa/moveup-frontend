@@ -11,6 +11,7 @@ import '../widgets/cv_link.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/profile_events_section.dart';
 import '../widgets/sliver_tab_bar_delegate.dart';
+import '../widgets/social_links_row.dart';
 import 'event_detail_screen.dart';
 
 class PublicProfileScreen extends StatefulWidget {
@@ -287,6 +288,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
             const SizedBox(height: 8),
             CvLink(cvUrl: profile.cvUrl),
           ],
+          SocialLinksRow(socialLinks: profile.socialLinks),
         ],
       ),
     );

@@ -11,6 +11,7 @@ import '../widgets/events_locked_banner.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/profile_events_section.dart';
 import '../widgets/sliver_tab_bar_delegate.dart';
+import '../widgets/social_links_row.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
 import 'settings/notifications_screen.dart';
@@ -237,6 +238,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 8),
             CvLink(cvUrl: _profile.cvUrl),
           ],
+          SocialLinksRow(socialLinks: _profile.socialLinks),
           const SizedBox(height: 24),
           OutlinedButton(
             onPressed: _editProfile,
