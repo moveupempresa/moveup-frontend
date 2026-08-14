@@ -79,14 +79,18 @@ class ProfileService {
       );
       request.headers['Authorization'] = 'Bearer $token';
       for (final file in mediaFiles) {
-        request.files.add(await http.MultipartFile.fromPath(
-          'images',
-          file.path,
-          contentType: _mediaTypeFromPath(file.path),
-        ));
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'images',
+            file.path,
+            contentType: _mediaTypeFromPath(file.path),
+          ),
+        );
       }
 
-      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
       response = await http.Response.fromStream(streamed);
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
@@ -107,7 +111,9 @@ class ProfileService {
       request.headers['Content-Type'] = 'application/json';
       request.headers['Authorization'] = 'Bearer $token';
       request.body = jsonEncode({'id': id});
-      final streamed = await request.send().timeout(const Duration(seconds: 10));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 10),
+      );
       response = await http.Response.fromStream(streamed);
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
@@ -118,8 +124,40 @@ class ProfileService {
   static Future<Profile> uploadProfileImage({
     required String token,
     required File imageFile,
-  }) =>
-      _uploadImage(token: token, imageFile: imageFile, endpoint: 'profile/me/profile-image');
+  }) => _uploadImage(
+    token: token,
+    imageFile: imageFile,
+    endpoint: 'profile/me/profile-image',
+  );
+
+  static Future<Profile> uploadCv({
+    required String token,
+    required File file,
+  }) async {
+    http.Response response;
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}/profile/me/cv'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'cv',
+          file.path,
+          contentType: _cvMediaTypeFromPath(file.path),
+        ),
+      );
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      response = await http.Response.fromStream(streamed);
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+    return _parseProfile(response);
+  }
 
   static Future<Profile> _uploadImage({
     required String token,
@@ -133,13 +171,17 @@ class ProfileService {
         Uri.parse('${ApiConfig.baseUrl}/$endpoint'),
       );
       request.headers['Authorization'] = 'Bearer $token';
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-        contentType: _mediaTypeFromPath(imageFile.path),
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image',
+          imageFile.path,
+          contentType: _mediaTypeFromPath(imageFile.path),
+        ),
+      );
 
-      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
       response = await http.Response.fromStream(streamed);
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
@@ -173,6 +215,16 @@ class ProfileService {
       throw AuthException('No se pudo conectar con el servidor');
     }
     return _parseProfile(response);
+  }
+
+  static MediaType _cvMediaTypeFromPath(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    return switch (ext) {
+      'pdf' => MediaType('application', 'pdf'),
+      'png' => MediaType('image', 'png'),
+      'webp' => MediaType('image', 'webp'),
+      _ => MediaType('image', 'jpeg'),
+    };
   }
 
   static MediaType _mediaTypeFromPath(String path) {

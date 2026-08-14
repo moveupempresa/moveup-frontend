@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -12,7 +13,11 @@ class EditProfileScreen extends StatefulWidget {
   final Profile profile;
   final String token;
 
-  const EditProfileScreen({super.key, required this.profile, required this.token});
+  const EditProfileScreen({
+    super.key,
+    required this.profile,
+    required this.token,
+  });
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -40,6 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isSaving = false;
   bool _isUploadingImage = false;
   bool _isUploadingGalleryImage = false;
+  bool _isUploadingCv = false;
   String? _removingGalleryId;
 
   @override
@@ -47,7 +53,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     _profile = widget.profile;
     _displayNameController = TextEditingController(text: _profile.displayName);
-    _artisticNameController = TextEditingController(text: _profile.artisticName);
+    _artisticNameController = TextEditingController(
+      text: _profile.artisticName,
+    );
     _bioController = TextEditingController(text: _profile.bio);
     _cityController = TextEditingController(text: _profile.city);
     _countryController = TextEditingController(text: _profile.country);
@@ -56,20 +64,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _experienceController = TextEditingController(
       text: _profile.experience > 0 ? _profile.experience.toString() : '',
     );
-    _instagramController = TextEditingController(text: _profile.socialLinks.instagram);
-    _tiktokController = TextEditingController(text: _profile.socialLinks.tiktok);
-    _youtubeController = TextEditingController(text: _profile.socialLinks.youtube);
-    _facebookController = TextEditingController(text: _profile.socialLinks.facebook);
-    _twitterController = TextEditingController(text: _profile.socialLinks.twitter);
+    _instagramController = TextEditingController(
+      text: _profile.socialLinks.instagram,
+    );
+    _tiktokController = TextEditingController(
+      text: _profile.socialLinks.tiktok,
+    );
+    _youtubeController = TextEditingController(
+      text: _profile.socialLinks.youtube,
+    );
+    _facebookController = TextEditingController(
+      text: _profile.socialLinks.facebook,
+    );
+    _twitterController = TextEditingController(
+      text: _profile.socialLinks.twitter,
+    );
   }
 
   @override
   void dispose() {
     for (final c in [
-      _displayNameController, _artisticNameController, _bioController,
-      _cityController, _countryController, _websiteController, _cvUrlController,
-      _experienceController, _instagramController, _tiktokController,
-      _youtubeController, _facebookController, _twitterController,
+      _displayNameController,
+      _artisticNameController,
+      _bioController,
+      _cityController,
+      _countryController,
+      _websiteController,
+      _cvUrlController,
+      _experienceController,
+      _instagramController,
+      _tiktokController,
+      _youtubeController,
+      _facebookController,
+      _twitterController,
     ]) {
       c.dispose();
     }
@@ -78,7 +105,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _addGalleryMedia() async {
@@ -101,7 +130,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               title: const Text('Añadir video'),
               onTap: () async {
                 final f = await _picker.pickVideo(source: ImageSource.gallery);
-                if (ctx.mounted) Navigator.pop(ctx, f != null ? [f] : <XFile>[]);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx, f != null ? [f] : <XFile>[]);
+                }
               },
             ),
           ],
@@ -140,7 +171,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickProfileImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
 
     setState(() => _isUploadingImage = true);
@@ -154,6 +188,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _showError(e.message);
     } finally {
       if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
+
+  Future<void> _pickAndUploadCv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+    );
+    final path = result?.files.single.path;
+    if (path == null) return;
+
+    setState(() => _isUploadingCv = true);
+    try {
+      final updated = await ProfileService.uploadCv(
+        token: widget.token,
+        file: File(path),
+      );
+      if (mounted) {
+        setState(() {
+          _profile = updated;
+          _cvUrlController.text = updated.cvUrl;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('CV subido correctamente')),
+        );
+      }
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } finally {
+      if (mounted) setState(() => _isUploadingCv = false);
     }
   }
 
@@ -183,8 +247,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       setState(() => _profile = updated);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
       }
     } on AuthException catch (e) {
       _showError(e.message);
@@ -205,7 +270,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Editar perfil'),
-          leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _close),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _close,
+          ),
         ),
         body: SafeArea(
           child: Form(
@@ -220,25 +288,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       CircleAvatar(
                         radius: 48,
                         backgroundImage: _profile.profileImage != null
-                            ? NetworkImage(ApiConfig.mediaUrl(_profile.profileImage!))
+                            ? NetworkImage(
+                                ApiConfig.mediaUrl(_profile.profileImage!),
+                              )
                             : null,
                         child: _isUploadingImage
                             ? const CircularProgressIndicator()
                             : _profile.profileImage == null
-                                ? Text(
-                                    _profile.displayName.isNotEmpty
-                                        ? _profile.displayName[0].toUpperCase()
-                                        : '?',
-                                    style: Theme.of(context).textTheme.headlineMedium,
-                                  )
-                                : null,
+                            ? Text(
+                                _profile.displayName.isNotEmpty
+                                    ? _profile.displayName[0].toUpperCase()
+                                    : '?',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineMedium,
+                              )
+                            : null,
                       ),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: IconButton.filled(
                           icon: const Icon(Icons.camera_alt, size: 18),
-                          onPressed: _isUploadingImage ? null : _pickProfileImage,
+                          onPressed: _isUploadingImage
+                              ? null
+                              : _pickProfileImage,
                         ),
                       ),
                     ],
@@ -250,7 +324,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _displayNameController,
-                  decoration: const InputDecoration(labelText: 'Nombre de visualización'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre de visualización',
+                  ),
                   validator: (v) => v != null && v.trim().length > 100
                       ? 'Máx. 100 caracteres'
                       : null,
@@ -258,7 +334,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _artisticNameController,
-                  decoration: const InputDecoration(labelText: 'Nombre artístico'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre artístico',
+                  ),
                   validator: (v) => v != null && v.trim().length > 100
                       ? 'Máx. 100 caracteres'
                       : null,
@@ -277,7 +355,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 TextFormField(
                   controller: _experienceController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Años de experiencia'),
+                  decoration: const InputDecoration(
+                    labelText: 'Años de experiencia',
+                  ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return null;
                     final n = int.tryParse(v.trim());
@@ -313,21 +393,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 TextFormField(
                   controller: _cvUrlController,
                   keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(labelText: 'URL del CV'),
+                  decoration: InputDecoration(
+                    labelText: 'URL del CV',
+                    suffixIcon: IconButton(
+                      icon: _isUploadingCv
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.upload_file_outlined),
+                      tooltip: 'Subir CV (PDF o imagen)',
+                      onPressed: _isUploadingCv ? null : _pickAndUploadCv,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
 
                 _sectionHeader('Redes sociales'),
                 const SizedBox(height: 12),
-                _socialField(_instagramController, 'Instagram', Icons.camera_alt_outlined),
+                _socialField(
+                  _instagramController,
+                  'Instagram',
+                  Icons.camera_alt_outlined,
+                ),
                 const SizedBox(height: 12),
-                _socialField(_tiktokController, 'TikTok', Icons.music_note_outlined),
+                _socialField(
+                  _tiktokController,
+                  'TikTok',
+                  Icons.music_note_outlined,
+                ),
                 const SizedBox(height: 12),
-                _socialField(_youtubeController, 'YouTube', Icons.play_circle_outline),
+                _socialField(
+                  _youtubeController,
+                  'YouTube',
+                  Icons.play_circle_outline,
+                ),
                 const SizedBox(height: 12),
-                _socialField(_facebookController, 'Facebook', Icons.facebook_outlined),
+                _socialField(
+                  _facebookController,
+                  'Facebook',
+                  Icons.facebook_outlined,
+                ),
                 const SizedBox(height: 12),
-                _socialField(_twitterController, 'Twitter / X', Icons.alternate_email),
+                _socialField(
+                  _twitterController,
+                  'Twitter / X',
+                  Icons.alternate_email,
+                ),
                 const SizedBox(height: 32),
 
                 _sectionHeader('Galería'),
@@ -344,12 +457,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   itemBuilder: (context, index) {
                     if (index == _profile.gallery.length) {
                       return InkWell(
-                        onTap: _isUploadingGalleryImage ? null : _addGalleryMedia,
+                        onTap: _isUploadingGalleryImage
+                            ? null
+                            : _addGalleryMedia,
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.outlineVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -369,11 +486,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           borderRadius: BorderRadius.circular(12),
                           child: isVideo
                               ? Container(
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
                                   alignment: Alignment.center,
                                   child: Icon(
                                     Icons.play_circle_outline,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                     size: 32,
                                   ),
                                 )
@@ -387,7 +508,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             bottom: 4,
                             left: 4,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black54,
                                 borderRadius: BorderRadius.circular(999),
@@ -395,11 +519,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.photo_library, size: 11, color: Colors.white),
+                                  const Icon(
+                                    Icons.photo_library,
+                                    size: 11,
+                                    color: Colors.white,
+                                  ),
                                   const SizedBox(width: 3),
                                   Text(
                                     '${album.urls.length}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -421,7 +552,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               child: const CircleAvatar(
                                 radius: 12,
                                 backgroundColor: Colors.black54,
-                                child: Icon(Icons.close, size: 14, color: Colors.white),
+                                child: Icon(
+                                  Icons.close,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
@@ -453,13 +588,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Text(title, style: Theme.of(context).textTheme.titleSmall);
   }
 
-  Widget _socialField(TextEditingController controller, String label, IconData icon) {
+  Widget _socialField(
+    TextEditingController controller,
+    String label,
+    IconData icon,
+  ) {
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-      ),
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
     );
   }
 }
