@@ -34,6 +34,11 @@ class _CalendarItem {
 const _hourHeight = 60.0;
 const _weekdayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+// Distinguishes "delete this note" from a normal text-save result when
+// popping the note-editor dialog. A dedicated Object (not a String) so it
+// can never collide with whatever text the user actually typed.
+final _deleteNoteAction = Object();
+
 class CalendarioTab extends StatefulWidget {
   final String token;
   final String currentUserId;
@@ -65,9 +70,27 @@ class _CalendarioTabState extends State<CalendarioTab> {
     initialScrollOffset: 7 * _hourHeight,
   );
 
-  Map<String, CalendarNote> get _notesByDate => {
-    for (final n in _notes ?? <CalendarNote>[]) n.date: n,
-  };
+  Map<String, List<CalendarNote>> get _notesByDate {
+    final map = <String, List<CalendarNote>>{};
+    for (final n in _notes ?? <CalendarNote>[]) {
+      map.putIfAbsent(n.date, () => []).add(n);
+    }
+    return map;
+  }
+
+  CalendarNote? _dayNote(String dateKey) {
+    for (final n in _notesByDate[dateKey] ?? const <CalendarNote>[]) {
+      if (n.hour == null) return n;
+    }
+    return null;
+  }
+
+  CalendarNote? _hourNote(String dateKey, int hour) {
+    for (final n in _notesByDate[dateKey] ?? const <CalendarNote>[]) {
+      if (n.hour == hour) return n;
+    }
+    return null;
+  }
 
   List<_CalendarItem>? get _items {
     if (_reservations == null &&
@@ -254,16 +277,20 @@ class _CalendarioTabState extends State<CalendarioTab> {
     );
   }
 
-  Future<void> _saveNote(String date, String text) async {
+  Future<void> _saveNote(String date, String text, {int? hour}) async {
     try {
       final note = await CalendarNoteService.setNote(
         token: widget.token,
         date: date,
         text: text,
+        hour: hour,
       );
       if (mounted) {
         setState(() {
-          _notes = [...?_notes?.where((n) => n.date != date), note];
+          _notes = [
+            ...?_notes?.where((n) => !(n.date == date && n.hour == hour)),
+            note,
+          ];
         });
       }
     } on AuthException catch (e) {
@@ -275,11 +302,19 @@ class _CalendarioTabState extends State<CalendarioTab> {
     }
   }
 
-  Future<void> _deleteNote(String date) async {
+  Future<void> _deleteNote(String date, {int? hour}) async {
     try {
-      await CalendarNoteService.deleteNote(token: widget.token, date: date);
+      await CalendarNoteService.deleteNote(
+        token: widget.token,
+        date: date,
+        hour: hour,
+      );
       if (mounted) {
-        setState(() => _notes = _notes?.where((n) => n.date != date).toList());
+        setState(() {
+          _notes = _notes
+              ?.where((n) => !(n.date == date && n.hour == hour))
+              .toList();
+        });
       }
     } on AuthException catch (e) {
       if (mounted) {
@@ -660,9 +695,11 @@ class _CalendarioTabState extends State<CalendarioTab> {
     Map<DateTime, List<_CalendarItem>> itemsByDay,
   ) {
     final dayItems = itemsByDay[day] ?? const <_CalendarItem>[];
+    final dateKey = _dateKey(day);
     final attendingColor = Theme.of(context).colorScheme.primary;
     final ownedColor = Theme.of(context).colorScheme.error;
     final savedColor = Theme.of(context).colorScheme.tertiary;
+    final noteColor = Theme.of(context).colorScheme.secondary;
 
     Color blockColor(_CalendarItem item) {
       if (item.isAttending) return attendingColor;
@@ -718,6 +755,33 @@ class _CalendarioTabState extends State<CalendarioTab> {
       }
     }
 
+    final noteMarkers = <Widget>[];
+    for (var hour = 0; hour < 24; hour++) {
+      final note = _hourNote(dateKey, hour);
+      if (note == null) continue;
+      noteMarkers.add(
+        Positioned(
+          top: hour * _hourHeight + 2,
+          right: 2,
+          child: GestureDetector(
+            onTap: () => _editNote(context, dateKey, note, hour: hour),
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: noteColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.sticky_note_2,
+                size: 10,
+                color: Theme.of(context).colorScheme.onSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         border: Border(
@@ -729,14 +793,22 @@ class _CalendarioTabState extends State<CalendarioTab> {
           Column(
             children: List.generate(
               24,
-              (hour) => Container(
-                height: _hourHeight,
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              (hour) => InkWell(
+                onTap: () => _editNote(
+                  context,
+                  dateKey,
+                  _hourNote(dateKey, hour),
+                  hour: hour,
+                ),
+                child: Container(
+                  height: _hourHeight,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ),
@@ -745,6 +817,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
           ),
           if (day == today) _buildNowIndicator(context),
           ...blocks,
+          ...noteMarkers,
         ],
       ),
     );
@@ -763,7 +836,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
 
   Widget _buildNoteSection(BuildContext context, DateTime selectedDay) {
     final dateKey = _dateKey(selectedDay);
-    final note = _notesByDate[dateKey];
+    final note = _dayNote(dateKey);
 
     return Container(
       width: double.infinity,
@@ -831,23 +904,38 @@ class _CalendarioTabState extends State<CalendarioTab> {
   Future<void> _editNote(
     BuildContext context,
     String dateKey,
-    CalendarNote? existing,
-  ) async {
+    CalendarNote? existing, {
+    int? hour,
+  }) async {
     final controller = TextEditingController(text: existing?.text ?? '');
-    final text = await showDialog<String>(
+    final result = await showDialog<Object>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Nota'),
+        title: Text(
+          hour != null
+              ? 'Nota a las ${hour.toString().padLeft(2, '0')}:00'
+              : 'Nota',
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 4,
           maxLength: 1000,
-          decoration: const InputDecoration(
-            hintText: 'Escribe una nota para este día',
+          decoration: InputDecoration(
+            hintText: hour != null
+                ? 'Escribe una nota para esta hora'
+                : 'Escribe una nota para este día',
           ),
         ),
         actions: [
+          if (existing != null)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(_deleteNoteAction),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(ctx).colorScheme.error,
+              ),
+              child: const Text('Eliminar'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Cancelar'),
@@ -859,8 +947,10 @@ class _CalendarioTabState extends State<CalendarioTab> {
         ],
       ),
     );
-    if (text != null && text.isNotEmpty) {
-      await _saveNote(dateKey, text);
+    if (result == _deleteNoteAction) {
+      await _deleteNote(dateKey, hour: hour);
+    } else if (result is String && result.isNotEmpty) {
+      await _saveNote(dateKey, result, hour: hour);
     }
   }
 

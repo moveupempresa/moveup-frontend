@@ -34,12 +34,15 @@ class CalendarNoteService {
     required String token,
     required String date,
     required String text,
+    int? hour,
   }) async {
     http.Response response;
     try {
       response = await http
           .put(
-            Uri.parse('${ApiConfig.baseUrl}/users/me/calendar-notes/$date'),
+            Uri.parse(
+              '${ApiConfig.baseUrl}/users/me/calendar-notes/$date',
+            ).replace(queryParameters: hour != null ? {'hour': '$hour'} : null),
             headers: {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json',
@@ -58,12 +61,18 @@ class CalendarNoteService {
     return CalendarNote.fromJson(data['note'] as Map<String, dynamic>);
   }
 
-  static Future<void> deleteNote({required String token, required String date}) async {
+  static Future<void> deleteNote({
+    required String token,
+    required String date,
+    int? hour,
+  }) async {
     http.Response response;
     try {
       response = await http
           .delete(
-            Uri.parse('${ApiConfig.baseUrl}/users/me/calendar-notes/$date'),
+            Uri.parse(
+              '${ApiConfig.baseUrl}/users/me/calendar-notes/$date',
+            ).replace(queryParameters: hour != null ? {'hour': '$hour'} : null),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 10));
