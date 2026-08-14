@@ -61,17 +61,6 @@ enum EventStatus {
       EventStatus.values.firstWhere((e) => e.value == value);
 }
 
-enum CoverMediaType {
-  image('image'),
-  video('video');
-
-  const CoverMediaType(this.value);
-  final String value;
-
-  static CoverMediaType fromValue(String value) =>
-      CoverMediaType.values.firstWhere((e) => e.value == value);
-}
-
 class Event {
   final String id;
   final String ownerUserId;
@@ -85,8 +74,8 @@ class Event {
   final LocationType locationType;
   final EventVisibility visibility;
   final bool reservationEnabled;
-  final CoverMediaType coverMediaType;
-  final String coverMediaUrl;
+  final String? coverImageUrl;
+  final String? coverVideoUrl;
   final EventStatus status;
   final DateTime? publishedAt;
   final DateTime createdAt;
@@ -110,8 +99,8 @@ class Event {
     required this.locationType,
     required this.visibility,
     required this.reservationEnabled,
-    required this.coverMediaType,
-    required this.coverMediaUrl,
+    this.coverImageUrl,
+    this.coverVideoUrl,
     required this.status,
     this.publishedAt,
     required this.createdAt,
@@ -123,46 +112,51 @@ class Event {
     this.isSaved = false,
   });
 
-  String get organizerName => ownerDisplayName.isNotEmpty ? ownerDisplayName : ownerUsername;
+  String get organizerName =>
+      ownerDisplayName.isNotEmpty ? ownerDisplayName : ownerUsername;
+
+  /// A single representative thumbnail URL for contexts that can't show the
+  /// full image+video carousel (small cards, etc.) - prefers the image.
+  String? get primaryCoverUrl => coverImageUrl ?? coverVideoUrl;
 
   String get eventTypeLabel =>
       eventType == EventType.other && (customEventType ?? '').isNotEmpty
-          ? customEventType!
-          : eventType.label;
+      ? customEventType!
+      : eventType.label;
 
   factory Event.fromJson(Map<String, dynamic> json) => Event(
-        id: json['id'] as String,
-        ownerUserId: json['ownerUserId'] as String,
-        title: json['title'] as String,
-        description: json['description'] as String,
-        style: (json['style'] as List<dynamic>).cast<String>(),
-        eventType: EventType.fromValue(json['eventType'] as String),
-        customEventType: json['customEventType'] as String?,
-        city: json['city'] as String,
-        country: json['country'] as String,
-        locationType: LocationType.fromValue(json['locationType'] as String),
-        visibility: EventVisibility.fromValue(json['visibility'] as String),
-        reservationEnabled: json['reservationEnabled'] as bool,
-        coverMediaType: CoverMediaType.fromValue(json['coverMediaType'] as String),
-        coverMediaUrl: json['coverMediaUrl'] as String,
-        status: EventStatus.fromValue(json['status'] as String),
-        publishedAt: json['publishedAt'] != null
-            ? DateTime.parse(json['publishedAt'] as String)
-            : null,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        updatedAt: DateTime.parse(json['updatedAt'] as String),
-        sessions: json['sessions'] != null
-            ? (json['sessions'] as List<dynamic>)
-                .map((s) => Session.fromJson(s as Map<String, dynamic>))
-                .toList()
-            : null,
-        packs: json['packs'] != null
-            ? (json['packs'] as List<dynamic>)
-                .map((p) => Pack.fromJson(p as Map<String, dynamic>))
-                .toList()
-            : null,
-        ownerUsername: json['ownerUsername'] as String? ?? '',
-        ownerDisplayName: json['ownerDisplayName'] as String? ?? '',
-        isSaved: json['isSaved'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    ownerUserId: json['ownerUserId'] as String,
+    title: json['title'] as String,
+    description: json['description'] as String,
+    style: (json['style'] as List<dynamic>).cast<String>(),
+    eventType: EventType.fromValue(json['eventType'] as String),
+    customEventType: json['customEventType'] as String?,
+    city: json['city'] as String,
+    country: json['country'] as String,
+    locationType: LocationType.fromValue(json['locationType'] as String),
+    visibility: EventVisibility.fromValue(json['visibility'] as String),
+    reservationEnabled: json['reservationEnabled'] as bool,
+    coverImageUrl: json['coverImageUrl'] as String?,
+    coverVideoUrl: json['coverVideoUrl'] as String?,
+    status: EventStatus.fromValue(json['status'] as String),
+    publishedAt: json['publishedAt'] != null
+        ? DateTime.parse(json['publishedAt'] as String)
+        : null,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+    sessions: json['sessions'] != null
+        ? (json['sessions'] as List<dynamic>)
+              .map((s) => Session.fromJson(s as Map<String, dynamic>))
+              .toList()
+        : null,
+    packs: json['packs'] != null
+        ? (json['packs'] as List<dynamic>)
+              .map((p) => Pack.fromJson(p as Map<String, dynamic>))
+              .toList()
+        : null,
+    ownerUsername: json['ownerUsername'] as String? ?? '',
+    ownerDisplayName: json['ownerDisplayName'] as String? ?? '',
+    isSaved: json['isSaved'] as bool? ?? false,
+  );
 }

@@ -17,7 +17,8 @@ class EventService {
     required List<String> style,
     required String city,
     required String country,
-    required File coverFile,
+    File? coverImageFile,
+    File? coverVideoFile,
     bool reservationEnabled = false,
     EventStatus status = EventStatus.draft,
     EventType? eventType,
@@ -38,15 +39,32 @@ class EventService {
       request.fields['reservationEnabled'] = reservationEnabled.toString();
       request.fields['status'] = status.value;
       if (eventType != null) request.fields['eventType'] = eventType.value;
-      if (customEventType != null) request.fields['customEventType'] = customEventType;
+      if (customEventType != null) {
+        request.fields['customEventType'] = customEventType;
+      }
 
-      request.files.add(await http.MultipartFile.fromPath(
-        'cover',
-        coverFile.path,
-        contentType: _mediaTypeFromPath(coverFile.path),
-      ));
+      if (coverImageFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'coverImage',
+            coverImageFile.path,
+            contentType: _mediaTypeFromPath(coverImageFile.path),
+          ),
+        );
+      }
+      if (coverVideoFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'coverVideo',
+            coverVideoFile.path,
+            contentType: _mediaTypeFromPath(coverVideoFile.path),
+          ),
+        );
+      }
 
-      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
       response = await http.Response.fromStream(streamed);
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
@@ -67,7 +85,10 @@ class EventService {
     List<String>? style,
     String? city,
     String? country,
-    File? coverFile,
+    File? coverImageFile,
+    File? coverVideoFile,
+    bool removeCoverImage = false,
+    bool removeCoverVideo = false,
     bool? reservationEnabled,
     EventType? eventType,
     String? customEventType,
@@ -91,20 +112,39 @@ class EventService {
         request.fields['reservationEnabled'] = reservationEnabled.toString();
       }
       if (eventType != null) request.fields['eventType'] = eventType.value;
-      if (customEventType != null) request.fields['customEventType'] = customEventType;
-      if (locationType != null) request.fields['locationType'] = locationType.value;
+      if (customEventType != null) {
+        request.fields['customEventType'] = customEventType;
+      }
+      if (locationType != null) {
+        request.fields['locationType'] = locationType.value;
+      }
       if (visibility != null) request.fields['visibility'] = visibility.value;
       if (status != null) request.fields['status'] = status.value;
+      if (removeCoverImage) request.fields['removeCoverImage'] = 'true';
+      if (removeCoverVideo) request.fields['removeCoverVideo'] = 'true';
 
-      if (coverFile != null) {
-        request.files.add(await http.MultipartFile.fromPath(
-          'cover',
-          coverFile.path,
-          contentType: _mediaTypeFromPath(coverFile.path),
-        ));
+      if (coverImageFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'coverImage',
+            coverImageFile.path,
+            contentType: _mediaTypeFromPath(coverImageFile.path),
+          ),
+        );
+      }
+      if (coverVideoFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'coverVideo',
+            coverVideoFile.path,
+            contentType: _mediaTypeFromPath(coverVideoFile.path),
+          ),
+        );
       }
 
-      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
       response = await http.Response.fromStream(streamed);
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
@@ -139,11 +179,15 @@ class EventService {
     }
   }
 
-  static Future<bool> saveEvent({required String token, required String eventId}) =>
-      _saveRequest(token: token, eventId: eventId, unsave: false);
+  static Future<bool> saveEvent({
+    required String token,
+    required String eventId,
+  }) => _saveRequest(token: token, eventId: eventId, unsave: false);
 
-  static Future<bool> unsaveEvent({required String token, required String eventId}) =>
-      _saveRequest(token: token, eventId: eventId, unsave: true);
+  static Future<bool> unsaveEvent({
+    required String token,
+    required String eventId,
+  }) => _saveRequest(token: token, eventId: eventId, unsave: true);
 
   static Future<bool> _saveRequest({
     required String token,
@@ -155,8 +199,12 @@ class EventService {
       final uri = Uri.parse('${ApiConfig.baseUrl}/events/$eventId/save');
       final headers = {'Authorization': 'Bearer $token'};
       response = unsave
-          ? await http.delete(uri, headers: headers).timeout(const Duration(seconds: 10))
-          : await http.post(uri, headers: headers).timeout(const Duration(seconds: 10));
+          ? await http
+                .delete(uri, headers: headers)
+                .timeout(const Duration(seconds: 10))
+          : await http
+                .post(uri, headers: headers)
+                .timeout(const Duration(seconds: 10));
     } on SocketException {
       throw AuthException('No se pudo conectar con el servidor');
     }
@@ -220,8 +268,9 @@ class EventService {
     try {
       response = await http
           .get(
-            Uri.parse('${ApiConfig.baseUrl}/events')
-                .replace(queryParameters: queryParams.isEmpty ? null : queryParams),
+            Uri.parse('${ApiConfig.baseUrl}/events').replace(
+              queryParameters: queryParams.isEmpty ? null : queryParams,
+            ),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 10));
@@ -238,7 +287,9 @@ class EventService {
         .toList();
   }
 
-  static Future<ExploreSections> getExploreSections({required String token}) async {
+  static Future<ExploreSections> getExploreSections({
+    required String token,
+  }) async {
     http.Response response;
     try {
       response = await http

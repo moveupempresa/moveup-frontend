@@ -89,14 +89,24 @@ class EventCard extends StatelessWidget {
   }
 
   Widget _buildThumbnail(BuildContext context, bool isPast) {
-    final image = Image.network(
-      ApiConfig.mediaUrl(event.coverMediaUrl),
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Icon(Icons.image_not_supported_outlined),
-      ),
-    );
+    final imageUrl = event.coverImageUrl;
+    final image = imageUrl != null
+        ? Image.network(
+            ApiConfig.mediaUrl(imageUrl),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: const Icon(Icons.image_not_supported_outlined),
+            ),
+          )
+        : Container(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.play_circle_outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
     return isPast
         ? ColorFiltered(colorFilter: _grayscaleFilter, child: image)
         : image;

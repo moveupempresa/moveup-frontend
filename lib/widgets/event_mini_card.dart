@@ -25,14 +25,27 @@ class EventMiniCard extends StatelessWidget {
             children: [
               AspectRatio(
                 aspectRatio: 16 / 10,
-                child: Image.network(
-                  ApiConfig.mediaUrl(event.coverMediaUrl),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: const Icon(Icons.image_not_supported_outlined),
-                  ),
-                ),
+                child: event.coverImageUrl != null
+                    ? Image.network(
+                        ApiConfig.mediaUrl(event.coverImageUrl!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          child: const Icon(Icons.image_not_supported_outlined),
+                        ),
+                      )
+                    : Container(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.play_circle_outline,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.all(8),
@@ -42,16 +55,21 @@ class EventMiniCard extends StatelessWidget {
                   children: [
                     Text(
                       event.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      [event.city, event.country].where((s) => s.isNotEmpty).join(', '),
+                      [
+                        event.city,
+                        event.country,
+                      ].where((s) => s.isNotEmpty).join(', '),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

@@ -8,6 +8,7 @@ import '../models/session.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
+import '../widgets/video_player_view.dart';
 import 'event_form_screen.dart';
 import 'payment_screen.dart';
 import 'public_profile_screen.dart';
@@ -58,6 +59,71 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   bool _isDeleting = false;
   bool _isTogglingSave = false;
   late bool _isSaved = widget.event.isSaved;
+  int _heroCoverPage = 0;
+
+  List<Widget> _coverSlides(BuildContext context, Event event) {
+    final slides = <Widget>[];
+    if (event.coverImageUrl != null) {
+      slides.add(
+        Image.network(
+          ApiConfig.mediaUrl(event.coverImageUrl!),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: const Icon(Icons.image_not_supported_outlined, size: 48),
+          ),
+        ),
+      );
+    }
+    if (event.coverVideoUrl != null) {
+      slides.add(
+        VideoPlayerView(networkUrl: ApiConfig.mediaUrl(event.coverVideoUrl!)),
+      );
+    }
+    return slides;
+  }
+
+  Widget _buildCoverCarousel(BuildContext context, Event event) {
+    final slides = _coverSlides(context, event);
+    if (slides.isEmpty) {
+      return Container(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: const Icon(Icons.image_not_supported_outlined, size: 48),
+      );
+    }
+    if (slides.length == 1) return slides.first;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView(
+          onPageChanged: (i) => setState(() => _heroCoverPage = i),
+          children: slides,
+        ),
+        Positioned(
+          bottom: 12,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              slides.length,
+              (i) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _heroCoverPage == i
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Future<void> _toggleSave() async {
     setState(() => _isTogglingSave = true);
@@ -255,17 +321,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               ],
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: Image.network(
-                ApiConfig.mediaUrl(event.coverMediaUrl),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const Icon(
-                    Icons.image_not_supported_outlined,
-                    size: 48,
-                  ),
-                ),
-              ),
+              background: _buildCoverCarousel(context, event),
             ),
           ),
           SliverPadding(
