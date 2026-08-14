@@ -6,6 +6,7 @@ import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/cv_link.dart';
 import '../widgets/events_locked_banner.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/profile_events_section.dart';
@@ -232,6 +233,10 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             textAlign: TextAlign.center,
           ),
+          if (_profile.cvUrl.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            CvLink(cvUrl: _profile.cvUrl),
+          ],
           const SizedBox(height: 24),
           OutlinedButton(
             onPressed: _editProfile,

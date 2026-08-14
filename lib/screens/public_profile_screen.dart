@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/profile_service.dart';
 import '../services/user_service.dart';
+import '../widgets/cv_link.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/profile_events_section.dart';
 import '../widgets/sliver_tab_bar_delegate.dart';
@@ -281,6 +282,10 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
+          ],
+          if (profile.cvUrl.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            CvLink(cvUrl: profile.cvUrl),
           ],
         ],
       ),
