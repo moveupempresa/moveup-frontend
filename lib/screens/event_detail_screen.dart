@@ -13,7 +13,20 @@ import 'payment_screen.dart';
 import 'public_profile_screen.dart';
 import 'registrants_screen.dart';
 
-const _months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const _months = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
 
 String _formatSessionDate(DateTime dt) {
   final local = dt.toLocal();
@@ -50,12 +63,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     setState(() => _isTogglingSave = true);
     try {
       final isSaved = _isSaved
-          ? await EventService.unsaveEvent(token: widget.token, eventId: widget.event.id)
-          : await EventService.saveEvent(token: widget.token, eventId: widget.event.id);
+          ? await EventService.unsaveEvent(
+              token: widget.token,
+              eventId: widget.event.id,
+            )
+          : await EventService.saveEvent(
+              token: widget.token,
+              eventId: widget.event.id,
+            );
       if (mounted) setState(() => _isSaved = isSaved);
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _isTogglingSave = false);
@@ -71,7 +92,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Future<void> _editEvent() async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EventFormScreen(token: widget.token, event: widget.event),
+        builder: (_) =>
+            EventFormScreen(token: widget.token, event: widget.event),
       ),
     );
     if (changed == true && mounted) Navigator.of(context).pop(true);
@@ -92,7 +114,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Eliminar'),
           ),
         ],
@@ -102,11 +126,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
     setState(() => _isDeleting = true);
     try {
-      await EventService.deleteEvent(token: widget.token, eventId: widget.event.id);
+      await EventService.deleteEvent(
+        token: widget.token,
+        eventId: widget.event.id,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
         setState(() => _isDeleting = false);
       }
     }
@@ -138,7 +167,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Widget _buildPackCard(Pack p, String eventId, List<Session> sessions, bool isOwner) {
+  Widget _buildPackCard(
+    Pack p,
+    String eventId,
+    List<Session> sessions,
+    bool isOwner,
+  ) {
     final card = _PackCard(
       pack: p,
       sessions: sessions,
@@ -189,7 +223,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(_isSaved ? Icons.bookmark : Icons.bookmark_outline),
+                      : Icon(
+                          _isSaved ? Icons.bookmark : Icons.bookmark_outline,
+                        ),
                   tooltip: _isSaved ? 'Quitar de guardados' : 'Guardar evento',
                   onPressed: _isTogglingSave ? null : _toggleSave,
                 ),
@@ -224,7 +260,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const Icon(Icons.image_not_supported_outlined, size: 48),
+                  child: const Icon(
+                    Icons.image_not_supported_outlined,
+                    size: 48,
+                  ),
                 ),
               ),
             ),
@@ -235,7 +274,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               delegate: SliverChildListDelegate([
                 Text(
                   event.title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 if (!isOwner && event.organizerName.isNotEmpty) ...[
                   const SizedBox(height: 6),
@@ -252,12 +293,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.person_outline,
-                            size: 15, color: Theme.of(context).colorScheme.primary),
+                        Icon(
+                          Icons.person_outline,
+                          size: 15,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Organizado por ${event.organizerName}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -269,7 +314,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 const SizedBox(height: 16),
                 _InfoRow(
                   icon: Icons.place_outlined,
-                  text: [event.city, event.country].where((s) => s.isNotEmpty).join(', '),
+                  text: [
+                    event.city,
+                    event.country,
+                  ].where((s) => s.isNotEmpty).join(', '),
                 ),
                 const SizedBox(height: 8),
                 _InfoRow(
@@ -285,19 +333,34 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
                 const SizedBox(height: 20),
                 if (event.description.isNotEmpty) ...[
-                  Text('Descripción', style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    'Descripción',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   const SizedBox(height: 6),
-                  Text(event.description, style: Theme.of(context).textTheme.bodyMedium),
+                  Text(
+                    event.description,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                   const SizedBox(height: 20),
                 ],
                 if (event.style.isNotEmpty) ...[
-                  Text('Estilos', style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    'Estilos',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 4,
                     children: event.style
-                        .map((s) => Chip(label: Text(s), materialTapTargetSize: MaterialTapTargetSize.shrinkWrap))
+                        .map(
+                          (s) => Chip(
+                            label: Text(s),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        )
                         .toList(),
                   ),
                   const SizedBox(height: 20),
@@ -316,12 +379,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     Text(
                       'Sin packs',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                            fontStyle: FontStyle.italic,
-                          ),
+                        color: Theme.of(context).colorScheme.outline,
+                        fontStyle: FontStyle.italic,
+                      ),
                     )
                   else
-                    ...packs.map((p) => _buildPackCard(p, event.id, sessions, isOwner)),
+                    ...packs.map(
+                      (p) => _buildPackCard(p, event.id, sessions, isOwner),
+                    ),
                 ],
               ]),
             ),
@@ -382,16 +447,18 @@ class _SessionsSectionState extends State<_SessionsSection> {
   DateTime get _calendarFirstDay {
     final base = DateTime.now().subtract(const Duration(days: 365));
     if (widget.sessions.isEmpty) return base;
-    final earliest =
-        widget.sessions.map((s) => _dayKey(s.startDatetime)).reduce((a, b) => a.isBefore(b) ? a : b);
+    final earliest = widget.sessions
+        .map((s) => _dayKey(s.startDatetime))
+        .reduce((a, b) => a.isBefore(b) ? a : b);
     return earliest.isBefore(base) ? earliest : base;
   }
 
   DateTime get _calendarLastDay {
     final base = DateTime.now().add(const Duration(days: 365 * 2));
     if (widget.sessions.isEmpty) return base;
-    final latest =
-        widget.sessions.map((s) => _dayKey(s.startDatetime)).reduce((a, b) => a.isAfter(b) ? a : b);
+    final latest = widget.sessions
+        .map((s) => _dayKey(s.startDatetime))
+        .reduce((a, b) => a.isAfter(b) ? a : b);
     return latest.isAfter(base) ? latest : base;
   }
 
@@ -438,7 +505,9 @@ class _SessionsSectionState extends State<_SessionsSection> {
                   _viewMode == _SessionsViewMode.calendar,
                 ],
                 onPressed: (index) => setState(() {
-                  _viewMode = index == 0 ? _SessionsViewMode.list : _SessionsViewMode.calendar;
+                  _viewMode = index == 0
+                      ? _SessionsViewMode.list
+                      : _SessionsViewMode.calendar;
                 }),
                 children: const [
                   Icon(Icons.view_list_outlined, size: 16),
@@ -452,9 +521,9 @@ class _SessionsSectionState extends State<_SessionsSection> {
           Text(
             'Sin sesiones',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                  fontStyle: FontStyle.italic,
-                ),
+              color: Theme.of(context).colorScheme.outline,
+              fontStyle: FontStyle.italic,
+            ),
           )
         else if (_viewMode == _SessionsViewMode.list)
           _buildList(sessions)
@@ -491,8 +560,10 @@ class _SessionsSectionState extends State<_SessionsSection> {
           lastDay: _calendarLastDay,
           focusedDay: _focusedDay,
           locale: 'es_ES',
-          selectedDayPredicate: (day) => isSameDay(_selectedDay ?? _focusedDay, day),
-          eventLoader: (day) => sessionsByDay[_calendarDayKey(day)] ?? const <Session>[],
+          selectedDayPredicate: (day) =>
+              isSameDay(_selectedDay ?? _focusedDay, day),
+          eventLoader: (day) =>
+              sessionsByDay[_calendarDayKey(day)] ?? const <Session>[],
           onDaySelected: (selected, focused) {
             setState(() {
               _selectedDay = _calendarDayKey(selected);
@@ -514,7 +585,10 @@ class _SessionsSectionState extends State<_SessionsSection> {
               shape: BoxShape.circle,
             ),
           ),
-          headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+          ),
         ),
         const SizedBox(height: 12),
         if (selectedSessions.isEmpty)
@@ -523,8 +597,8 @@ class _SessionsSectionState extends State<_SessionsSection> {
             child: Text(
               'Sin sesiones este día',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           )
         else
@@ -564,7 +638,9 @@ class _SessionCardState extends State<_SessionCard> {
 
   void _showError(Object e) {
     if (e is AuthException && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -573,9 +649,15 @@ class _SessionCardState extends State<_SessionCard> {
     try {
       final (status, count) = _isSignedUp
           ? await RegistrationService.cancelSessionSignUp(
-              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id)
+              token: widget.token,
+              eventId: widget.eventId,
+              sessionId: widget.session.id,
+            )
           : await RegistrationService.signUpForSession(
-              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id);
+              token: widget.token,
+              eventId: widget.eventId,
+              sessionId: widget.session.id,
+            );
       if (mounted) {
         setState(() {
           _isSignedUp = status == 'confirmed';
@@ -594,9 +676,15 @@ class _SessionCardState extends State<_SessionCard> {
     try {
       final (status, count) = _isWaitlisted
           ? await RegistrationService.leaveSessionWaitlist(
-              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id)
+              token: widget.token,
+              eventId: widget.eventId,
+              sessionId: widget.session.id,
+            )
           : await RegistrationService.joinSessionWaitlist(
-              token: widget.token, eventId: widget.eventId, sessionId: widget.session.id);
+              token: widget.token,
+              eventId: widget.eventId,
+              sessionId: widget.session.id,
+            );
       if (mounted) {
         setState(() {
           _isWaitlisted = status == 'waitlisted';
@@ -629,11 +717,18 @@ class _SessionCardState extends State<_SessionCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(session.name, style: Theme.of(context).textTheme.titleSmall),
+                      child: Text(
+                        session.name,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
                     ),
-                    if (!session.isUnlimitedCapacity && session.capacity != null) ...[
+                    if (!session.isUnlimitedCapacity &&
+                        session.capacity != null) ...[
                       const SizedBox(width: 8),
-                      _CapacityBadge(confirmedCount: _confirmedCount, capacity: session.capacity!),
+                      _CapacityBadge(
+                        confirmedCount: _confirmedCount,
+                        capacity: session.capacity!,
+                      ),
                     ],
                   ],
                 ),
@@ -642,7 +737,10 @@ class _SessionCardState extends State<_SessionCard> {
                   children: [
                     const Icon(Icons.calendar_today_outlined, size: 14),
                     const SizedBox(width: 6),
-                    Text(_formatSessionDate(start), style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      _formatSessionDate(start),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -650,8 +748,10 @@ class _SessionCardState extends State<_SessionCard> {
                   children: [
                     const Icon(Icons.access_time_outlined, size: 14),
                     const SizedBox(width: 6),
-                    Text('${_formatSessionTime(start)} – ${_formatSessionTime(end)}',
-                        style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      '${_formatSessionTime(start)} – ${_formatSessionTime(end)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
                 if (session.address != null && session.address!.isNotEmpty) ...[
@@ -661,7 +761,10 @@ class _SessionCardState extends State<_SessionCard> {
                       const Icon(Icons.place_outlined, size: 14),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text(session.address!, style: Theme.of(context).textTheme.bodySmall),
+                        child: Text(
+                          session.address!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ),
                     ],
                   ),
@@ -675,8 +778,8 @@ class _SessionCardState extends State<_SessionCard> {
                       session.isUnlimitedCapacity
                           ? 'Aforo ilimitado'
                           : session.capacity != null
-                              ? '$_confirmedCount / ${session.capacity} personas'
-                              : 'Aforo no especificado',
+                          ? '$_confirmedCount / ${session.capacity} personas'
+                          : 'Aforo no especificado',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -701,7 +804,6 @@ class _SessionCardState extends State<_SessionCard> {
       ),
     );
   }
-
 }
 
 class _CapacityBadge extends StatelessWidget {
@@ -730,7 +832,11 @@ class _CapacityBadge extends StatelessWidget {
       ),
       child: Text(
         '$confirmedCount/$capacity',
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -766,12 +872,19 @@ class _SignupIconButton extends StatelessWidget {
     if (isLoading) {
       return const Padding(
         padding: EdgeInsets.all(10),
-        child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+        child: SizedBox(
+          height: 18,
+          width: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
       );
     }
     if (isPending) {
       return IconButton(
-        icon: Icon(Icons.hourglass_top, color: Theme.of(context).colorScheme.primary),
+        icon: Icon(
+          Icons.hourglass_top,
+          color: Theme.of(context).colorScheme.primary,
+        ),
         tooltip: 'Solicitud pendiente de aprobación · toca para cancelar',
         onPressed: onToggleSignUp,
       );
@@ -785,7 +898,9 @@ class _SignupIconButton extends StatelessWidget {
     }
     if (isFull && !isSignedUp) {
       return IconButton(
-        icon: Icon(isWaitlisted ? Icons.notifications_active : Icons.notifications_none),
+        icon: Icon(
+          isWaitlisted ? Icons.notifications_active : Icons.notifications_none,
+        ),
         color: isWaitlisted ? Theme.of(context).colorScheme.primary : null,
         tooltip: isWaitlisted
             ? 'Cancelar aviso de disponibilidad'
@@ -834,7 +949,8 @@ class _PackCardState extends State<_PackCard> {
   late bool _isSignedUp = widget.pack.isSignedUp;
   late bool _isPending = widget.pack.isPending;
   late bool _isAwaitingPayment = widget.pack.isAwaitingPayment;
-  late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds.toSet();
+  late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds
+      .toSet();
   bool _isLoading = false;
   bool _isExpanded = false;
 
@@ -858,7 +974,9 @@ class _PackCardState extends State<_PackCard> {
 
   void _showError(Object e) {
     if (e is AuthException && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -868,9 +986,9 @@ class _PackCardState extends State<_PackCard> {
 
   void _onPaymentIconTap() {
     if (_isSignedUp) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ya has pagado este pack')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Ya has pagado este pack')));
       return;
     }
     if (!_isPaymentReady) {
@@ -879,7 +997,9 @@ class _PackCardState extends State<_PackCard> {
       );
       return;
     }
-    widget.pack.paymentType == PaymentType.online ? _openPayment() : _showCashMessage();
+    widget.pack.paymentType == PaymentType.online
+        ? _openPayment()
+        : _showCashMessage();
   }
 
   void _openPayment() {
@@ -906,7 +1026,10 @@ class _PackCardState extends State<_PackCard> {
       setState(() => _isLoading = true);
       try {
         final (status, count) = await RegistrationService.cancelPackSignUp(
-            token: widget.token, eventId: widget.eventId, packId: widget.pack.id);
+          token: widget.token,
+          eventId: widget.eventId,
+          packId: widget.pack.id,
+        );
         if (mounted) {
           setState(() {
             _isSignedUp = status == 'confirmed';
@@ -934,11 +1057,15 @@ class _PackCardState extends State<_PackCard> {
 
   Future<void> _confirmSignUp() async {
     if (_isCustomizable && !_selectionValid) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.pack.maxSelectableSessions != null
-            ? 'Selecciona entre 1 y ${widget.pack.maxSelectableSessions} sesiones'
-            : 'Selecciona al menos una sesión'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.pack.maxSelectableSessions != null
+                ? 'Selecciona entre 1 y ${widget.pack.maxSelectableSessions} sesiones'
+                : 'Selecciona al menos una sesión',
+          ),
+        ),
+      );
       return;
     }
 
@@ -948,7 +1075,9 @@ class _PackCardState extends State<_PackCard> {
         token: widget.token,
         eventId: widget.eventId,
         packId: widget.pack.id,
-        selectedSessionIds: _isCustomizable ? _selectedSessionIds.toList() : null,
+        selectedSessionIds: _isCustomizable
+            ? _selectedSessionIds.toList()
+            : null,
       );
       if (mounted) {
         setState(() {
@@ -996,7 +1125,10 @@ class _PackCardState extends State<_PackCard> {
                   children: [
                     const Icon(Icons.payments_outlined, size: 14),
                     const SizedBox(width: 6),
-                    Text(priceLabel, style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      priceLabel,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -1004,7 +1136,10 @@ class _PackCardState extends State<_PackCard> {
                   children: [
                     const Icon(Icons.confirmation_number_outlined, size: 14),
                     const SizedBox(width: 6),
-                    Text(pack.packType.label, style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      pack.packType.label,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -1060,42 +1195,54 @@ class _PackCardState extends State<_PackCard> {
                     ),
                   ],
                   if (!widget.isOwner && _isCommitted)
-                    ...candidateSessions.where((s) => _selectedSessionIds.contains(s.id)).map(
+                    ...candidateSessions
+                        .where((s) => _selectedSessionIds.contains(s.id))
+                        .map(
                           (s) => Padding(
                             padding: const EdgeInsets.only(left: 20, top: 2),
                             child: Row(
                               children: [
-                                Icon(Icons.check, size: 14, color: Theme.of(context).colorScheme.primary),
+                                Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                                 const SizedBox(width: 6),
-                                Text(s.name, style: Theme.of(context).textTheme.bodySmall),
+                                Text(
+                                  s.name,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
                               ],
                             ),
                           ),
                         ),
                   if (!widget.isOwner && !_isCommitted && _isExpanded) ...[
-                    ...candidateSessions.map((s) => CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          value: _selectedSessionIds.contains(s.id),
-                          title: Text(
-                            s.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            [
-                              _formatSessionDate(s.startDatetime),
-                              '${_formatSessionTime(s.startDatetime)} – ${_formatSessionTime(s.endDatetime)}',
-                              if (s.address != null && s.address!.isNotEmpty) s.address!,
-                            ].join(' · '),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.outline,
-                                ),
-                          ),
-                          onChanged: (checked) => _onSessionToggled(s.id, checked ?? false),
-                        )),
+                    ...candidateSessions.map(
+                      (s) => CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: _selectedSessionIds.contains(s.id),
+                        title: Text(
+                          s.name,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          [
+                            _formatSessionDate(s.startDatetime),
+                            '${_formatSessionTime(s.startDatetime)} – ${_formatSessionTime(s.endDatetime)}',
+                            if (s.address != null && s.address!.isNotEmpty)
+                              s.address!,
+                          ].join(' · '),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                        ),
+                        onChanged: (checked) =>
+                            _onSessionToggled(s.id, checked ?? false),
+                      ),
+                    ),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -1105,7 +1252,8 @@ class _PackCardState extends State<_PackCard> {
                     ),
                   ],
                 ],
-                if (pack.packType == PackType.fixed && includedSessionNames.isNotEmpty) ...[
+                if (pack.packType == PackType.fixed &&
+                    includedSessionNames.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1147,13 +1295,42 @@ class _PackCardState extends State<_PackCard> {
               bottom: 4,
               child: IconButton(
                 icon: Icon(
-                  pack.paymentType == PaymentType.online ? Icons.credit_card : Icons.money,
+                  pack.paymentType == PaymentType.online
+                      ? Icons.credit_card
+                      : Icons.money,
                 ),
                 color: _isPaymentReady ? Colors.green.shade700 : Colors.grey,
                 tooltip: pack.paymentType == PaymentType.online
                     ? 'Pagar con tarjeta'
                     : 'Pago en efectivo',
                 onPressed: _onPaymentIconTap,
+              ),
+            ),
+          if (widget.isOwner && pack.pendingRequestsCount > 0)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Tooltip(
+                message: pack.pendingRequestsCount == 1
+                    ? '1 solicitud pendiente de aprobación'
+                    : '${pack.pendingRequestsCount} solicitudes pendientes de aprobación',
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '!',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onError,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ),
         ],

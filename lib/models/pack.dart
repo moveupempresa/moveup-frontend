@@ -49,6 +49,7 @@ class Pack {
   final DateTime createdAt;
   final DateTime updatedAt;
   final int confirmedCount;
+  final int pendingRequestsCount;
   final bool isSignedUp;
   final bool isWaitlisted;
   final bool isPending;
@@ -69,6 +70,7 @@ class Pack {
     required this.createdAt,
     required this.updatedAt,
     this.confirmedCount = 0,
+    this.pendingRequestsCount = 0,
     this.isSignedUp = false,
     this.isWaitlisted = false,
     this.isPending = false,
@@ -77,27 +79,28 @@ class Pack {
   });
 
   factory Pack.fromJson(Map<String, dynamic> json) => Pack(
-        id: json['id'] as String,
-        eventId: json['eventId'] as String,
-        name: json['name'] as String,
-        description: json['description'] as String?,
-        price: (json['price'] as num).toDouble(),
-        paymentType: PaymentType.fromValue(json['paymentType'] as String),
-        packType: PackType.fromValue(json['packType'] as String),
-        approvalMode: ApprovalMode.fromValue(json['approvalMode'] as String),
-        maxSelectableSessions: json['maxSelectableSessions'] as int?,
-        sessionIds: json['sessionIds'] != null
-            ? (json['sessionIds'] as List<dynamic>).cast<String>()
-            : const [],
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        updatedAt: DateTime.parse(json['updatedAt'] as String),
-        confirmedCount: (json['confirmedCount'] as num?)?.toInt() ?? 0,
-        isSignedUp: json['isSignedUp'] as bool? ?? false,
-        isWaitlisted: json['isWaitlisted'] as bool? ?? false,
-        isPending: json['isPending'] as bool? ?? false,
-        isAwaitingPayment: json['isAwaitingPayment'] as bool? ?? false,
-        mySelectedSessionIds: json['mySelectedSessionIds'] != null
-            ? (json['mySelectedSessionIds'] as List<dynamic>).cast<String>()
-            : const [],
-      );
+    id: json['id'] as String,
+    eventId: json['eventId'] as String,
+    name: json['name'] as String,
+    description: json['description'] as String?,
+    price: (json['price'] as num).toDouble(),
+    paymentType: PaymentType.fromValue(json['paymentType'] as String),
+    packType: PackType.fromValue(json['packType'] as String),
+    approvalMode: ApprovalMode.fromValue(json['approvalMode'] as String),
+    maxSelectableSessions: json['maxSelectableSessions'] as int?,
+    sessionIds: json['sessionIds'] != null
+        ? (json['sessionIds'] as List<dynamic>).cast<String>()
+        : const [],
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+    confirmedCount: (json['confirmedCount'] as num?)?.toInt() ?? 0,
+    pendingRequestsCount: (json['pendingRequestsCount'] as num?)?.toInt() ?? 0,
+    isSignedUp: json['isSignedUp'] as bool? ?? false,
+    isWaitlisted: json['isWaitlisted'] as bool? ?? false,
+    isPending: json['isPending'] as bool? ?? false,
+    isAwaitingPayment: json['isAwaitingPayment'] as bool? ?? false,
+    mySelectedSessionIds: json['mySelectedSessionIds'] != null
+        ? (json['mySelectedSessionIds'] as List<dynamic>).cast<String>()
+        : const [],
+  );
 }
