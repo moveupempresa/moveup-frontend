@@ -240,7 +240,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                 children: [
                   if (_showsAttendance && r.status == RegistrationStatus.confirmed)
                     IconButton(
-                      icon: Icon(r.attended ? Icons.event_available : Icons.event_busy_outlined),
+                      icon: Icon(r.attended ? Icons.event_available : Icons.close),
                       color: r.attended ? Colors.green.shade700 : null,
                       tooltip: r.attended ? 'Marcar como no asistido' : 'Marcar como asistido',
                       onPressed: () => _toggleAttendance(r),
