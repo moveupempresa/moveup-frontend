@@ -42,6 +42,7 @@ class AppNotification {
   final String? relatedEventId;
   final String? relatedTargetType;
   final String? relatedTargetId;
+  final String? organizerPhone;
   final bool read;
   final DateTime createdAt;
   final bool? isPending;
@@ -54,6 +55,7 @@ class AppNotification {
     this.relatedEventId,
     this.relatedTargetType,
     this.relatedTargetId,
+    this.organizerPhone,
     required this.read,
     required this.createdAt,
     this.isPending,
@@ -68,6 +70,7 @@ class AppNotification {
         relatedEventId: json['relatedEventId'] as String?,
         relatedTargetType: json['relatedTargetType'] as String?,
         relatedTargetId: json['relatedTargetId'] as String?,
+        organizerPhone: json['organizerPhone'] as String?,
         read: json['read'] as bool,
         createdAt: DateTime.parse(json['createdAt'] as String),
         isPending: json['isPending'] as bool?,

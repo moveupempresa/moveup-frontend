@@ -460,6 +460,12 @@ class _NotificationTileState extends State<_NotificationTile> {
   @override
   Widget build(BuildContext context) {
     final notification = widget.notification;
+    final organizerPhone = notification.organizerPhone;
+    final showContactButton =
+        notification.type == NotificationType.eventCancelled &&
+        organizerPhone != null &&
+        organizerPhone.isNotEmpty;
+
     return ListTile(
       leading: Icon(_icon, color: Theme.of(context).colorScheme.primary),
       title: Text(
@@ -468,10 +474,27 @@ class _NotificationTileState extends State<_NotificationTile> {
             ? null
             : const TextStyle(fontWeight: FontWeight.bold),
       ),
-      subtitle: Text(
-        _formatDate(notification.createdAt),
-        style: Theme.of(context).textTheme.bodySmall,
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _formatDate(notification.createdAt),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (showContactButton) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.chat_outlined, size: 18),
+              label: const Text('Contactar por WhatsApp'),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
+        ],
       ),
+      isThreeLine: showContactButton,
       trailing: _trailing,
     );
   }
