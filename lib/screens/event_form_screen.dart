@@ -646,217 +646,231 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 selectedSessionsValid &&
                 customizableSessionsValid;
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    existing == null ? 'Nuevo pack' : 'Editar pack',
-                    style: Theme.of(ctx).textTheme.titleLarge,
+            return ScaffoldMessenger(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                body: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    top: 24,
+                    bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
                   ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Título del pack',
-                    ),
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) => setSheetState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<PaymentType>(
-                    value: paymentType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de pago',
-                    ),
-                    // "Gratis" is retired for new/edited choices, but stays
-                    // selectable if a legacy pack already used it so the
-                    // dropdown's current value is never missing from the list.
-                    items: PaymentType.values
-                        .where(
-                          (p) =>
-                              p != PaymentType.free ||
-                              paymentType == PaymentType.free,
-                        )
-                        .map(
-                          (p) =>
-                              DropdownMenuItem(value: p, child: Text(p.label)),
-                        )
-                        .toList(),
-                    onChanged: (v) => setSheetState(() {
-                      if (v != null) {
-                        paymentType = v;
-                        if (v == PaymentType.free) priceCtrl.clear();
-                      }
-                    }),
-                  ),
-                  if (paymentType != PaymentType.free) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: priceCtrl,
-                      decoration: const InputDecoration(labelText: 'Precio'),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        existing == null ? 'Nuevo pack' : 'Editar pack',
+                        style: Theme.of(ctx).textTheme.titleLarge,
                       ),
-                      onChanged: (_) => setSheetState(() {}),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<ApprovalMode>(
-                    value: approvalMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirmación de reserva',
-                    ),
-                    items: ApprovalMode.values
-                        .map(
-                          (a) =>
-                              DropdownMenuItem(value: a, child: Text(a.label)),
-                        )
-                        .toList(),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setSheetState(() => approvalMode = v);
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            v == ApprovalMode.automatic
-                                ? 'La reserva se confirma automáticamente después de completar el proceso de pago.'
-                                : 'Recibirás cada solicitud y podrás aceptarla o rechazarla antes de que el alumno realice el pago.',
-                          ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Título del pack',
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<PackType>(
-                    value: packType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de pack',
-                    ),
-                    items: PackType.values
-                        .map(
-                          (p) =>
-                              DropdownMenuItem(value: p, child: Text(p.label)),
-                        )
-                        .toList(),
-                    onChanged: (v) => setSheetState(() {
-                      if (v != null) {
-                        packType = v;
-                        if (v != PackType.customizable) {
-                          maxSelectableSessionsCtrl.clear();
-                        }
-                        if (v != PackType.fixed) selectedSessions.clear();
-                      }
-                    }),
-                  ),
-                  if (packType == PackType.customizable) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: maxSelectableSessionsCtrl,
-                      decoration: const InputDecoration(
-                        labelText:
-                            'Nº de sesiones que puede elegir el estudiante',
+                        textCapitalization: TextCapitalization.sentences,
+                        onChanged: (_) => setSheetState(() {}),
                       ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setSheetState(() {}),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _sessions.isEmpty
-                          ? 'Este evento todavía no tiene sesiones. Añade sesiones antes de crear un pack personalizable.'
-                          : 'El estudiante podrá elegir entre las ${_sessions.length} sesiones del evento',
-                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                        color: _sessions.isEmpty
-                            ? Theme.of(ctx).colorScheme.error
-                            : Theme.of(ctx).colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                  if (packType == PackType.fixed) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'Sesiones incluidas',
-                      style: Theme.of(ctx).textTheme.titleSmall,
-                    ),
-                    ..._sessions.map(
-                      (s) => CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        title: Text(s.name),
-                        subtitle: Text(
-                          '${_formatDatetime(s.startDatetime)} → ${_formatDatetime(s.endDatetime)}',
-                          style: Theme.of(ctx).textTheme.bodySmall,
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<PaymentType>(
+                        value: paymentType,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de pago',
                         ),
-                        value: selectedSessions.contains(s),
-                        onChanged: (checked) => setSheetState(() {
-                          if (checked == true) {
-                            selectedSessions.add(s);
-                          } else {
-                            selectedSessions.remove(s);
+                        // "Gratis" is retired for new/edited choices, but stays
+                        // selectable if a legacy pack already used it so the
+                        // dropdown's current value is never missing from the list.
+                        items: PaymentType.values
+                            .where(
+                              (p) =>
+                                  p != PaymentType.free ||
+                                  paymentType == PaymentType.free,
+                            )
+                            .map(
+                              (p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(p.label),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setSheetState(() {
+                          if (v != null) {
+                            paymentType = v;
+                            if (v == PaymentType.free) priceCtrl.clear();
                           }
                         }),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: canSave
-                        ? () {
-                            setState(() {
-                              final price = paymentType == PaymentType.free
-                                  ? 0.0
-                                  : double.parse(priceCtrl.text.trim());
-                              final maxSelectable =
-                                  packType == PackType.customizable
-                                  ? int.parse(
-                                      maxSelectableSessionsCtrl.text.trim(),
-                                    )
-                                  : null;
-                              final sessions = switch (packType) {
-                                PackType.fixed => selectedSessions.toList(),
-                                PackType.customizable => _sessions.toList(),
-                              };
-
-                              if (existing != null) {
-                                existing.name = nameCtrl.text.trim();
-                                existing.paymentType = paymentType;
-                                existing.price = price;
-                                existing.approvalMode = approvalMode;
-                                existing.packType = packType;
-                                existing.maxSelectableSessions = maxSelectable;
-                                existing.selectedSessions = sessions;
-                              } else {
-                                _packs.add(
-                                  _PackDraft(
-                                    name: nameCtrl.text.trim(),
-                                    paymentType: paymentType,
-                                    price: price,
-                                    approvalMode: approvalMode,
-                                    packType: packType,
-                                    maxSelectableSessions: maxSelectable,
-                                    selectedSessions: sessions,
-                                  ),
-                                );
-                              }
-                            });
-                            Navigator.pop(ctx);
+                      if (paymentType != PaymentType.free) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: priceCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Precio',
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setSheetState(() {}),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<ApprovalMode>(
+                        value: approvalMode,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirmación de reserva',
+                        ),
+                        items: ApprovalMode.values
+                            .map(
+                              (a) => DropdownMenuItem(
+                                value: a,
+                                child: Text(a.label),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setSheetState(() => approvalMode = v);
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                v == ApprovalMode.automatic
+                                    ? 'La reserva se confirma automáticamente después de completar el proceso de pago.'
+                                    : 'Recibirás cada solicitud y podrás aceptarla o rechazarla antes de que el alumno realice el pago.',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<PackType>(
+                        value: packType,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de pack',
+                        ),
+                        items: PackType.values
+                            .map(
+                              (p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(p.label),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setSheetState(() {
+                          if (v != null) {
+                            packType = v;
+                            if (v != PackType.customizable) {
+                              maxSelectableSessionsCtrl.clear();
+                            }
+                            if (v != PackType.fixed) selectedSessions.clear();
                           }
-                        : null,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                    child: Text(
-                      existing == null ? 'Añadir pack' : 'Guardar pack',
-                    ),
+                        }),
+                      ),
+                      if (packType == PackType.customizable) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: maxSelectableSessionsCtrl,
+                          decoration: const InputDecoration(
+                            labelText:
+                                'Nº de sesiones que puede elegir el estudiante',
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setSheetState(() {}),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _sessions.isEmpty
+                              ? 'Este evento todavía no tiene sesiones. Añade sesiones antes de crear un pack personalizable.'
+                              : 'El estudiante podrá elegir entre las ${_sessions.length} sesiones del evento',
+                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                            color: _sessions.isEmpty
+                                ? Theme.of(ctx).colorScheme.error
+                                : Theme.of(ctx).colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                      if (packType == PackType.fixed) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Sesiones incluidas',
+                          style: Theme.of(ctx).textTheme.titleSmall,
+                        ),
+                        ..._sessions.map(
+                          (s) => CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: Text(s.name),
+                            subtitle: Text(
+                              '${_formatDatetime(s.startDatetime)} → ${_formatDatetime(s.endDatetime)}',
+                              style: Theme.of(ctx).textTheme.bodySmall,
+                            ),
+                            value: selectedSessions.contains(s),
+                            onChanged: (checked) => setSheetState(() {
+                              if (checked == true) {
+                                selectedSessions.add(s);
+                              } else {
+                                selectedSessions.remove(s);
+                              }
+                            }),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      FilledButton(
+                        onPressed: canSave
+                            ? () {
+                                setState(() {
+                                  final price = paymentType == PaymentType.free
+                                      ? 0.0
+                                      : double.parse(priceCtrl.text.trim());
+                                  final maxSelectable =
+                                      packType == PackType.customizable
+                                      ? int.parse(
+                                          maxSelectableSessionsCtrl.text.trim(),
+                                        )
+                                      : null;
+                                  final sessions = switch (packType) {
+                                    PackType.fixed => selectedSessions.toList(),
+                                    PackType.customizable => _sessions.toList(),
+                                  };
+
+                                  if (existing != null) {
+                                    existing.name = nameCtrl.text.trim();
+                                    existing.paymentType = paymentType;
+                                    existing.price = price;
+                                    existing.approvalMode = approvalMode;
+                                    existing.packType = packType;
+                                    existing.maxSelectableSessions =
+                                        maxSelectable;
+                                    existing.selectedSessions = sessions;
+                                  } else {
+                                    _packs.add(
+                                      _PackDraft(
+                                        name: nameCtrl.text.trim(),
+                                        paymentType: paymentType,
+                                        price: price,
+                                        approvalMode: approvalMode,
+                                        packType: packType,
+                                        maxSelectableSessions: maxSelectable,
+                                        selectedSessions: sessions,
+                                      ),
+                                    );
+                                  }
+                                });
+                                Navigator.pop(ctx);
+                              }
+                            : null,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                        ),
+                        child: Text(
+                          existing == null ? 'Añadir pack' : 'Guardar pack',
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             );
           },
