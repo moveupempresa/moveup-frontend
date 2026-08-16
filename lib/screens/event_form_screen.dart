@@ -123,6 +123,17 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   bool get _isEditing => widget.event != null;
 
+  // While editing, the button's label follows the Estado dropdown so it's
+  // obvious that switching it to Publicado is what actually publishes the
+  // event - "Guardar cambios" otherwise reads the same whether Estado is
+  // left on Borrador or changed, which hides how to publish.
+  String get _submitLabel {
+    if (!_isEditing) return 'Publicar evento';
+    return _status == EventStatus.published
+        ? 'Publicar evento'
+        : 'Guardar cambios';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1186,6 +1197,15 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     if (v != null) _status = v;
                   }),
                 ),
+                if (_status == EventStatus.draft) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Cambia a Publicado y guarda para publicar el evento',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: colorScheme.outline),
+                  ),
+                ],
               ],
               const SizedBox(height: 24),
 
@@ -1497,9 +1517,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(
-                          _isEditing ? 'Guardar cambios' : 'Publicar evento',
-                        ),
+                      : Text(_submitLabel),
                 ),
               const SizedBox(height: 16),
             ],
