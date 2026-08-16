@@ -15,8 +15,7 @@ import 'event_card.dart';
 import 'reservation_card.dart';
 
 /// One event the user is either attending (has an upcoming reservation for
-/// it), organizes, or has saved, merged so the same event never shows up
-/// twice.
+/// it) or organizes, merged so the same event never shows up twice.
 class _CalendarItem {
   final Event event;
   final Reservation? reservation;
@@ -57,7 +56,6 @@ class CalendarioTab extends StatefulWidget {
 
 class _CalendarioTabState extends State<CalendarioTab> {
   List<Reservation>? _reservations;
-  List<Event>? _savedEvents;
   List<Event>? _createdEvents;
   List<CalendarNote>? _notes;
   bool _loading = false;
@@ -93,9 +91,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
   }
 
   List<_CalendarItem>? get _items {
-    if (_reservations == null &&
-        _savedEvents == null &&
-        _createdEvents == null) {
+    if (_reservations == null && _createdEvents == null) {
       return null;
     }
 
@@ -113,9 +109,6 @@ class _CalendarioTabState extends State<CalendarioTab> {
     }
     for (final e in (_createdEvents ?? [])) {
       byEventId.putIfAbsent(e.id, () => _CalendarItem(event: e, isOwned: true));
-    }
-    for (final e in (_savedEvents ?? [])) {
-      byEventId.putIfAbsent(e.id, () => _CalendarItem(event: e));
     }
     return byEventId.values.toList();
   }
@@ -140,7 +133,6 @@ class _CalendarioTabState extends State<CalendarioTab> {
     try {
       final results = await Future.wait([
         RegistrationService.getMyReservations(token: widget.token),
-        EventService.getPublicEvents(token: widget.token, savedOnly: true),
         CalendarNoteService.getMyNotes(token: widget.token),
         widget.isPro
             ? EventService.getMyEvents(token: widget.token)
@@ -149,9 +141,8 @@ class _CalendarioTabState extends State<CalendarioTab> {
       if (mounted) {
         setState(() {
           _reservations = results[0] as List<Reservation>;
-          _savedEvents = results[1] as List<Event>;
-          _notes = results[2] as List<CalendarNote>;
-          _createdEvents = results[3] as List<Event>;
+          _notes = results[1] as List<CalendarNote>;
+          _createdEvents = results[2] as List<Event>;
         });
       }
     } catch (e) {
@@ -392,11 +383,6 @@ class _CalendarioTabState extends State<CalendarioTab> {
               ),
               _legendDot(
                 context,
-                Theme.of(context).colorScheme.tertiary,
-                'Guardado',
-              ),
-              _legendDot(
-                context,
                 Theme.of(context).colorScheme.secondary,
                 'Nota',
               ),
@@ -421,7 +407,6 @@ class _CalendarioTabState extends State<CalendarioTab> {
     final selectedItems = itemsByDay[selectedDay] ?? const <_CalendarItem>[];
     final attendingColor = Theme.of(context).colorScheme.primary;
     final ownedColor = Theme.of(context).colorScheme.error;
-    final savedColor = Theme.of(context).colorScheme.tertiary;
     final noteColor = Theme.of(context).colorScheme.secondary;
 
     return RefreshIndicator(
@@ -459,14 +444,10 @@ class _CalendarioTabState extends State<CalendarioTab> {
               markerBuilder: (context, day, dayItems) {
                 final hasAttending = dayItems.any((i) => i.isAttending);
                 final hasOwned = dayItems.any((i) => i.isOwned);
-                final hasSaved = dayItems.any(
-                  (i) => !i.isAttending && !i.isOwned,
-                );
                 final hasNote = _notesByDate.containsKey(_dateKey(day));
                 final dots = [
                   if (hasAttending) attendingColor,
                   if (hasOwned) ownedColor,
-                  if (hasSaved) savedColor,
                   if (hasNote) noteColor,
                 ];
                 if (dots.isEmpty) return null;
@@ -698,20 +679,14 @@ class _CalendarioTabState extends State<CalendarioTab> {
     final dateKey = _dateKey(day);
     final attendingColor = Theme.of(context).colorScheme.primary;
     final ownedColor = Theme.of(context).colorScheme.error;
-    final savedColor = Theme.of(context).colorScheme.tertiary;
     final noteColor = Theme.of(context).colorScheme.secondary;
 
-    Color blockColor(_CalendarItem item) {
-      if (item.isAttending) return attendingColor;
-      if (item.isOwned) return ownedColor;
-      return savedColor;
-    }
+    Color blockColor(_CalendarItem item) =>
+        item.isAttending ? attendingColor : ownedColor;
 
     Color blockTextColor(_CalendarItem item) {
       final scheme = Theme.of(context).colorScheme;
-      if (item.isAttending) return scheme.onPrimary;
-      if (item.isOwned) return scheme.onError;
-      return scheme.onTertiary;
+      return item.isAttending ? scheme.onPrimary : scheme.onError;
     }
 
     final blocks = <Widget>[];
