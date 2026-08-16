@@ -712,7 +712,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   DropdownButtonFormField<ApprovalMode>(
                     value: approvalMode,
                     decoration: const InputDecoration(
-                      labelText: 'Modo de aprobación',
+                      labelText: 'Confirmación de reserva',
                     ),
                     items: ApprovalMode.values
                         .map(
@@ -720,9 +720,19 @@ class _EventFormScreenState extends State<EventFormScreen> {
                               DropdownMenuItem(value: a, child: Text(a.label)),
                         )
                         .toList(),
-                    onChanged: (v) => setSheetState(() {
-                      if (v != null) approvalMode = v;
-                    }),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setSheetState(() => approvalMode = v);
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            v == ApprovalMode.automatic
+                                ? 'La reserva se confirma automáticamente después de completar el proceso de pago.'
+                                : 'Recibirás cada solicitud y podrás aceptarla o rechazarla antes de que el alumno realice el pago.',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<PackType>(
