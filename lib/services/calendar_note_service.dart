@@ -30,10 +30,34 @@ class CalendarNoteService {
         .toList();
   }
 
-  static Future<CalendarNote> setNote({
+  static Future<CalendarNote> setDayNote({
     required String token,
     required String date,
     required String text,
+  }) => _putNote(token: token, date: date, body: {'text': text});
+
+  static Future<CalendarNote> setEventNote({
+    required String token,
+    required String date,
+    required int hour,
+    required String title,
+    String? address,
+    required int endHour,
+  }) => _putNote(
+    token: token,
+    date: date,
+    hour: hour,
+    body: {
+      'title': title,
+      if (address != null && address.isNotEmpty) 'address': address,
+      'endHour': endHour,
+    },
+  );
+
+  static Future<CalendarNote> _putNote({
+    required String token,
+    required String date,
+    required Map<String, dynamic> body,
     int? hour,
   }) async {
     http.Response response;
@@ -47,7 +71,7 @@ class CalendarNoteService {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json',
             },
-            body: jsonEncode({'text': text}),
+            body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 10));
     } on SocketException {

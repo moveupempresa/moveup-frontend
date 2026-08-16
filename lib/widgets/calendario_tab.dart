@@ -268,13 +268,45 @@ class _CalendarioTabState extends State<CalendarioTab> {
     );
   }
 
-  Future<void> _saveNote(String date, String text, {int? hour}) async {
+  Future<void> _saveDayNote(String date, String text) async {
     try {
-      final note = await CalendarNoteService.setNote(
+      final note = await CalendarNoteService.setDayNote(
         token: widget.token,
         date: date,
         text: text,
+      );
+      if (mounted) {
+        setState(() {
+          _notes = [
+            ...?_notes?.where((n) => !(n.date == date && n.hour == null)),
+            note,
+          ];
+        });
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _saveEventNote(
+    String date, {
+    required int hour,
+    required String title,
+    String? address,
+    required int endHour,
+  }) async {
+    try {
+      final note = await CalendarNoteService.setEventNote(
+        token: widget.token,
+        date: date,
         hour: hour,
+        title: title,
+        address: address,
+        endHour: endHour,
       );
       if (mounted) {
         setState(() {
@@ -730,26 +762,50 @@ class _CalendarioTabState extends State<CalendarioTab> {
       }
     }
 
-    final noteMarkers = <Widget>[];
+    final eventNoteBlocks = <Widget>[];
     for (var hour = 0; hour < 24; hour++) {
       final note = _hourNote(dateKey, hour);
-      if (note == null) continue;
-      noteMarkers.add(
+      if (note == null || !note.isEvent) continue;
+      final endHour = note.endHour ?? (hour + 1);
+      final top = hour * _hourHeight;
+      final height = (endHour - hour) * _hourHeight;
+      eventNoteBlocks.add(
         Positioned(
-          top: hour * _hourHeight + 2,
+          top: top,
+          left: 2,
           right: 2,
-          child: GestureDetector(
-            onTap: () => _editNote(context, dateKey, note, hour: hour),
+          height: height,
+          child: InkWell(
+            onTap: () => _editEventNote(context, dateKey, hour, note),
             child: Container(
-              padding: const EdgeInsets.all(3),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
-                color: noteColor,
-                shape: BoxShape.circle,
+                color: noteColor.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(
-                Icons.sticky_note_2,
-                size: 10,
-                color: Theme.of(context).colorScheme.onSecondary,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    note.title!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if ((note.address ?? '').isNotEmpty && height > 32)
+                    Text(
+                      note.address!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -769,11 +825,11 @@ class _CalendarioTabState extends State<CalendarioTab> {
             children: List.generate(
               24,
               (hour) => InkWell(
-                onTap: () => _editNote(
+                onTap: () => _editEventNote(
                   context,
                   dateKey,
+                  hour,
                   _hourNote(dateKey, hour),
-                  hour: hour,
                 ),
                 child: Container(
                   height: _hourHeight,
@@ -792,7 +848,7 @@ class _CalendarioTabState extends State<CalendarioTab> {
           ),
           if (day == today) _buildNowIndicator(context),
           ...blocks,
-          ...noteMarkers,
+          ...eventNoteBlocks,
         ],
       ),
     );
@@ -879,27 +935,20 @@ class _CalendarioTabState extends State<CalendarioTab> {
   Future<void> _editNote(
     BuildContext context,
     String dateKey,
-    CalendarNote? existing, {
-    int? hour,
-  }) async {
+    CalendarNote? existing,
+  ) async {
     final controller = TextEditingController(text: existing?.text ?? '');
     final result = await showDialog<Object>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          hour != null
-              ? 'Nota a las ${hour.toString().padLeft(2, '0')}:00'
-              : 'Nota',
-        ),
+        title: const Text('Nota'),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 4,
           maxLength: 1000,
-          decoration: InputDecoration(
-            hintText: hour != null
-                ? 'Escribe una nota para esta hora'
-                : 'Escribe una nota para este día',
+          decoration: const InputDecoration(
+            hintText: 'Escribe una nota para este día',
           ),
         ),
         actions: [
@@ -923,9 +972,113 @@ class _CalendarioTabState extends State<CalendarioTab> {
       ),
     );
     if (result == _deleteNoteAction) {
-      await _deleteNote(dateKey, hour: hour);
+      await _deleteNote(dateKey);
     } else if (result is String && result.isNotEmpty) {
-      await _saveNote(dateKey, result, hour: hour);
+      await _saveDayNote(dateKey, result);
+    }
+  }
+
+  Future<void> _editEventNote(
+    BuildContext context,
+    String dateKey,
+    int hour,
+    CalendarNote? existing,
+  ) async {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final addressController = TextEditingController(
+      text: existing?.address ?? '',
+    );
+    var endHour = existing?.endHour ?? (hour + 1);
+
+    final result = await showDialog<Object>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Evento a las ${hour.toString().padLeft(2, '0')}:00'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: titleController,
+                  autofocus: true,
+                  maxLength: 200,
+                  decoration: const InputDecoration(labelText: 'Título'),
+                ),
+                TextField(
+                  controller: addressController,
+                  maxLength: 300,
+                  decoration: const InputDecoration(
+                    labelText: 'Dirección (opcional)',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      'Termina a las',
+                      style: Theme.of(ctx).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      value: endHour,
+                      items: [
+                        for (var h = hour + 1; h <= 24; h++)
+                          DropdownMenuItem(
+                            value: h,
+                            child: Text('${h.toString().padLeft(2, '0')}:00'),
+                          ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => endHour = v);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (existing != null)
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(_deleteNoteAction),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                child: const Text('Eliminar'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final title = titleController.text.trim();
+                if (title.isEmpty) return;
+                Navigator.of(ctx).pop({
+                  'title': title,
+                  'address': addressController.text.trim(),
+                  'endHour': endHour,
+                });
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == _deleteNoteAction) {
+      await _deleteNote(dateKey, hour: hour);
+    } else if (result is Map) {
+      final address = result['address'] as String;
+      await _saveEventNote(
+        dateKey,
+        hour: hour,
+        title: result['title'] as String,
+        address: address.isEmpty ? null : address,
+        endHour: result['endHour'] as int,
+      );
     }
   }
 
