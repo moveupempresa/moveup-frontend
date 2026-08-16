@@ -903,18 +903,12 @@ class _EventFormScreenState extends State<EventFormScreen> {
     );
   }
 
-  // A draft only needs what the backend actually requires to create the
-  // event document (title/description/city/country via the form fields,
-  // plus style and cover) - sessions, the reservations choice and packs can
-  // all be filled in later before publishing.
+  // A draft only needs a title - everything else (description, city,
+  // country, style, cover, sessions, packs...) can be filled in later
+  // before publishing.
   Future<void> _saveDraft() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_styles.isEmpty) {
-      _showError('Añade al menos un estilo');
-      return;
-    }
-    if (!_hasEffectiveCoverImage && !_hasEffectiveCoverVideo) {
-      _showError('Selecciona una imagen o un video de portada');
+    if (_titleController.text.trim().isEmpty) {
+      _showError('Añade un título');
       return;
     }
 
