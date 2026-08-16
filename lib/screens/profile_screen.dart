@@ -75,7 +75,13 @@ class ProfileScreenState extends State<ProfileScreen> {
     });
     try {
       final events = await EventService.getMyEvents(token: widget.token);
-      if (mounted) setState(() => _events = events);
+      if (mounted) {
+        setState(
+          () => _events = events
+              .where((e) => e.status != EventStatus.draft)
+              .toList(),
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _eventsError = e.toString());
     } finally {

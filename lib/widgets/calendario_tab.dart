@@ -142,7 +142,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
         setState(() {
           _reservations = results[0] as List<Reservation>;
           _notes = results[1] as List<CalendarNote>;
-          _createdEvents = results[2] as List<Event>;
+          _createdEvents = (results[2] as List<Event>)
+              .where((e) => e.status != EventStatus.draft)
+              .toList();
         });
       }
     } catch (e) {
