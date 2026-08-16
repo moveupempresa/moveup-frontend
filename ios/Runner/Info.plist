@@ -49,5 +49,7 @@
 	<string>Move Up necesita acceder a tu cámara para que puedas tomar fotos y videos para la portada de tus eventos y tu perfil.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Move Up necesita acceder a tu galería para que puedas elegir fotos y videos para la portada de tus eventos y tu perfil.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Move Up puede usar tu ubicación para mostrarte eventos y clases cerca de ti.</string>
 </dict>
 </plist>
