@@ -49,6 +49,7 @@ class _PackDraft {
   String? id;
   String name;
   PaymentType paymentType;
+  String? paymentDetails;
   double price;
   ApprovalMode approvalMode;
   PackType packType;
@@ -59,6 +60,7 @@ class _PackDraft {
     this.id,
     required this.name,
     required this.paymentType,
+    this.paymentDetails,
     required this.price,
     required this.approvalMode,
     required this.packType,
@@ -71,6 +73,7 @@ class _PackDraft {
         id: p.id,
         name: p.name,
         paymentType: p.paymentType,
+        paymentDetails: p.paymentDetails,
         price: p.price,
         approvalMode: p.approvalMode,
         packType: p.packType,
@@ -609,9 +612,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
   Future<void> _openPackSheet({_PackDraft? existing}) async {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final priceCtrl = TextEditingController(
-      text: existing != null && existing.paymentType != PaymentType.free
-          ? existing.price.toString()
-          : '',
+      text: existing != null ? existing.price.toString() : '',
+    );
+    final paymentDetailsCtrl = TextEditingController(
+      text: existing?.paymentDetails ?? '',
     );
     final maxSelectableSessionsCtrl = TextEditingController(
       text: existing?.maxSelectableSessions != null
@@ -633,10 +637,13 @@ class _EventFormScreenState extends State<EventFormScreen> {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             final priceValid =
-                paymentType == PaymentType.free ||
-                (priceCtrl.text.trim().isNotEmpty &&
-                    double.tryParse(priceCtrl.text.trim()) != null &&
-                    double.parse(priceCtrl.text.trim()) > 0);
+                priceCtrl.text.trim().isNotEmpty &&
+                double.tryParse(priceCtrl.text.trim()) != null &&
+                double.parse(priceCtrl.text.trim()) > 0;
+
+            final paymentDetailsValid =
+                !paymentType.needsPaymentDetails ||
+                paymentDetailsCtrl.text.trim().isNotEmpty;
 
             final maxSelectableSessionsValid =
                 packType != PackType.customizable ||
@@ -654,6 +661,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             final canSave =
                 nameCtrl.text.trim().isNotEmpty &&
                 priceValid &&
+                paymentDetailsValid &&
                 maxSelectableSessionsValid &&
                 selectedSessionsValid &&
                 customizableSessionsValid;
@@ -688,34 +696,33 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Método de pago',
                     ),
-                    // "Gratis" is retired for new/edited choices, but stays
-                    // selectable if a legacy pack already used it so the
-                    // dropdown's current value is never missing from the list.
                     items: PaymentType.values
-                        .where(
-                          (p) =>
-                              p != PaymentType.free ||
-                              paymentType == PaymentType.free,
-                        )
                         .map(
                           (p) =>
                               DropdownMenuItem(value: p, child: Text(p.label)),
                         )
                         .toList(),
                     onChanged: (v) => setSheetState(() {
-                      if (v != null) {
-                        paymentType = v;
-                        if (v == PaymentType.free) priceCtrl.clear();
-                      }
+                      if (v != null) paymentType = v;
                     }),
                   ),
-                  if (paymentType != PaymentType.free) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: priceCtrl,
+                    decoration: const InputDecoration(labelText: 'Precio'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setSheetState(() {}),
+                  ),
+                  if (paymentType.needsPaymentDetails) ...[
                     const SizedBox(height: 12),
                     TextField(
-                      controller: priceCtrl,
-                      decoration: const InputDecoration(labelText: 'Precio'),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                      controller: paymentDetailsCtrl,
+                      decoration: InputDecoration(
+                        labelText: paymentType == PaymentType.bizum
+                            ? 'Teléfono de Bizum'
+                            : 'Enlace o email de PayPal',
                       ),
                       onChanged: (_) => setSheetState(() {}),
                     ),
@@ -822,9 +829,11 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     onPressed: canSave
                         ? () {
                             setState(() {
-                              final price = paymentType == PaymentType.free
-                                  ? 0.0
-                                  : double.parse(priceCtrl.text.trim());
+                              final price = double.parse(priceCtrl.text.trim());
+                              final paymentDetails =
+                                  paymentType.needsPaymentDetails
+                                  ? paymentDetailsCtrl.text.trim()
+                                  : null;
                               final maxSelectable =
                                   packType == PackType.customizable
                                   ? int.parse(
@@ -839,6 +848,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                               if (existing != null) {
                                 existing.name = nameCtrl.text.trim();
                                 existing.paymentType = paymentType;
+                                existing.paymentDetails = paymentDetails;
                                 existing.price = price;
                                 existing.approvalMode = approvalMode;
                                 existing.packType = packType;
@@ -849,6 +859,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                   _PackDraft(
                                     name: nameCtrl.text.trim(),
                                     paymentType: paymentType,
+                                    paymentDetails: paymentDetails,
                                     price: price,
                                     approvalMode: approvalMode,
                                     packType: packType,
@@ -1050,6 +1061,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             name: pack.name,
             price: pack.price,
             paymentType: pack.paymentType,
+            paymentDetails: pack.paymentDetails,
             packType: pack.packType,
             approvalMode: pack.approvalMode,
             maxSelectableSessions: pack.maxSelectableSessions,
@@ -1063,6 +1075,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             name: pack.name,
             price: pack.price,
             paymentType: pack.paymentType,
+            paymentDetails: pack.paymentDetails,
             packType: pack.packType,
             approvalMode: pack.approvalMode,
             maxSelectableSessions: pack.maxSelectableSessions,
@@ -1479,9 +1492,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   ..._packs.asMap().entries.map((entry) {
                     final i = entry.key;
                     final p = entry.value;
-                    final priceLabel = p.paymentType == PaymentType.free
-                        ? 'Gratis'
-                        : '${p.price.toStringAsFixed(2)} · ${p.paymentType.label}';
+                    final priceLabel =
+                        '${p.price.toStringAsFixed(2)} · ${p.paymentType.label}';
                     final packTypeLabel = p.packType == PackType.customizable
                         ? '${p.packType.label} (máx. ${p.maxSelectableSessions} sesiones)'
                         : p.packType.label;

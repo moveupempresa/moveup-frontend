@@ -1061,7 +1061,7 @@ class _PackCardState extends State<_PackCard> {
     }
     widget.pack.paymentType == PaymentType.online
         ? _openPayment()
-        : _showCashMessage();
+        : _showManualPaymentMessage();
   }
 
   void _openPayment() {
@@ -1077,10 +1077,39 @@ class _PackCardState extends State<_PackCard> {
     );
   }
 
-  void _showCashMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('El pago de este pack es en efectivo')),
-    );
+  IconData _paymentIcon(PaymentType type) => switch (type) {
+    PaymentType.online => Icons.credit_card,
+    PaymentType.offline => Icons.money,
+    PaymentType.bizum => Icons.phone_android,
+    PaymentType.paypal => Icons.account_balance_wallet,
+  };
+
+  String _paymentTooltip(PaymentType type) => switch (type) {
+    PaymentType.online => 'Pagar con tarjeta',
+    PaymentType.offline => 'Pago en efectivo',
+    PaymentType.bizum => 'Pago por Bizum',
+    PaymentType.paypal => 'Pago por PayPal',
+  };
+
+  void _showManualPaymentMessage() {
+    final pack = widget.pack;
+    final details = pack.paymentDetails;
+    final hasDetails = details != null && details.isNotEmpty;
+    final message = switch (pack.paymentType) {
+      PaymentType.offline => 'El pago de este pack es en efectivo',
+      PaymentType.bizum =>
+        hasDetails
+            ? 'Paga por Bizum al número $details'
+            : 'El pago de este pack es por Bizum',
+      PaymentType.paypal =>
+        hasDetails
+            ? 'Paga por PayPal a $details'
+            : 'El pago de este pack es por PayPal',
+      PaymentType.online => '',
+    };
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _toggleSignUp() async {
@@ -1159,9 +1188,8 @@ class _PackCardState extends State<_PackCard> {
   @override
   Widget build(BuildContext context) {
     final pack = widget.pack;
-    final priceLabel = pack.paymentType == PaymentType.free
-        ? 'Gratis'
-        : '${pack.price.toStringAsFixed(2)} · ${pack.paymentType.label}';
+    final priceLabel =
+        '${pack.price.toStringAsFixed(2)} · ${pack.paymentType.label}';
 
     final includedSessionNames = pack.sessionIds
         .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull?.name)
@@ -1351,20 +1379,14 @@ class _PackCardState extends State<_PackCard> {
                 onToggleWaitlist: () {},
               ),
             ),
-          if (!widget.isOwner && pack.paymentType != PaymentType.free)
+          if (!widget.isOwner)
             Positioned(
               left: 4,
               bottom: 4,
               child: IconButton(
-                icon: Icon(
-                  pack.paymentType == PaymentType.online
-                      ? Icons.credit_card
-                      : Icons.money,
-                ),
+                icon: Icon(_paymentIcon(pack.paymentType)),
                 color: _isPaymentReady ? Colors.green.shade700 : Colors.grey,
-                tooltip: pack.paymentType == PaymentType.online
-                    ? 'Pagar con tarjeta'
-                    : 'Pago en efectivo',
+                tooltip: _paymentTooltip(pack.paymentType),
                 onPressed: _onPaymentIconTap,
               ),
             ),

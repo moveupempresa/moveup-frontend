@@ -15,6 +15,7 @@ class PackService {
     String? description,
     required double price,
     required PaymentType paymentType,
+    String? paymentDetails,
     required PackType packType,
     required ApprovalMode approvalMode,
     int? maxSelectableSessions,
@@ -34,9 +35,12 @@ class PackService {
               if (description != null) 'description': description,
               'price': price,
               'paymentType': paymentType.value,
+              if (paymentDetails != null && paymentDetails.isNotEmpty)
+                'paymentDetails': paymentDetails,
               'packType': packType.value,
               'approvalMode': approvalMode.value,
-              if (maxSelectableSessions != null) 'maxSelectableSessions': maxSelectableSessions,
+              if (maxSelectableSessions != null)
+                'maxSelectableSessions': maxSelectableSessions,
               if (sessionIds.isNotEmpty) 'sessionIds': sessionIds,
             }),
           )
@@ -60,6 +64,7 @@ class PackService {
     String? description,
     required double price,
     required PaymentType paymentType,
+    String? paymentDetails,
     required PackType packType,
     required ApprovalMode approvalMode,
     int? maxSelectableSessions,
@@ -79,6 +84,7 @@ class PackService {
               'description': description,
               'price': price,
               'paymentType': paymentType.value,
+              'paymentDetails': paymentDetails,
               'packType': packType.value,
               'approvalMode': approvalMode.value,
               'maxSelectableSessions': maxSelectableSessions,

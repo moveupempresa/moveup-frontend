@@ -1,11 +1,17 @@
 enum PaymentType {
-  online('online', 'Pago en la app'),
-  offline('offline', 'Pago en efectivo'),
-  free('free', 'Gratis');
+  bizum('bizum', 'Bizum'),
+  paypal('paypal', 'PayPal'),
+  offline('offline', 'Efectivo'),
+  online('online', 'Pago online');
 
   const PaymentType(this.value, this.label);
   final String value;
   final String label;
+
+  /// Bizum and PayPal are paid outside the app, same as Efectivo - the
+  /// organizer confirms payment manually rather than through the in-app
+  /// payment flow.
+  bool get needsPaymentDetails => this == bizum || this == paypal;
 
   static PaymentType fromValue(String value) =>
       PaymentType.values.firstWhere((e) => e.value == value);
@@ -42,6 +48,7 @@ class Pack {
   final String? description;
   final double price;
   final PaymentType paymentType;
+  final String? paymentDetails;
   final PackType packType;
   final ApprovalMode approvalMode;
   final int? maxSelectableSessions;
@@ -63,6 +70,7 @@ class Pack {
     this.description,
     required this.price,
     required this.paymentType,
+    this.paymentDetails,
     required this.packType,
     required this.approvalMode,
     this.maxSelectableSessions,
@@ -85,6 +93,7 @@ class Pack {
     description: json['description'] as String?,
     price: (json['price'] as num).toDouble(),
     paymentType: PaymentType.fromValue(json['paymentType'] as String),
+    paymentDetails: json['paymentDetails'] as String?,
     packType: PackType.fromValue(json['packType'] as String),
     approvalMode: ApprovalMode.fromValue(json['approvalMode'] as String),
     maxSelectableSessions: json['maxSelectableSessions'] as int?,
