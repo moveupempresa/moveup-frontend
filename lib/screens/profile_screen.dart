@@ -362,6 +362,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           error: _eventsError,
           onRetry: _loadEvents,
           emptyMessage: 'Todavía no tienes eventos publicados',
+          showCalendarToggle: false,
           lockedBanner: _user.subscriptionPlan == SubscriptionPlan.free
               ? EventsLockedBanner(
                   onUpgrade: () async {

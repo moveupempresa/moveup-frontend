@@ -404,6 +404,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         ProfileEventsSection(
           events: _events,
           emptyMessage: 'Todavía no tiene eventos publicados',
+          showCalendarToggle: false,
           onEventTap: (e) => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => EventDetailScreen(

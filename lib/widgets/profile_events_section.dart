@@ -14,6 +14,7 @@ class ProfileEventsSection extends StatefulWidget {
   final Widget? lockedBanner;
   final String emptyMessage;
   final void Function(Event event) onEventTap;
+  final bool showCalendarToggle;
 
   const ProfileEventsSection({
     super.key,
@@ -24,6 +25,7 @@ class ProfileEventsSection extends StatefulWidget {
     this.lockedBanner,
     required this.emptyMessage,
     required this.onEventTap,
+    this.showCalendarToggle = true,
   });
 
   @override
@@ -96,7 +98,10 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
   @override
   Widget build(BuildContext context) {
     final showToggle =
-        widget.lockedBanner == null && widget.error == null && !widget.isLoading;
+        widget.showCalendarToggle &&
+        widget.lockedBanner == null &&
+        widget.error == null &&
+        !widget.isLoading;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,7 +114,10 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
               ToggleButtons(
                 borderRadius: BorderRadius.circular(8),
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 32),
-                isSelected: [_viewMode == _ViewMode.list, _viewMode == _ViewMode.calendar],
+                isSelected: [
+                  _viewMode == _ViewMode.list,
+                  _viewMode == _ViewMode.calendar,
+                ],
                 onPressed: (index) => setState(() {
                   _viewMode = index == 0 ? _ViewMode.list : _ViewMode.calendar;
                 }),
@@ -142,7 +150,9 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -150,7 +160,10 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
             const Text('No se pudieron cargar los eventos'),
             const SizedBox(height: 8),
             if (widget.onRetry != null)
-              TextButton(onPressed: widget.onRetry, child: const Text('Reintentar')),
+              TextButton(
+                onPressed: widget.onRetry,
+                child: const Text('Reintentar'),
+              ),
           ],
         ),
       );
@@ -161,7 +174,9 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.center,
@@ -169,12 +184,16 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
       );
     }
 
-    return _viewMode == _ViewMode.list ? _buildList(events) : _buildCalendar(context, events);
+    return _viewMode == _ViewMode.list
+        ? _buildList(events)
+        : _buildCalendar(context, events);
   }
 
   Widget _buildList(List<Event> events) {
     return Column(
-      children: events.map((e) => EventCard(event: e, onTap: () => widget.onEventTap(e))).toList(),
+      children: events
+          .map((e) => EventCard(event: e, onTap: () => widget.onEventTap(e)))
+          .toList(),
     );
   }
 
@@ -190,8 +209,10 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
           lastDay: _calendarLastDay(events),
           focusedDay: _focusedDay,
           locale: 'es_ES',
-          selectedDayPredicate: (day) => isSameDay(_selectedDay ?? _focusedDay, day),
-          eventLoader: (day) => eventsByDay[_calendarDayKey(day)] ?? const <Event>[],
+          selectedDayPredicate: (day) =>
+              isSameDay(_selectedDay ?? _focusedDay, day),
+          eventLoader: (day) =>
+              eventsByDay[_calendarDayKey(day)] ?? const <Event>[],
           onDaySelected: (selected, focused) {
             setState(() {
               _selectedDay = _calendarDayKey(selected);
@@ -213,7 +234,10 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
               shape: BoxShape.circle,
             ),
           ),
-          headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+          ),
         ),
         const SizedBox(height: 12),
         if (selectedEvents.isEmpty)
@@ -222,14 +246,16 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
             child: Text(
               'Sin eventos este día',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           )
         else
           Column(
             children: selectedEvents
-                .map((e) => EventCard(event: e, onTap: () => widget.onEventTap(e)))
+                .map(
+                  (e) => EventCard(event: e, onTap: () => widget.onEventTap(e)),
+                )
                 .toList(),
           ),
       ],
