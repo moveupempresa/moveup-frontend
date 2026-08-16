@@ -114,6 +114,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
   int _coverPage = 0;
   bool? _reservationChoice;
   bool _isSubmitting = false;
+  bool _isSavingDraft = false;
 
   EventType _eventType = EventType.specialEvent;
   LocationType _locationType = LocationType.presential;
@@ -895,7 +896,41 @@ class _EventFormScreenState extends State<EventFormScreen> {
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    await _persist(
+      status: _isEditing ? _status : EventStatus.published,
+      setLoading: (v) => setState(() => _isSubmitting = v),
+      successMessage: _isEditing ? '¡Cambios guardados!' : '¡Evento publicado!',
+    );
+  }
+
+  // A draft only needs what the backend actually requires to create the
+  // event document (title/description/city/country via the form fields,
+  // plus style and cover) - sessions, the reservations choice and packs can
+  // all be filled in later before publishing.
+  Future<void> _saveDraft() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_styles.isEmpty) {
+      _showError('Añade al menos un estilo');
+      return;
+    }
+    if (!_hasEffectiveCoverImage && !_hasEffectiveCoverVideo) {
+      _showError('Selecciona una imagen o un video de portada');
+      return;
+    }
+
+    await _persist(
+      status: EventStatus.draft,
+      setLoading: (v) => setState(() => _isSavingDraft = v),
+      successMessage: '¡Evento guardado como borrador!',
+    );
+  }
+
+  Future<void> _persist({
+    required EventStatus status,
+    required void Function(bool) setLoading,
+    required String successMessage,
+  }) async {
+    setLoading(true);
     try {
       final String eventId;
       if (_isEditing) {
@@ -911,14 +946,14 @@ class _EventFormScreenState extends State<EventFormScreen> {
           coverVideoFile: _coverVideoFile,
           removeCoverImage: _removeCoverImage,
           removeCoverVideo: _removeCoverVideo,
-          reservationEnabled: _reservationChoice!,
+          reservationEnabled: _reservationChoice ?? false,
           eventType: _eventType,
           customEventType: _eventType == EventType.other
               ? _customEventTypeController.text.trim()
               : null,
           locationType: _locationType,
           visibility: _visibility,
-          status: _status,
+          status: status,
         );
         eventId = updated.id;
       } else {
@@ -931,8 +966,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
           country: _countryController.text.trim(),
           coverImageFile: _coverImageFile,
           coverVideoFile: _coverVideoFile,
-          reservationEnabled: _reservationChoice!,
-          status: EventStatus.published,
+          reservationEnabled: _reservationChoice ?? false,
+          status: status,
           eventType: _eventType,
           customEventType: _eventType == EventType.other
               ? _customEventTypeController.text.trim()
@@ -1016,19 +1051,15 @@ class _EventFormScreenState extends State<EventFormScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isEditing ? '¡Cambios guardados!' : '¡Evento publicado!',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(successMessage)));
         Navigator.of(context).pop(true);
       }
     } on AuthException catch (e) {
       _showError(e.message);
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) setLoading(false);
     }
   }
 
@@ -1042,6 +1073,20 @@ class _EventFormScreenState extends State<EventFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar evento' : 'Crear evento'),
+        actions: [
+          if (!_isEditing)
+            IconButton(
+              icon: _isSavingDraft
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              tooltip: 'Guardar como borrador',
+              onPressed: _isSubmitting || _isSavingDraft ? null : _saveDraft,
+            ),
+        ],
       ),
       body: SafeArea(
         child: Form(
@@ -1432,7 +1477,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
               if (_reservationChoice != null)
                 FilledButton(
-                  onPressed: _isSubmitting ? null : _submit,
+                  onPressed: _isSubmitting || _isSavingDraft ? null : _submit,
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                   ),
