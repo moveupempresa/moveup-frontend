@@ -874,32 +874,48 @@ class _EventFormScreenState extends State<EventFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_styles.isEmpty) {
-      _showError('Añade al menos un estilo');
-      return;
-    }
-    if (_sessions.isEmpty) {
-      _showError('Añade al menos una sesión');
-      return;
-    }
-    if (!_hasEffectiveCoverImage && !_hasEffectiveCoverVideo) {
-      _showError('Selecciona una imagen o un video de portada');
-      return;
-    }
-    if (_reservationChoice == null) {
-      _showError('Indica si necesitas gestionar reservas');
-      return;
-    }
-    if (_reservationChoice == true && _packs.isEmpty) {
-      _showError('Añade al menos un pack');
-      return;
+    final targetStatus = _isEditing ? _status : EventStatus.published;
+
+    // While the event is still (and stays) a draft, saving should only need
+    // a title - same as "Guardar como borrador" - otherwise the full-form
+    // validation silently rejects incomplete drafts with no visible error.
+    if (targetStatus == EventStatus.draft) {
+      if (_titleController.text.trim().isEmpty) {
+        _showError('Añade un título');
+        return;
+      }
+    } else {
+      if (!_formKey.currentState!.validate()) return;
+      if (_styles.isEmpty) {
+        _showError('Añade al menos un estilo');
+        return;
+      }
+      if (_sessions.isEmpty) {
+        _showError('Añade al menos una sesión');
+        return;
+      }
+      if (!_hasEffectiveCoverImage && !_hasEffectiveCoverVideo) {
+        _showError('Selecciona una imagen o un video de portada');
+        return;
+      }
+      if (_reservationChoice == null) {
+        _showError('Indica si necesitas gestionar reservas');
+        return;
+      }
+      if (_reservationChoice == true && _packs.isEmpty) {
+        _showError('Añade al menos un pack');
+        return;
+      }
     }
 
     await _persist(
-      status: _isEditing ? _status : EventStatus.published,
+      status: targetStatus,
       setLoading: (v) => setState(() => _isSubmitting = v),
-      successMessage: _isEditing ? '¡Cambios guardados!' : '¡Evento publicado!',
+      successMessage: _isEditing
+          ? (targetStatus == EventStatus.draft
+                ? '¡Borrador guardado!'
+                : '¡Cambios guardados!')
+          : '¡Evento publicado!',
     );
   }
 
