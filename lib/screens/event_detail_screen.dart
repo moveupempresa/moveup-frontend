@@ -65,12 +65,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final slides = <Widget>[];
     if (event.coverImageUrl != null) {
       slides.add(
-        Image.network(
-          ApiConfig.mediaUrl(event.coverImageUrl!),
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: const Icon(Icons.image_not_supported_outlined, size: 48),
+        Container(
+          color: Colors.black,
+          alignment: Alignment.center,
+          child: Image.network(
+            ApiConfig.mediaUrl(event.coverImageUrl!),
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.image_not_supported_outlined,
+              size: 48,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
           ),
         ),
       );

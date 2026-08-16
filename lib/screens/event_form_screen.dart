@@ -260,6 +260,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
+        Container(color: Colors.black),
         preview,
         Positioned(
           top: 8,
@@ -1268,14 +1269,17 @@ class _EventFormScreenState extends State<EventFormScreen> {
                         _buildCoverSlot(
                           hasMedia: _hasEffectiveCoverImage,
                           preview: _coverImageFile != null
-                              ? Image.file(_coverImageFile!, fit: BoxFit.cover)
+                              ? Image.file(
+                                  _coverImageFile!,
+                                  fit: BoxFit.contain,
+                                )
                               : (_isEditing &&
                                         widget.event!.coverImageUrl != null
                                     ? Image.network(
                                         ApiConfig.mediaUrl(
                                           widget.event!.coverImageUrl!,
                                         ),
-                                        fit: BoxFit.cover,
+                                        fit: BoxFit.contain,
                                         errorBuilder: (_, __, ___) =>
                                             const Icon(
                                               Icons
