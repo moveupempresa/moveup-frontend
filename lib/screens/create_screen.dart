@@ -80,6 +80,43 @@ class _CreateScreenState extends State<CreateScreen> {
     if (changed == true) _loadDrafts();
   }
 
+  Future<void> _deleteDraft(Event draft) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar borrador?'),
+        content: Text(
+          'Se eliminará "${draft.title.isEmpty ? 'Sin título' : draft.title}". Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await EventService.deleteEvent(token: widget.token, eventId: draft.id);
+      _loadDrafts();
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _goToPro() async {
     final updated = await Navigator.of(context).push<User>(
       MaterialPageRoute(
@@ -173,7 +210,11 @@ class _CreateScreenState extends State<CreateScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text('Editado el ${_formatDate(draft.updatedAt)}'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Eliminar borrador',
+              onPressed: () => _deleteDraft(draft),
+            ),
             onTap: () => _openDraft(draft),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 20,
