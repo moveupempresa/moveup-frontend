@@ -675,7 +675,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   DropdownButtonFormField<PaymentType>(
                     value: paymentType,
                     decoration: const InputDecoration(
-                      labelText: 'Tipo de pago',
+                      labelText: 'Método de pago',
                     ),
                     // "Gratis" is retired for new/edited choices, but stays
                     // selectable if a legacy pack already used it so the
