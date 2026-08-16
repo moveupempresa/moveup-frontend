@@ -1011,6 +1011,7 @@ class _PackCardState extends State<_PackCard> {
   late bool _isSignedUp = widget.pack.isSignedUp;
   late bool _isPending = widget.pack.isPending;
   late bool _isAwaitingPayment = widget.pack.isAwaitingPayment;
+  late final bool _myHasPaid = widget.pack.myHasPaid;
   late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds
       .toSet();
   bool _isLoading = false;
@@ -1047,7 +1048,7 @@ class _PackCardState extends State<_PackCard> {
   bool get _isPaymentReady => _isAwaitingPayment || _isSignedUp;
 
   void _onPaymentIconTap() {
-    if (_isSignedUp) {
+    if (_myHasPaid) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Ya has pagado este pack')));

@@ -61,6 +61,7 @@ class Pack {
   final bool isWaitlisted;
   final bool isPending;
   final bool isAwaitingPayment;
+  final bool myHasPaid;
   final List<String> mySelectedSessionIds;
 
   const Pack({
@@ -83,6 +84,7 @@ class Pack {
     this.isWaitlisted = false,
     this.isPending = false,
     this.isAwaitingPayment = false,
+    this.myHasPaid = false,
     this.mySelectedSessionIds = const [],
   });
 
@@ -108,6 +110,7 @@ class Pack {
     isWaitlisted: json['isWaitlisted'] as bool? ?? false,
     isPending: json['isPending'] as bool? ?? false,
     isAwaitingPayment: json['isAwaitingPayment'] as bool? ?? false,
+    myHasPaid: json['myHasPaid'] as bool? ?? false,
     mySelectedSessionIds: json['mySelectedSessionIds'] != null
         ? (json['mySelectedSessionIds'] as List<dynamic>).cast<String>()
         : const [],

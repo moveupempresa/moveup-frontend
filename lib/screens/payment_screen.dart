@@ -40,9 +40,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Pago realizado')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.paymentType == PaymentType.bizum
+                  ? 'Organizador notificado, verificará tu pago'
+                  : 'Pago realizado',
+            ),
+          ),
+        );
       }
     } on AuthException catch (e) {
       if (mounted) {

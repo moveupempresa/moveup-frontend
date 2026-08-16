@@ -20,6 +20,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.newRegistration,
     NotificationType.signupRequest,
     NotificationType.packPaid,
+    NotificationType.bizumPaymentClaimed,
     NotificationType.registrantCancelled,
     NotificationType.capacityFull,
     NotificationType.spotFreed,
@@ -365,6 +366,7 @@ class _NotificationTileState extends State<_NotificationTile> {
     NotificationType.capacityFull => Icons.groups_outlined,
     NotificationType.spotFreed => Icons.event_seat_outlined,
     NotificationType.eventCancelled => Icons.cancel_outlined,
+    NotificationType.bizumPaymentClaimed => Icons.phone_android,
     NotificationType.savedEventCapacityLow => Icons.bookmark_outline,
     NotificationType.savedEventCapacityFull => Icons.bookmark_outline,
     NotificationType.savedEventSpotFreed => Icons.bookmark_outline,
@@ -416,6 +418,41 @@ class _NotificationTileState extends State<_NotificationTile> {
     }
   }
 
+  Future<void> _acceptBizumPayment() async {
+    final n = widget.notification;
+    final eventId = n.relatedEventId;
+    final packId = n.relatedTargetId;
+    final userId = n.relatedUserId;
+    if (eventId == null || packId == null || userId == null) return;
+
+    setState(() => _isResponding = true);
+    try {
+      await RegistrationService.setPackPaymentStatus(
+        token: widget.token,
+        eventId: eventId,
+        packId: packId,
+        userId: userId,
+        hasPaid: true,
+      );
+      if (mounted) setState(() => _responded = true);
+      widget.onResolved();
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    } finally {
+      if (mounted) setState(() => _isResponding = false);
+    }
+  }
+
   Widget? get _trailing {
     final n = widget.notification;
     if (n.type == NotificationType.signupRequest &&
@@ -444,6 +481,21 @@ class _NotificationTileState extends State<_NotificationTile> {
             onPressed: () => _respond(false),
           ),
         ],
+      );
+    }
+    if (n.type == NotificationType.bizumPaymentClaimed && !_responded) {
+      if (_isResponding) {
+        return const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      }
+      return IconButton(
+        icon: const Icon(Icons.check_circle_outline),
+        color: Colors.green.shade700,
+        tooltip: 'Aceptar pago',
+        onPressed: _acceptBizumPayment,
       );
     }
     if (n.read) return null;
