@@ -723,15 +723,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     onChanged: (v) {
                       if (v == null) return;
                       setSheetState(() => approvalMode = v);
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            v == ApprovalMode.automatic
-                                ? 'La reserva se confirma automáticamente después de completar el proceso de pago.'
-                                : 'Recibirás cada solicitud y podrás aceptarla o rechazarla antes de que el alumno realice el pago.',
-                          ),
-                        ),
-                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -806,6 +797,15 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     ),
                   ],
                   const SizedBox(height: 20),
+                  Text(
+                    approvalMode == ApprovalMode.automatic
+                        ? 'La reserva se confirma automáticamente después de completar el proceso de pago.'
+                        : 'Recibirás cada solicitud y podrás aceptarla o rechazarla antes de que el alumno realice el pago.',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(ctx).colorScheme.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   FilledButton(
                     onPressed: canSave
                         ? () {
