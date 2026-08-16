@@ -74,8 +74,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         alignment: Alignment.center,
         fit: StackFit.expand,
         children: [
+          Container(color: Colors.black),
           FittedBox(
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             child: SizedBox(
               width: _controller.value.size.width,
               height: _controller.value.size.height,
