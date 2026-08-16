@@ -297,7 +297,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
     required int hour,
     required String title,
     String? address,
+    required int startMinute,
     required int endHour,
+    required int endMinute,
   }) async {
     try {
       final note = await CalendarNoteService.setEventNote(
@@ -306,7 +308,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
         hour: hour,
         title: title,
         address: address,
+        startMinute: startMinute,
         endHour: endHour,
+        endMinute: endMinute,
       );
       if (mounted) {
         setState(() {
@@ -766,9 +770,14 @@ class _CalendarioTabState extends State<CalendarioTab> {
     for (var hour = 0; hour < 24; hour++) {
       final note = _hourNote(dateKey, hour);
       if (note == null || !note.isEvent) continue;
+      final startMinute = note.startMinute ?? 0;
       final endHour = note.endHour ?? (hour + 1);
-      final top = hour * _hourHeight;
-      final height = (endHour - hour) * _hourHeight;
+      final endMinute = note.endMinute ?? 0;
+      final top = (hour * 60 + startMinute) / 60 * _hourHeight;
+      final height =
+          (endHour * 60 + endMinute - (hour * 60 + startMinute)) /
+          60 *
+          _hourHeight;
       eventNoteBlocks.add(
         Positioned(
           top: top,
@@ -984,11 +993,14 @@ class _CalendarioTabState extends State<CalendarioTab> {
     int hour,
     CalendarNote? existing,
   ) async {
+    const minuteOptions = [0, 15, 30, 45];
     final titleController = TextEditingController(text: existing?.title ?? '');
     final addressController = TextEditingController(
       text: existing?.address ?? '',
     );
+    var startMinute = existing?.startMinute ?? 0;
     var endHour = existing?.endHour ?? (hour + 1);
+    var endMinute = existing?.endMinute ?? 0;
 
     final result = await showDialog<Object>(
       context: context,
@@ -1017,6 +1029,27 @@ class _CalendarioTabState extends State<CalendarioTab> {
                 Row(
                   children: [
                     Text(
+                      'Empieza a las ${hour.toString().padLeft(2, '0')}:',
+                      style: Theme.of(ctx).textTheme.bodyMedium,
+                    ),
+                    DropdownButton<int>(
+                      value: startMinute,
+                      items: [
+                        for (final m in minuteOptions)
+                          DropdownMenuItem(
+                            value: m,
+                            child: Text(m.toString().padLeft(2, '0')),
+                          ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => startMinute = v);
+                      },
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(
                       'Termina a las',
                       style: Theme.of(ctx).textTheme.bodyMedium,
                     ),
@@ -1027,12 +1060,34 @@ class _CalendarioTabState extends State<CalendarioTab> {
                         for (var h = hour + 1; h <= 24; h++)
                           DropdownMenuItem(
                             value: h,
-                            child: Text('${h.toString().padLeft(2, '0')}:00'),
+                            child: Text(h.toString().padLeft(2, '0')),
                           ),
                       ],
                       onChanged: (v) {
-                        if (v != null) setDialogState(() => endHour = v);
+                        if (v == null) return;
+                        setDialogState(() {
+                          endHour = v;
+                          if (endHour == 24) endMinute = 0;
+                        });
                       },
+                    ),
+                    const Text(':'),
+                    DropdownButton<int>(
+                      value: endMinute,
+                      items: [
+                        for (final m in endHour == 24 ? [0] : minuteOptions)
+                          DropdownMenuItem(
+                            value: m,
+                            child: Text(m.toString().padLeft(2, '0')),
+                          ),
+                      ],
+                      onChanged: endHour == 24
+                          ? null
+                          : (v) {
+                              if (v != null) {
+                                setDialogState(() => endMinute = v);
+                              }
+                            },
                     ),
                   ],
                 ),
@@ -1059,7 +1114,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
                 Navigator.of(ctx).pop({
                   'title': title,
                   'address': addressController.text.trim(),
+                  'startMinute': startMinute,
                   'endHour': endHour,
+                  'endMinute': endMinute,
                 });
               },
               child: const Text('Guardar'),
@@ -1077,7 +1134,9 @@ class _CalendarioTabState extends State<CalendarioTab> {
         hour: hour,
         title: result['title'] as String,
         address: address.isEmpty ? null : address,
+        startMinute: result['startMinute'] as int,
         endHour: result['endHour'] as int,
+        endMinute: result['endMinute'] as int,
       );
     }
   }

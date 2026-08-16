@@ -42,7 +42,9 @@ class CalendarNoteService {
     required int hour,
     required String title,
     String? address,
+    int startMinute = 0,
     required int endHour,
+    int endMinute = 0,
   }) => _putNote(
     token: token,
     date: date,
@@ -50,7 +52,9 @@ class CalendarNoteService {
     body: {
       'title': title,
       if (address != null && address.isNotEmpty) 'address': address,
+      'startMinute': startMinute,
       'endHour': endHour,
+      'endMinute': endMinute,
     },
   );
 
