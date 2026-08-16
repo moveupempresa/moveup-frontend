@@ -1059,9 +1059,9 @@ class _PackCardState extends State<_PackCard> {
       );
       return;
     }
-    widget.pack.paymentType == PaymentType.online
-        ? _openPayment()
-        : _showManualPaymentMessage();
+    widget.pack.paymentType == PaymentType.offline
+        ? _showCashMessage()
+        : _openPayment();
   }
 
   void _openPayment() {
@@ -1072,6 +1072,8 @@ class _PackCardState extends State<_PackCard> {
           eventId: widget.eventId,
           packId: widget.pack.id,
           packName: widget.pack.name,
+          paymentType: widget.pack.paymentType,
+          paymentDetails: widget.pack.paymentDetails,
         ),
       ),
     );
@@ -1087,29 +1089,14 @@ class _PackCardState extends State<_PackCard> {
   String _paymentTooltip(PaymentType type) => switch (type) {
     PaymentType.online => 'Pagar con tarjeta',
     PaymentType.offline => 'Pago en efectivo',
-    PaymentType.bizum => 'Pago por Bizum',
-    PaymentType.paypal => 'Pago por PayPal',
+    PaymentType.bizum => 'Pagar por Bizum',
+    PaymentType.paypal => 'Pagar por PayPal',
   };
 
-  void _showManualPaymentMessage() {
-    final pack = widget.pack;
-    final details = pack.paymentDetails;
-    final hasDetails = details != null && details.isNotEmpty;
-    final message = switch (pack.paymentType) {
-      PaymentType.offline => 'El pago de este pack es en efectivo',
-      PaymentType.bizum =>
-        hasDetails
-            ? 'Paga por Bizum al número $details'
-            : 'El pago de este pack es por Bizum',
-      PaymentType.paypal =>
-        hasDetails
-            ? 'Paga por PayPal a $details'
-            : 'El pago de este pack es por PayPal',
-      PaymentType.online => '',
-    };
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  void _showCashMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('El pago de este pack es en efectivo')),
+    );
   }
 
   Future<void> _toggleSignUp() async {

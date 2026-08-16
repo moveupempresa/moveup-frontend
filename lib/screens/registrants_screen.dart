@@ -85,7 +85,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
       widget.targetType == RegistrantsTargetType.pack &&
       widget.paymentType != null;
 
-  bool get _canTogglePayment => widget.paymentType != PaymentType.online;
+  bool get _canTogglePayment => widget.paymentType == PaymentType.offline;
 
   Future<void> _togglePaid(Registrant r) async {
     final newValue = !r.hasPaid;
