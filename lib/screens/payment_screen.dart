@@ -12,6 +12,7 @@ class PaymentScreen extends StatefulWidget {
   final String packName;
   final PaymentType paymentType;
   final String? paymentDetails;
+  final String? bizumConcept;
 
   const PaymentScreen({
     super.key,
@@ -21,6 +22,7 @@ class PaymentScreen extends StatefulWidget {
     required this.packName,
     required this.paymentType,
     this.paymentDetails,
+    this.bizumConcept,
   });
 
   @override
@@ -249,6 +251,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }) {
     final details = widget.paymentDetails;
     final hasDetails = details != null && details.isNotEmpty;
+    final concept = widget.bizumConcept;
+    final hasConcept =
+        widget.paymentType == PaymentType.bizum &&
+        concept != null &&
+        concept.isNotEmpty;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
@@ -272,33 +279,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
           Text(hasDetails ? instructions : fallbackInstructions),
           if (hasDetails) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      details,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.copy_outlined),
-                    tooltip: 'Copiar',
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: details));
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(const SnackBar(content: Text('Copiado')));
-                    },
-                  ),
-                ],
-              ),
-            ),
+            _copyBox(context, details),
+          ],
+          if (hasConcept) ...[
+            const SizedBox(height: 16),
+            Text('Indica este concepto al hacer el Bizum:'),
+            const SizedBox(height: 8),
+            _copyBox(context, concept),
           ],
           const SizedBox(height: 24),
           FilledButton(
@@ -313,6 +300,34 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Text('Ya he pagado'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _copyBox(BuildContext context, String value) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(value, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy_outlined),
+            tooltip: 'Copiar',
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: value));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Copiado')));
+            },
           ),
         ],
       ),

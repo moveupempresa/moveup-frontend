@@ -50,6 +50,7 @@ class _PackDraft {
   String name;
   PaymentType paymentType;
   String? paymentDetails;
+  String? bizumConcept;
   double price;
   ApprovalMode approvalMode;
   PackType packType;
@@ -61,6 +62,7 @@ class _PackDraft {
     required this.name,
     required this.paymentType,
     this.paymentDetails,
+    this.bizumConcept,
     required this.price,
     required this.approvalMode,
     required this.packType,
@@ -74,6 +76,7 @@ class _PackDraft {
         name: p.name,
         paymentType: p.paymentType,
         paymentDetails: p.paymentDetails,
+        bizumConcept: p.bizumConcept,
         price: p.price,
         approvalMode: p.approvalMode,
         packType: p.packType,
@@ -617,6 +620,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
     final paymentDetailsCtrl = TextEditingController(
       text: existing?.paymentDetails ?? '',
     );
+    final bizumConceptCtrl = TextEditingController(
+      text: existing?.bizumConcept ?? '',
+    );
     final maxSelectableSessionsCtrl = TextEditingController(
       text: existing?.maxSelectableSessions != null
           ? existing!.maxSelectableSessions.toString()
@@ -645,6 +651,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 !paymentType.needsPaymentDetails ||
                 paymentDetailsCtrl.text.trim().isNotEmpty;
 
+            final bizumConceptValid =
+                paymentType != PaymentType.bizum ||
+                bizumConceptCtrl.text.trim().isNotEmpty;
+
             final maxSelectableSessionsValid =
                 packType != PackType.customizable ||
                 (maxSelectableSessionsCtrl.text.trim().isNotEmpty &&
@@ -662,6 +672,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 nameCtrl.text.trim().isNotEmpty &&
                 priceValid &&
                 paymentDetailsValid &&
+                bizumConceptValid &&
                 maxSelectableSessionsValid &&
                 selectedSessionsValid &&
                 customizableSessionsValid;
@@ -723,6 +734,18 @@ class _EventFormScreenState extends State<EventFormScreen> {
                         labelText: paymentType == PaymentType.bizum
                             ? 'Teléfono de Bizum'
                             : 'Enlace o email de PayPal',
+                      ),
+                      onChanged: (_) => setSheetState(() {}),
+                    ),
+                  ],
+                  if (paymentType == PaymentType.bizum) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: bizumConceptCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Concepto para Bizum',
+                        helperText:
+                            'El alumno lo copiará al hacer el Bizum, para que puedas identificar el pago',
                       ),
                       onChanged: (_) => setSheetState(() {}),
                     ),
@@ -834,6 +857,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                   paymentType.needsPaymentDetails
                                   ? paymentDetailsCtrl.text.trim()
                                   : null;
+                              final bizumConcept =
+                                  paymentType == PaymentType.bizum
+                                  ? bizumConceptCtrl.text.trim()
+                                  : null;
                               final maxSelectable =
                                   packType == PackType.customizable
                                   ? int.parse(
@@ -849,6 +876,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                 existing.name = nameCtrl.text.trim();
                                 existing.paymentType = paymentType;
                                 existing.paymentDetails = paymentDetails;
+                                existing.bizumConcept = bizumConcept;
                                 existing.price = price;
                                 existing.approvalMode = approvalMode;
                                 existing.packType = packType;
@@ -860,6 +888,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                     name: nameCtrl.text.trim(),
                                     paymentType: paymentType,
                                     paymentDetails: paymentDetails,
+                                    bizumConcept: bizumConcept,
                                     price: price,
                                     approvalMode: approvalMode,
                                     packType: packType,
@@ -1062,6 +1091,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             price: pack.price,
             paymentType: pack.paymentType,
             paymentDetails: pack.paymentDetails,
+            bizumConcept: pack.bizumConcept,
             packType: pack.packType,
             approvalMode: pack.approvalMode,
             maxSelectableSessions: pack.maxSelectableSessions,
@@ -1076,6 +1106,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             price: pack.price,
             paymentType: pack.paymentType,
             paymentDetails: pack.paymentDetails,
+            bizumConcept: pack.bizumConcept,
             packType: pack.packType,
             approvalMode: pack.approvalMode,
             maxSelectableSessions: pack.maxSelectableSessions,

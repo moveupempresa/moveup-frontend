@@ -1104,6 +1104,7 @@ class _PackCardState extends State<_PackCard> {
           packName: widget.pack.name,
           paymentType: widget.pack.paymentType,
           paymentDetails: widget.pack.paymentDetails,
+          bizumConcept: widget.pack.bizumConcept,
         ),
       ),
     );

@@ -16,6 +16,7 @@ class PackService {
     required double price,
     required PaymentType paymentType,
     String? paymentDetails,
+    String? bizumConcept,
     required PackType packType,
     required ApprovalMode approvalMode,
     int? maxSelectableSessions,
@@ -37,6 +38,8 @@ class PackService {
               'paymentType': paymentType.value,
               if (paymentDetails != null && paymentDetails.isNotEmpty)
                 'paymentDetails': paymentDetails,
+              if (bizumConcept != null && bizumConcept.isNotEmpty)
+                'bizumConcept': bizumConcept,
               'packType': packType.value,
               'approvalMode': approvalMode.value,
               if (maxSelectableSessions != null)
@@ -65,6 +68,7 @@ class PackService {
     required double price,
     required PaymentType paymentType,
     String? paymentDetails,
+    String? bizumConcept,
     required PackType packType,
     required ApprovalMode approvalMode,
     int? maxSelectableSessions,
@@ -85,6 +89,7 @@ class PackService {
               'price': price,
               'paymentType': paymentType.value,
               'paymentDetails': paymentDetails,
+              'bizumConcept': bizumConcept,
               'packType': packType.value,
               'approvalMode': approvalMode.value,
               'maxSelectableSessions': maxSelectableSessions,

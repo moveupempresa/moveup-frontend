@@ -49,6 +49,7 @@ class Pack {
   final double price;
   final PaymentType paymentType;
   final String? paymentDetails;
+  final String? bizumConcept;
   final PackType packType;
   final ApprovalMode approvalMode;
   final int? maxSelectableSessions;
@@ -72,6 +73,7 @@ class Pack {
     required this.price,
     required this.paymentType,
     this.paymentDetails,
+    this.bizumConcept,
     required this.packType,
     required this.approvalMode,
     this.maxSelectableSessions,
@@ -96,6 +98,7 @@ class Pack {
     price: (json['price'] as num).toDouble(),
     paymentType: PaymentType.fromValue(json['paymentType'] as String),
     paymentDetails: json['paymentDetails'] as String?,
+    bizumConcept: json['bizumConcept'] as String?,
     packType: PackType.fromValue(json['packType'] as String),
     approvalMode: ApprovalMode.fromValue(json['approvalMode'] as String),
     maxSelectableSessions: json['maxSelectableSessions'] as int?,
