@@ -768,101 +768,98 @@ class _SessionCardState extends State<_SessionCard> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Stack(
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(14, 14, 14, widget.isOwner ? 14 : 44),
-            child: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        session.name,
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                    ),
-                    if (!session.isUnlimitedCapacity &&
-                        session.capacity != null) ...[
-                      const SizedBox(width: 8),
-                      _CapacityBadge(
-                        confirmedCount: _confirmedCount,
-                        capacity: session.capacity!,
-                      ),
-                    ],
-                  ],
+                Expanded(
+                  child: Text(
+                    session.name,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today_outlined, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatSessionDate(start),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time_outlined, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${_formatSessionTime(start)} – ${_formatSessionTime(end)}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                if (session.address != null && session.address!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.place_outlined, size: 14),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          session.address!,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
+                if (!session.isUnlimitedCapacity &&
+                    session.capacity != null) ...[
+                  const SizedBox(width: 8),
+                  _CapacityBadge(
+                    confirmedCount: _confirmedCount,
+                    capacity: session.capacity!,
                   ),
                 ],
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.people_outline, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      session.isUnlimitedCapacity
-                          ? 'Aforo ilimitado'
-                          : session.capacity != null
-                          ? '$_confirmedCount / ${session.capacity} personas'
-                          : 'Aforo no especificado',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  _formatSessionDate(start),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
-          ),
-          if (!widget.isOwner)
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: _SignupIconButton(
-                isFull: _isFull,
-                isSignedUp: _isSignedUp,
-                isWaitlisted: _isWaitlisted,
-                isLoading: _isLoading,
-                onToggleSignUp: _toggleSignUp,
-                onToggleWaitlist: _toggleWaitlist,
-              ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                const Icon(Icons.access_time_outlined, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  '${_formatSessionTime(start)} – ${_formatSessionTime(end)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
-        ],
+            if (session.address != null && session.address!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.place_outlined, size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      session.address!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.people_outline, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  session.isUnlimitedCapacity
+                      ? 'Aforo ilimitado'
+                      : session.capacity != null
+                      ? '$_confirmedCount / ${session.capacity} personas'
+                      : 'Aforo no especificado',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+            if (!widget.isOwner) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _SignupActionButton(
+                  isFull: _isFull,
+                  isSignedUp: _isSignedUp,
+                  isWaitlisted: _isWaitlisted,
+                  isLoading: _isLoading,
+                  onToggleSignUp: _toggleSignUp,
+                  onToggleWaitlist: _toggleWaitlist,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -904,7 +901,7 @@ class _CapacityBadge extends StatelessWidget {
   }
 }
 
-class _SignupIconButton extends StatelessWidget {
+class _SignupActionButton extends StatelessWidget {
   final bool isFull;
   final bool isSignedUp;
   final bool isWaitlisted;
@@ -916,7 +913,7 @@ class _SignupIconButton extends StatelessWidget {
   final VoidCallback onToggleSignUp;
   final VoidCallback onToggleWaitlist;
 
-  const _SignupIconButton({
+  const _SignupActionButton({
     required this.isFull,
     required this.isSignedUp,
     required this.isWaitlisted,
@@ -928,6 +925,28 @@ class _SignupIconButton extends StatelessWidget {
     required this.onToggleSignUp,
     required this.onToggleWaitlist,
   });
+
+  Widget _button(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+    String? tooltip,
+  }) {
+    final button = FilledButton.tonalIcon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        foregroundColor: color,
+        backgroundColor: color.withValues(alpha: 0.12),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      ),
+    );
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -941,29 +960,36 @@ class _SignupIconButton extends StatelessWidget {
         ),
       );
     }
+    final primary = Theme.of(context).colorScheme.primary;
+    final outline = Theme.of(context).colorScheme.outline;
     if (isPending) {
-      return IconButton(
-        icon: Icon(
-          Icons.hourglass_top,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+      return _button(
+        context,
+        icon: Icons.hourglass_top,
+        label: 'Pendiente',
+        color: primary,
         tooltip: 'Solicitud pendiente de aprobación · toca para cancelar',
         onPressed: onToggleSignUp,
       );
     }
     if (isAwaitingPayment) {
-      return IconButton(
-        icon: Icon(Icons.hourglass_bottom, color: Colors.amber.shade800),
+      return _button(
+        context,
+        icon: Icons.hourglass_bottom,
+        label: 'Pago pendiente',
+        color: Colors.amber.shade800,
         tooltip: 'Esperando tu pago · toca para cancelar',
         onPressed: onToggleSignUp,
       );
     }
     if (isFull && !isSignedUp) {
-      return IconButton(
-        icon: Icon(
-          isWaitlisted ? Icons.notifications_active : Icons.notifications_none,
-        ),
-        color: isWaitlisted ? Theme.of(context).colorScheme.primary : null,
+      return _button(
+        context,
+        icon: isWaitlisted
+            ? Icons.notifications_active
+            : Icons.notifications_none,
+        label: isWaitlisted ? 'En espera' : 'Avisarme',
+        color: isWaitlisted ? primary : outline,
         tooltip: isWaitlisted
             ? 'Cancelar aviso de disponibilidad'
             : 'Avisarme si hay un cupo disponible',
@@ -971,17 +997,20 @@ class _SignupIconButton extends StatelessWidget {
       );
     }
     if (isExpandable && !isSignedUp) {
-      return IconButton(
-        icon: Icon(isExpanded ? Icons.expand_less : Icons.checklist),
-        color: isExpanded ? Theme.of(context).colorScheme.primary : null,
-        tooltip: isExpanded ? 'Ocultar sesiones' : 'Elegir sesiones',
+      return _button(
+        context,
+        icon: isExpanded ? Icons.expand_less : Icons.checklist,
+        label: isExpanded ? 'Ocultar' : 'Elegir sesiones',
+        color: isExpanded ? primary : outline,
         onPressed: onToggleSignUp,
       );
     }
-    return IconButton(
-      icon: Icon(isSignedUp ? Icons.check_circle : Icons.check_circle_outline),
-      color: isSignedUp ? Theme.of(context).colorScheme.primary : null,
-      tooltip: isSignedUp ? 'Cancelar inscripción' : 'Inscribirme',
+    return _button(
+      context,
+      icon: isSignedUp ? Icons.check_circle : Icons.check_circle_outline,
+      label: isSignedUp ? 'Cancelar' : 'Reservar',
+      color: isSignedUp ? primary : outline,
+      tooltip: isSignedUp ? 'Cancelar inscripción' : null,
       onPressed: onToggleSignUp,
     );
   }
@@ -1094,6 +1123,28 @@ class _PackCardState extends State<_PackCard> {
     PaymentType.paypal => 'Pagar por PayPal',
   };
 
+  Widget _buildPaymentButton(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = _myHasPaid
+        ? Colors.green.shade700
+        : (_isPaymentReady ? Colors.green.shade700 : colorScheme.outline);
+    final button = FilledButton.tonalIcon(
+      onPressed: _onPaymentIconTap,
+      icon: Icon(_paymentIcon(widget.pack.paymentType), size: 18),
+      label: Text(_myHasPaid ? 'Pagado' : 'Pagar'),
+      style: FilledButton.styleFrom(
+        foregroundColor: color,
+        backgroundColor: color.withValues(alpha: 0.12),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      ),
+    );
+    return Tooltip(
+      message: _paymentTooltip(widget.pack.paymentType),
+      child: button,
+    );
+  }
+
   void _showCashMessage() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('El pago de este pack es en efectivo')),
@@ -1193,7 +1244,7 @@ class _PackCardState extends State<_PackCard> {
       child: Stack(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(14, 14, 14, widget.isOwner ? 14 : 44),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1347,37 +1398,31 @@ class _PackCardState extends State<_PackCard> {
                     ],
                   ),
                 ],
+                if (!widget.isOwner) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _SignupActionButton(
+                        isFull: false,
+                        isSignedUp: _isSignedUp,
+                        isWaitlisted: false,
+                        isPending: _isPending,
+                        isAwaitingPayment: _isAwaitingPayment,
+                        isLoading: _isLoading,
+                        isExpandable: _isCustomizable,
+                        isExpanded: _isExpanded,
+                        onToggleSignUp: _toggleSignUp,
+                        onToggleWaitlist: () {},
+                      ),
+                      const SizedBox(width: 8),
+                      _buildPaymentButton(context),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
-          if (!widget.isOwner)
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: _SignupIconButton(
-                isFull: false,
-                isSignedUp: _isSignedUp,
-                isWaitlisted: false,
-                isPending: _isPending,
-                isAwaitingPayment: _isAwaitingPayment,
-                isLoading: _isLoading,
-                isExpandable: _isCustomizable,
-                isExpanded: _isExpanded,
-                onToggleSignUp: _toggleSignUp,
-                onToggleWaitlist: () {},
-              ),
-            ),
-          if (!widget.isOwner)
-            Positioned(
-              left: 4,
-              bottom: 4,
-              child: IconButton(
-                icon: Icon(_paymentIcon(pack.paymentType)),
-                color: _isPaymentReady ? Colors.green.shade700 : Colors.grey,
-                tooltip: _paymentTooltip(pack.paymentType),
-                onPressed: _onPaymentIconTap,
-              ),
-            ),
           if (widget.isOwner && pack.pendingRequestsCount > 0)
             Positioned(
               top: 8,
