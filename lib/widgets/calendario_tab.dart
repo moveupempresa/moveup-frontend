@@ -29,6 +29,20 @@ class _CalendarItem {
 
 const _hourHeight = 60.0;
 const _weekdayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const _monthLabels = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
 
 // Distinguishes "delete this note" from a normal text-save result when
 // popping the note-editor dialog. A dedicated Object (not a String) so it
@@ -61,6 +75,7 @@ class CalendarioTabState extends State<CalendarioTab> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   late DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  bool _dayViewActive = false;
   final _weekScrollController = ScrollController(
     initialScrollOffset: 7 * _hourHeight,
   );
@@ -375,8 +390,10 @@ class CalendarioTabState extends State<CalendarioTab> {
             ],
             selected: {_calendarFormat},
             showSelectedIcon: false,
-            onSelectionChanged: (selection) =>
-                setState(() => _calendarFormat = selection.first),
+            onSelectionChanged: (selection) => setState(() {
+              _calendarFormat = selection.first;
+              _dayViewActive = false;
+            }),
           ),
         ),
         Padding(
@@ -418,8 +435,8 @@ class CalendarioTabState extends State<CalendarioTab> {
     List<_CalendarItem> items,
     Map<DateTime, List<_CalendarItem>> itemsByDay,
   ) {
-    final selectedDay = _selectedDay ?? _calendarDayKey(_focusedDay);
-    final today = _calendarDayKey(DateTime.now());
+    if (_dayViewActive) return _buildDayDetailView(context, itemsByDay);
+
     final attendingColor = Theme.of(context).colorScheme.primary;
     final ownedColor = Theme.of(context).colorScheme.error;
     final noteColor = Theme.of(context).colorScheme.secondary;
@@ -442,6 +459,7 @@ class CalendarioTabState extends State<CalendarioTab> {
               setState(() {
                 _selectedDay = _calendarDayKey(selected);
                 _focusedDay = focused;
+                _dayViewActive = true;
               });
             },
             onPageChanged: (focused) => _focusedDay = focused,
@@ -485,9 +503,47 @@ class CalendarioTabState extends State<CalendarioTab> {
               titleCentered: true,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDayHeader(DateTime day) =>
+      '${_weekdayLabels[day.weekday - 1]}, ${day.day} ${_monthLabels[day.month - 1]}. ${day.year}';
+
+  Widget _buildDayDetailView(
+    BuildContext context,
+    Map<DateTime, List<_CalendarItem>> itemsByDay,
+  ) {
+    final selectedDay = _selectedDay ?? _calendarDayKey(_focusedDay);
+    final today = _calendarDayKey(DateTime.now());
+
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Volver al mes',
+                  onPressed: () => setState(() => _dayViewActive = false),
+                ),
+                Expanded(
+                  child: Text(
+                    _formatDayHeader(selectedDay),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
           const Divider(height: 1),
-          SizedBox(
-            height: 420,
+          Expanded(
             child: SingleChildScrollView(
               controller: _weekScrollController,
               child: SizedBox(
@@ -577,23 +633,9 @@ class CalendarioTabState extends State<CalendarioTab> {
 
   Widget _buildWeekNavHeader(BuildContext context, DateTime weekStart) {
     final weekEnd = weekStart.add(const Duration(days: 6));
-    const months = [
-      'ene',
-      'feb',
-      'mar',
-      'abr',
-      'may',
-      'jun',
-      'jul',
-      'ago',
-      'sep',
-      'oct',
-      'nov',
-      'dic',
-    ];
     final label = weekStart.month == weekEnd.month
-        ? '${weekStart.day} - ${weekEnd.day} ${months[weekStart.month - 1]}. ${weekEnd.year}'
-        : '${weekStart.day} ${months[weekStart.month - 1]}. - ${weekEnd.day} ${months[weekEnd.month - 1]}. ${weekEnd.year}';
+        ? '${weekStart.day} - ${weekEnd.day} ${_monthLabels[weekStart.month - 1]}. ${weekEnd.year}'
+        : '${weekStart.day} ${_monthLabels[weekStart.month - 1]}. - ${weekEnd.day} ${_monthLabels[weekEnd.month - 1]}. ${weekEnd.year}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
