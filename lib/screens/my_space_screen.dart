@@ -501,14 +501,22 @@ class MySpaceScreenState extends State<MySpaceScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: SegmentedButton<_NetworkMode>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: _NetworkMode.following,
-                label: Text('Siguiendo'),
+                label: Text(
+                  _following != null
+                      ? 'Siguiendo (${_following!.length})'
+                      : 'Siguiendo',
+                ),
               ),
               ButtonSegment(
                 value: _NetworkMode.followers,
-                label: Text('Seguidores'),
+                label: Text(
+                  _followers != null
+                      ? 'Seguidores (${_followers!.length})'
+                      : 'Seguidores',
+                ),
               ),
             ],
             selected: {_networkMode},
