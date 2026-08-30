@@ -10,9 +10,6 @@ import '../services/calendar_note_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
 import '../screens/event_detail_screen.dart';
-import '../screens/public_profile_screen.dart';
-import 'event_card.dart';
-import 'reservation_card.dart';
 
 /// One event the user is either attending (has an upcoming reservation for
 /// it) or organizes, merged so the same event never shows up twice.
@@ -237,19 +234,6 @@ class CalendarioTabState extends State<CalendarioTab> {
     return latest.isAfter(base) ? latest : base;
   }
 
-  Widget _cardFor(_CalendarItem item) {
-    return item.isAttending
-        ? ReservationCard(
-            reservation: item.reservation!,
-            onTap: () => _openItem(item),
-          )
-        : EventCard(
-            event: item.event,
-            onTap: () => _openItem(item),
-            onOwnerTap: () => _openOwnerProfile(item.event),
-          );
-  }
-
   Future<void> _openItem(_CalendarItem item) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -261,19 +245,6 @@ class CalendarioTabState extends State<CalendarioTab> {
       ),
     );
     _loadAll();
-  }
-
-  void _openOwnerProfile(Event event) {
-    if (event.ownerUserId == widget.currentUserId) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PublicProfileScreen(
-          token: widget.token,
-          userId: event.ownerUserId,
-          currentUserId: widget.currentUserId,
-        ),
-      ),
-    );
   }
 
   Future<void> _saveDayNote(String date, String text) async {
@@ -448,7 +419,7 @@ class CalendarioTabState extends State<CalendarioTab> {
     Map<DateTime, List<_CalendarItem>> itemsByDay,
   ) {
     final selectedDay = _selectedDay ?? _calendarDayKey(_focusedDay);
-    final selectedItems = itemsByDay[selectedDay] ?? const <_CalendarItem>[];
+    final today = _calendarDayKey(DateTime.now());
     final attendingColor = Theme.of(context).colorScheme.primary;
     final ownedColor = Theme.of(context).colorScheme.error;
     final noteColor = Theme.of(context).colorScheme.secondary;
@@ -514,22 +485,30 @@ class CalendarioTabState extends State<CalendarioTab> {
               titleCentered: true,
             ),
           ),
-          const SizedBox(height: 12),
-          if (selectedItems.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Text(
-                'Sin eventos este día',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
+          const Divider(height: 1),
+          SizedBox(
+            height: 420,
+            child: SingleChildScrollView(
+              controller: _weekScrollController,
+              child: SizedBox(
+                height: 24 * _hourHeight,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHourLabels(context),
+                    Expanded(
+                      child: _buildDayColumn(
+                        context,
+                        selectedDay,
+                        today,
+                        itemsByDay,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(children: selectedItems.map(_cardFor).toList()),
             ),
+          ),
           _buildNoteSection(context, selectedDay),
         ],
       ),
