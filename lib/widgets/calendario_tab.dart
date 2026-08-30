@@ -95,22 +95,21 @@ class CalendarioTabState extends State<CalendarioTab> {
       return null;
     }
 
-    final byEventId = <String, _CalendarItem>{};
-    for (final r in (_reservations ?? []).where((r) => !r.isPast)) {
-      final existing = byEventId[r.event.id];
-      final existingDate = existing?.reservation?.sessionDate;
-      final shouldReplace =
-          existing == null ||
-          (r.sessionDate != null &&
-              (existingDate == null || r.sessionDate!.isBefore(existingDate)));
-      if (shouldReplace) {
-        byEventId[r.event.id] = _CalendarItem(event: r.event, reservation: r);
+    // One item per reservation, not per event - a user can be attending
+    // several sessions (or a session and a pack) of the same event, each on
+    // its own day, and every one of them needs its own calendar entry.
+    final items = <_CalendarItem>[
+      for (final r in (_reservations ?? []).where((r) => !r.isPast))
+        _CalendarItem(event: r.event, reservation: r),
+    ];
+
+    final attendingEventIds = items.map((i) => i.event.id).toSet();
+    for (final e in (_createdEvents ?? [])) {
+      if (!attendingEventIds.contains(e.id)) {
+        items.add(_CalendarItem(event: e, isOwned: true));
       }
     }
-    for (final e in (_createdEvents ?? [])) {
-      byEventId.putIfAbsent(e.id, () => _CalendarItem(event: e, isOwned: true));
-    }
-    return byEventId.values.toList();
+    return items;
   }
 
   @override
