@@ -206,12 +206,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
   }
 
-  Widget _buildSessionCard(Session s, String eventId, bool isOwner) {
+  Widget _buildSessionCard(
+    Session s,
+    String eventId,
+    bool isOwner,
+    bool allowDirectSignup,
+  ) {
     final card = _SessionCard(
       session: s,
       token: widget.token,
       eventId: eventId,
       isOwner: isOwner,
+      allowDirectSignup: allowDirectSignup,
     );
     if (!isOwner) return card;
     return GestureDetector(
@@ -427,12 +433,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                if (isOwner || packs.isEmpty) ...[
-                  _SessionsSection(
-                    sessions: sessions,
-                    cardBuilder: (s) => _buildSessionCard(s, event.id, isOwner),
+                _SessionsSection(
+                  sessions: sessions,
+                  cardBuilder: (s) => _buildSessionCard(
+                    s,
+                    event.id,
+                    isOwner,
+                    !event.reservationEnabled,
                   ),
-                ],
+                ),
                 if (event.reservationEnabled) ...[
                   const SizedBox(height: 20),
                   Text('Packs', style: Theme.of(context).textTheme.titleSmall),
@@ -675,12 +684,14 @@ class _SessionCard extends StatefulWidget {
   final String token;
   final String eventId;
   final bool isOwner;
+  final bool allowDirectSignup;
 
   const _SessionCard({
     required this.session,
     required this.token,
     required this.eventId,
     required this.isOwner,
+    required this.allowDirectSignup,
   });
 
   @override
@@ -844,7 +855,7 @@ class _SessionCardState extends State<_SessionCard> {
                 ),
               ],
             ),
-            if (!widget.isOwner) ...[
+            if (!widget.isOwner && widget.allowDirectSignup) ...[
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerRight,
