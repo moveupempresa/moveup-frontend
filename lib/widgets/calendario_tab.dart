@@ -51,10 +51,10 @@ class CalendarioTab extends StatefulWidget {
   });
 
   @override
-  State<CalendarioTab> createState() => _CalendarioTabState();
+  State<CalendarioTab> createState() => CalendarioTabState();
 }
 
-class _CalendarioTabState extends State<CalendarioTab> {
+class CalendarioTabState extends State<CalendarioTab> {
   List<Reservation>? _reservations;
   List<Event>? _createdEvents;
   List<CalendarNote>? _notes;
@@ -118,6 +118,13 @@ class _CalendarioTabState extends State<CalendarioTab> {
     super.initState();
     _loadAll();
   }
+
+  /// Reloads reservations/owned events/notes. CalendarioTab has no key and
+  /// lives inside MySpaceScreen's TabBarView, so Flutter reuses this same
+  /// State across MySpaceScreen rebuilds instead of re-running initState -
+  /// callers need to invoke this explicitly (e.g. whenever Mi espacio
+  /// becomes visible again) to pick up changes made elsewhere in the app.
+  void refresh() => _loadAll();
 
   @override
   void dispose() {

@@ -40,6 +40,7 @@ class MySpaceScreen extends StatefulWidget {
 
 class MySpaceScreenState extends State<MySpaceScreen> {
   late bool _isPro = widget.isPro;
+  final _calendarioKey = GlobalKey<CalendarioTabState>();
 
   List<Event>? _events;
   bool _loadingEvents = false;
@@ -83,6 +84,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     _loadCancelledReservations();
     _loadFollowing();
     _loadFollowers();
+    _calendarioKey.currentState?.refresh();
   }
 
   Future<void> _loadEvents() async {
@@ -215,6 +217,7 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             _buildGuardadosTab(context),
             _buildMiRedTab(context),
             CalendarioTab(
+              key: _calendarioKey,
               token: widget.token,
               currentUserId: widget.currentUserId,
               isPro: _isPro,
