@@ -24,7 +24,11 @@ class ExploreScreen extends StatefulWidget {
   final String token;
   final String currentUserId;
 
-  const ExploreScreen({super.key, required this.token, required this.currentUserId});
+  const ExploreScreen({
+    super.key,
+    required this.token,
+    required this.currentUserId,
+  });
 
   @override
   ExploreScreenState createState() => ExploreScreenState();
@@ -43,10 +47,9 @@ class ExploreScreenState extends State<ExploreScreen> {
   bool _loadingSections = false;
   String? _sectionsError;
 
-  // null means the search field is in "title" mode. Otherwise it's the key
-  // of the text filter (city/style/price) currently being typed.
-  String? _activeFilterKey;
-  // Only 'eventType' uses an inline picker separate from the search field.
+  // Only 'eventType' uses an inline picker; city/style/price open their own
+  // dialog and date opens the native date picker - none of them touch the
+  // search field, which is always a plain title search.
   String? _expandedPicker;
 
   String? _searchTitle;
@@ -97,7 +100,10 @@ class ExploreScreenState extends State<ExploreScreen> {
       });
       return;
     }
-    _userSearchDebounce = Timer(const Duration(milliseconds: 400), () => _searchUsers(trimmed));
+    _userSearchDebounce = Timer(
+      const Duration(milliseconds: 400),
+      () => _searchUsers(trimmed),
+    );
   }
 
   Future<void> _searchUsers(String query) async {
@@ -106,7 +112,10 @@ class ExploreScreenState extends State<ExploreScreen> {
       _userSearchError = null;
     });
     try {
-      final results = await UserService.searchProfiles(token: widget.token, query: query);
+      final results = await UserService.searchProfiles(
+        token: widget.token,
+        query: query,
+      );
       if (mounted) setState(() => _userSearchResults = results);
     } catch (e) {
       if (mounted) setState(() => _userSearchError = e.toString());
@@ -128,7 +137,9 @@ class ExploreScreenState extends State<ExploreScreen> {
         style: _filterStyle,
         dateFrom: _filterDateFrom,
         // Include the whole last day of the range, not just its midnight.
-        dateTo: _filterDateTo?.add(const Duration(hours: 23, minutes: 59, seconds: 59)),
+        dateTo: _filterDateTo?.add(
+          const Duration(hours: 23, minutes: 59, seconds: 59),
+        ),
         maxPrice: _filterMaxPrice,
         eventType: _filterEventType,
       );
@@ -151,7 +162,9 @@ class ExploreScreenState extends State<ExploreScreen> {
       _sectionsError = null;
     });
     try {
-      final sections = await EventService.getExploreSections(token: widget.token);
+      final sections = await EventService.getExploreSections(
+        token: widget.token,
+      );
       if (mounted) setState(() => _sections = sections);
     } catch (e) {
       if (mounted) setState(() => _sectionsError = e.toString());
@@ -161,23 +174,26 @@ class ExploreScreenState extends State<ExploreScreen> {
   }
 
   String _filterLabel(String key) => switch (key) {
-        'city' => 'Ciudad',
-        'style' => 'Estilo',
-        'price' => 'Precio',
-        'date' => 'Fecha',
-        'eventType' => 'Tipo de evento',
-        _ => key,
-      };
+    'city' => 'Ciudad',
+    'style' => 'Estilo',
+    'price' => 'Precio',
+    'date' => 'Fecha',
+    'eventType' => 'Tipo de evento',
+    _ => key,
+  };
 
   // Formatted for the carousel "has value" indicator and the chips summary.
   String? _filterValue(String key) => switch (key) {
-        'city' => _filterCity,
-        'style' => _filterStyle,
-        'price' => _filterMaxPrice != null ? '${_filterMaxPrice!.toStringAsFixed(0)} €' : null,
-        'date' => _dateFilterLabel(),
-        'eventType' => _filterEventType?.label,
-        _ => null,
-      };
+    'city' => _filterCity,
+    'style' => _filterStyle,
+    'price' =>
+      _filterMaxPrice != null
+          ? '${_filterMaxPrice!.toStringAsFixed(0)} €'
+          : null,
+    'date' => _dateFilterLabel(),
+    'eventType' => _filterEventType?.label,
+    _ => null,
+  };
 
   String _formatDay(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
@@ -187,92 +203,84 @@ class ExploreScreenState extends State<ExploreScreen> {
     return '${_formatDay(_filterDateFrom!)} - ${_formatDay(_filterDateTo!)}';
   }
 
-  // Raw editable text for the search field's current mode (title or a text filter).
-  String? _rawValueFor(String? key) => switch (key) {
-        null => _searchTitle,
-        'city' => _filterCity,
-        'style' => _filterStyle,
-        'price' => _filterMaxPrice?.toStringAsFixed(0),
-        _ => null,
-      };
+  // Raw current value for a text filter, used to prefill its dialog.
+  String? _rawValueFor(String key) => switch (key) {
+    'city' => _filterCity,
+    'style' => _filterStyle,
+    'price' => _filterMaxPrice?.toStringAsFixed(0),
+    _ => null,
+  };
 
-  String get _activeHint => switch (_activeFilterKey) {
-        null => 'Buscar eventos por nombre',
-        'city' => 'Ciudad',
-        'style' => 'Estilo (#urbano #rave)',
-        'price' => 'Precio máximo (ej: 30)',
-        _ => '',
-      };
-
-  TextCapitalization get _activeTextCapitalization => switch (_activeFilterKey) {
-        null || 'price' => TextCapitalization.none,
-        _ => TextCapitalization.words,
-      };
-
-  // Everything already set for title/city/style/price, other than whatever
-  // is currently being typed, chained together with "; ".
-  String _committedPrefix() {
-    final values = <String?>[
-      _activeFilterKey == null ? null : _searchTitle,
-      _activeFilterKey == 'city' ? null : _filterCity,
-      _activeFilterKey == 'style' ? null : _filterStyle,
-      _activeFilterKey == 'price' ? null : _filterMaxPrice?.toStringAsFixed(0),
-    ].whereType<String>().toList();
-    return values.isEmpty ? '' : '${values.join('; ')}; ';
-  }
-
-  void _commitActiveTextFilter() {
-    final value = _searchController.text.trim();
-    switch (_activeFilterKey) {
-      case null:
-        _searchTitle = value.isEmpty ? null : value;
-      case 'city':
-        _filterCity = value.isEmpty ? null : value;
-      case 'style':
-        _filterStyle = value.isEmpty ? null : value;
-      case 'price':
-        _filterMaxPrice = value.isEmpty ? null : double.tryParse(value.replaceAll(',', '.'));
-    }
-  }
-
-  void _activateFilter(String key) {
-    setState(() {
-      _commitActiveTextFilter();
-      _expandedPicker = null;
-      _activeFilterKey = _activeFilterKey == key ? null : key;
-      _searchController.text = _rawValueFor(_activeFilterKey) ?? '';
-      _searchController.selection =
-          TextSelection.collapsed(offset: _searchController.text.length);
-    });
-  }
+  String _hintFor(String key) => switch (key) {
+    'city' => 'Ciudad',
+    'style' => 'Estilo (#urbano #rave)',
+    'price' => 'Precio máximo (ej: 30)',
+    _ => '',
+  };
 
   void _submitSearch(String value) {
-    setState(() => _commitActiveTextFilter());
+    setState(() => _searchTitle = value.trim().isEmpty ? null : value.trim());
     _loadEvents();
   }
 
-  void _clearActive() {
+  void _clearTitleSearch() {
     setState(() {
       _searchController.clear();
-      switch (_activeFilterKey) {
-        case null:
-          _searchTitle = null;
+      _searchTitle = null;
+    });
+    _loadEvents();
+  }
+
+  // City/style/price each open their own small dialog to enter a value,
+  // instead of repurposing the search field - typing the search first and
+  // applying filters after is the whole point of keeping them separate.
+  Future<void> _pickTextFilter(String key) async {
+    final controller = TextEditingController(text: _rawValueFor(key) ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Filtrar por ${_filterLabel(key).toLowerCase()}'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: _hintFor(key)),
+          textCapitalization: key == 'price'
+              ? TextCapitalization.none
+              : TextCapitalization.words,
+          keyboardType: key == 'price'
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Aplicar'),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    setState(() {
+      switch (key) {
         case 'city':
-          _filterCity = null;
+          _filterCity = result.isEmpty ? null : result;
         case 'style':
-          _filterStyle = null;
+          _filterStyle = result.isEmpty ? null : result;
         case 'price':
-          _filterMaxPrice = null;
+          _filterMaxPrice = result.isEmpty
+              ? null
+              : double.tryParse(result.replaceAll(',', '.'));
       }
     });
     _loadEvents();
   }
 
   Future<void> _pickDateFilter() async {
-    setState(() {
-      _commitActiveTextFilter();
-      _expandedPicker = null;
-    });
+    setState(() => _expandedPicker = null);
     final mode = await showDialog<_DatePickMode>(
       context: context,
       builder: (ctx) => SimpleDialog(
@@ -335,7 +343,6 @@ class ExploreScreenState extends State<ExploreScreen> {
 
   void _toggleEventTypePicker() {
     setState(() {
-      _commitActiveTextFilter();
       _expandedPicker = _expandedPicker == 'eventType' ? null : 'eventType';
     });
   }
@@ -355,7 +362,7 @@ class ExploreScreenState extends State<ExploreScreen> {
       case 'eventType':
         _toggleEventTypePicker();
       default:
-        _activateFilter(key);
+        _pickTextFilter(key);
     }
   }
 
@@ -374,7 +381,6 @@ class ExploreScreenState extends State<ExploreScreen> {
         case 'eventType':
           _filterEventType = null;
       }
-      if (_activeFilterKey == key) _searchController.clear();
     });
     _loadEvents();
   }
@@ -388,10 +394,6 @@ class ExploreScreenState extends State<ExploreScreen> {
       _filterMaxPrice = null;
       _filterEventType = null;
       _expandedPicker = null;
-      if (_activeFilterKey != null) {
-        _activeFilterKey = null;
-        _searchController.text = _searchTitle ?? '';
-      }
     });
     _loadEvents();
   }
@@ -419,7 +421,8 @@ class ExploreScreenState extends State<ExploreScreen> {
               ],
               selected: {_mode},
               showSelectedIcon: false,
-              onSelectionChanged: (selection) => setState(() => _mode = selection.first),
+              onSelectionChanged: (selection) =>
+                  setState(() => _mode = selection.first),
             ),
           ),
           Expanded(
@@ -440,26 +443,24 @@ class ExploreScreenState extends State<ExploreScreen> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: _activeHint,
+              hintText: 'Buscar eventos por nombre',
               prefixIcon: IconButton(
                 icon: const Icon(Icons.search),
                 tooltip: 'Buscar',
                 onPressed: () => _submitSearch(_searchController.text),
               ),
-              prefixText: _committedPrefix(),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.close),
-                      onPressed: _clearActive,
+                      onPressed: _clearTitleSearch,
                     )
                   : null,
               isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            textCapitalization: _activeTextCapitalization,
-            keyboardType: _activeFilterKey == 'price'
-                ? const TextInputType.numberWithOptions(decimal: true)
-                : null,
+            textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.search,
             onChanged: (_) => setState(() {}),
             onSubmitted: _submitSearch,
@@ -473,8 +474,14 @@ class ExploreScreenState extends State<ExploreScreen> {
         if (_hasFilterValues) _buildActiveFilterChips(context),
         Expanded(
           child: _isSearching
-              ? RefreshIndicator(onRefresh: _loadEvents, child: _buildBody(context))
-              : RefreshIndicator(onRefresh: _loadSections, child: _buildSections(context)),
+              ? RefreshIndicator(
+                  onRefresh: _loadEvents,
+                  child: _buildBody(context),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadSections,
+                  child: _buildSections(context),
+                ),
         ),
       ],
     );
@@ -500,7 +507,9 @@ class ExploreScreenState extends State<ExploreScreen> {
                     )
                   : null,
               isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onChanged: (value) {
               setState(() {});
@@ -520,14 +529,18 @@ class ExploreScreenState extends State<ExploreScreen> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          Icon(Icons.people_outline, size: 40, color: Theme.of(context).colorScheme.outline),
+          Icon(
+            Icons.people_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.outline,
+          ),
           const SizedBox(height: 12),
           Text(
             'Busca perfiles por nombre de usuario',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
         ],
       );
@@ -540,9 +553,16 @@ class ExploreScreenState extends State<ExploreScreen> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          Icon(Icons.error_outline, size: 40, color: Theme.of(context).colorScheme.error),
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.error,
+          ),
           const SizedBox(height: 12),
-          const Text('No se pudieron cargar los resultados', textAlign: TextAlign.center),
+          const Text(
+            'No se pudieron cargar los resultados',
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 12),
           Center(
             child: TextButton(
@@ -559,15 +579,18 @@ class ExploreScreenState extends State<ExploreScreen> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          Icon(Icons.person_search_outlined,
-              size: 40, color: Theme.of(context).colorScheme.outline),
+          Icon(
+            Icons.person_search_outlined,
+            size: 40,
+            color: Theme.of(context).colorScheme.outline,
+          ),
           const SizedBox(height: 12),
           Text(
             'Ningún perfil coincide con "$query"',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
         ],
       );
@@ -607,7 +630,9 @@ class ExploreScreenState extends State<ExploreScreen> {
         itemBuilder: (context, index) {
           final key = _carouselKeys[index];
           final hasValue = _filterValue(key) != null;
-          final selected = key == 'eventType' ? _expandedPicker == 'eventType' : _activeFilterKey == key;
+          final selected = key == 'eventType'
+              ? _expandedPicker == 'eventType'
+              : hasValue;
           return ChoiceChip(
             label: Text(_filterLabel(key)),
             selected: selected,
@@ -627,11 +652,13 @@ class ExploreScreenState extends State<ExploreScreen> {
         spacing: 8,
         runSpacing: 8,
         children: EventType.values
-            .map((t) => ChoiceChip(
-                  label: Text(t.label),
-                  selected: _filterEventType == t,
-                  onSelected: (_) => _selectEventTypeFilter(t),
-                ))
+            .map(
+              (t) => ChoiceChip(
+                label: Text(t.label),
+                selected: _filterEventType == t,
+                onSelected: (_) => _selectEventTypeFilter(t),
+              ),
+            )
             .toList(),
       ),
     );
@@ -640,26 +667,41 @@ class ExploreScreenState extends State<ExploreScreen> {
   Widget _buildActiveFilterChips(BuildContext context) {
     final chips = <Widget>[];
     if (_filterCity != null) {
-      chips.add(_summaryChip('Ciudad: $_filterCity', () => _clearFilter('city')));
+      chips.add(
+        _summaryChip('Ciudad: $_filterCity', () => _clearFilter('city')),
+      );
     }
     if (_filterStyle != null) {
-      chips.add(_summaryChip('Estilo: $_filterStyle', () => _clearFilter('style')));
+      chips.add(
+        _summaryChip('Estilo: $_filterStyle', () => _clearFilter('style')),
+      );
     }
     if (_filterDateFrom != null) {
       chips.add(_summaryChip(_dateFilterLabel()!, () => _clearFilter('date')));
     }
     if (_filterMaxPrice != null) {
-      chips.add(_summaryChip(
-          'Hasta ${_filterMaxPrice!.toStringAsFixed(0)} €', () => _clearFilter('price')));
+      chips.add(
+        _summaryChip(
+          'Hasta ${_filterMaxPrice!.toStringAsFixed(0)} €',
+          () => _clearFilter('price'),
+        ),
+      );
     }
     if (_filterEventType != null) {
-      chips.add(_summaryChip('Tipo: ${_filterEventType!.label}', () => _clearFilter('eventType')));
+      chips.add(
+        _summaryChip(
+          'Tipo: ${_filterEventType!.label}',
+          () => _clearFilter('eventType'),
+        ),
+      );
     }
-    chips.add(ActionChip(
-      label: const Text('Limpiar filtros'),
-      avatar: const Icon(Icons.clear_all, size: 16),
-      onPressed: _clearAllFilters,
-    ));
+    chips.add(
+      ActionChip(
+        label: const Text('Limpiar filtros'),
+        avatar: const Icon(Icons.clear_all, size: 16),
+        onPressed: _clearAllFilters,
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Wrap(spacing: 8, runSpacing: 4, children: chips),
@@ -677,11 +719,23 @@ class ExploreScreenState extends State<ExploreScreen> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          Icon(Icons.error_outline, size: 40, color: Theme.of(context).colorScheme.error),
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.error,
+          ),
           const SizedBox(height: 12),
-          const Text('No se pudieron cargar los eventos', textAlign: TextAlign.center),
+          const Text(
+            'No se pudieron cargar los eventos',
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 12),
-          Center(child: TextButton(onPressed: _loadSections, child: const Text('Reintentar'))),
+          Center(
+            child: TextButton(
+              onPressed: _loadSections,
+              child: const Text('Reintentar'),
+            ),
+          ),
         ],
       );
     }
@@ -699,7 +753,11 @@ class ExploreScreenState extends State<ExploreScreen> {
               ? 'Todavía no hay eventos cerca de ti'
               : 'Configura tu ciudad en tu perfil para ver eventos cerca de ti',
         ),
-        _buildEventSection('Lo más nuevo', sections.newest, emptyMessage: 'Nada nuevo por ahora'),
+        _buildEventSection(
+          'Lo más nuevo',
+          sections.newest,
+          emptyMessage: 'Nada nuevo por ahora',
+        ),
         _buildEventSection(
           'Eventos populares',
           sections.popular,
@@ -718,7 +776,8 @@ class ExploreScreenState extends State<ExploreScreen> {
         _buildEventSection(
           'Para ti',
           sections.forYou,
-          emptyMessage: 'Guarda o resérvate a eventos para recibir recomendaciones',
+          emptyMessage:
+              'Guarda o resérvate a eventos para recibir recomendaciones',
         ),
       ],
     );
@@ -730,13 +789,17 @@ class ExploreScreenState extends State<ExploreScreen> {
       child: Text(
         message,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+          color: Theme.of(context).colorScheme.outline,
+        ),
       ),
     );
   }
 
-  Widget _buildEventSection(String title, List<Event> events, {required String emptyMessage}) {
+  Widget _buildEventSection(
+    String title,
+    List<Event> events, {
+    required String emptyMessage,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -834,11 +897,23 @@ class ExploreScreenState extends State<ExploreScreen> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          Icon(Icons.error_outline, size: 40, color: Theme.of(context).colorScheme.error),
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: Theme.of(context).colorScheme.error,
+          ),
           const SizedBox(height: 12),
-          const Text('No se pudieron cargar los eventos', textAlign: TextAlign.center),
+          const Text(
+            'No se pudieron cargar los eventos',
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 12),
-          Center(child: TextButton(onPressed: _loadEvents, child: const Text('Reintentar'))),
+          Center(
+            child: TextButton(
+              onPressed: _loadEvents,
+              child: const Text('Reintentar'),
+            ),
+          ),
         ],
       );
     }
@@ -846,8 +921,11 @@ class ExploreScreenState extends State<ExploreScreen> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          Icon(Icons.explore_outlined,
-              size: 40, color: Theme.of(context).colorScheme.outline),
+          Icon(
+            Icons.explore_outlined,
+            size: 40,
+            color: Theme.of(context).colorScheme.outline,
+          ),
           const SizedBox(height: 12),
           Text(
             _hasFilterValues || _searchTitle != null
@@ -855,8 +933,8 @@ class ExploreScreenState extends State<ExploreScreen> {
                 : 'Todavía no hay eventos publicados',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
         ],
       );
@@ -880,14 +958,14 @@ class ExploreScreenState extends State<ExploreScreen> {
           onOwnerTap: event.ownerUserId == widget.currentUserId
               ? null
               : () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => PublicProfileScreen(
-                        token: widget.token,
-                        userId: event.ownerUserId,
-                        currentUserId: widget.currentUserId,
-                      ),
+                  MaterialPageRoute(
+                    builder: (_) => PublicProfileScreen(
+                      token: widget.token,
+                      userId: event.ownerUserId,
+                      currentUserId: widget.currentUserId,
                     ),
                   ),
+                ),
         );
       },
     );
