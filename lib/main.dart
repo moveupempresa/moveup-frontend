@@ -28,6 +28,14 @@ class MainApp extends StatelessWidget {
           theme: ThemeData(useMaterial3: true, brightness: Brightness.light),
           darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.dark),
           themeMode: mode,
+          // Tapping anywhere outside a text field dismisses the keyboard -
+          // without this, screens with search/filter inputs (Explorar, etc.)
+          // have no way to close the keyboard once it's open.
+          builder: (context, child) => GestureDetector(
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            behavior: HitTestBehavior.opaque,
+            child: child,
+          ),
           home: const SessionGate(),
         );
       },
