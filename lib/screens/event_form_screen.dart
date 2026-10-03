@@ -13,6 +13,7 @@ import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/pack_service.dart';
 import '../services/session_service.dart';
+import '../widgets/country_city_picker.dart';
 import '../widgets/video_player_view.dart';
 
 class _SessionDraft {
@@ -102,8 +103,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
   final _picker = ImagePicker();
 
   final _titleController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _countryController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _styleInputController = TextEditingController();
   final _customEventTypeController = TextEditingController();
@@ -118,6 +117,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
   bool _removeCoverImage = false;
   bool _removeCoverVideo = false;
   int _coverPage = 0;
+  String _selectedCountry = '';
+  String _selectedCity = '';
   bool? _reservationChoice;
   bool _isSubmitting = false;
   bool _isSavingDraft = false;
@@ -146,8 +147,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
     final event = widget.event;
     if (event != null) {
       _titleController.text = event.title;
-      _cityController.text = event.city;
-      _countryController.text = event.country;
+      _selectedCity = event.city;
+      _selectedCountry = event.country;
       _descriptionController.text = event.description;
       _styles.addAll(event.style);
       _reservationChoice = event.reservationEnabled;
@@ -170,8 +171,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _cityController.dispose();
-    _countryController.dispose();
     _descriptionController.dispose();
     _styleInputController.dispose();
     _customEventTypeController.dispose();
@@ -1001,8 +1000,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           style: _styles,
-          city: _cityController.text.trim(),
-          country: _countryController.text.trim(),
+          city: _selectedCity,
+          country: _selectedCountry,
           coverImageFile: _coverImageFile,
           coverVideoFile: _coverVideoFile,
           removeCoverImage: _removeCoverImage,
@@ -1023,8 +1022,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           style: _styles,
-          city: _cityController.text.trim(),
-          country: _countryController.text.trim(),
+          city: _selectedCity,
+          country: _selectedCountry,
           coverImageFile: _coverImageFile,
           coverVideoFile: _coverVideoFile,
           reservationEnabled: _reservationChoice ?? false,
@@ -1173,27 +1172,12 @@ class _EventFormScreenState extends State<EventFormScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 2. Ciudad
-              _label('Ciudad'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _cityController,
-                decoration: const InputDecoration(hintText: 'Ciudad'),
-                textCapitalization: TextCapitalization.words,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 24),
-
-              // 3. País
-              _label('País'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _countryController,
-                decoration: const InputDecoration(hintText: 'País'),
-                textCapitalization: TextCapitalization.words,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Requerido' : null,
+              // 2. País y ciudad
+              CountryCityPicker(
+                initialCountry: _selectedCountry,
+                initialCity: _selectedCity,
+                onCountryChanged: (v) => setState(() => _selectedCountry = v),
+                onCityChanged: (v) => setState(() => _selectedCity = v),
               ),
               const SizedBox(height: 24),
 
