@@ -31,6 +31,7 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
   Map<String, int> _countryIdByName = {};
   List<String> _cities = [];
   int? _loadedCountryId;
+  bool _loadingCities = false;
 
   @override
   void initState() {
@@ -53,11 +54,13 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
   }
 
   Future<void> _loadCities(int countryId) async {
+    setState(() => _loadingCities = true);
     final cities = await CountryCityData.citiesForCountry(countryId);
     if (!mounted) return;
     setState(() {
       _cities = cities;
       _loadedCountryId = countryId;
+      _loadingCities = false;
     });
   }
 
@@ -93,7 +96,16 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
           // field (and its FocusNode) mid-type and kicking focus elsewhere.
           key: ValueKey('city-$_loadedCountryId'),
           initialValue: widget.initialCity,
-          hintText: 'Ciudad',
+          // country.json is ~8MB, so parsing it (on the first load) takes
+          // real time - disable the field meanwhile instead of letting the
+          // user type into a city list that isn't there yet, which would
+          // show no suggestions and then get wiped once loading finishes.
+          enabled: !_loadingCities,
+          hintText: _loadingCities
+              ? 'Cargando ciudades...'
+              : (_loadedCountryId == null
+                    ? 'Selecciona primero un país'
+                    : 'Ciudad'),
           options: _cities,
           onChanged: widget.onCityChanged,
           validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
@@ -113,6 +125,7 @@ class _SearchableTextField extends StatefulWidget {
   final List<String> options;
   final ValueChanged<String> onChanged;
   final FormFieldValidator<String>? validator;
+  final bool enabled;
 
   const _SearchableTextField({
     super.key,
@@ -121,6 +134,7 @@ class _SearchableTextField extends StatefulWidget {
     required this.options,
     required this.onChanged,
     this.validator,
+    this.enabled = true,
   });
 
   @override
@@ -241,18 +255,28 @@ class _SearchableTextFieldState extends State<_SearchableTextField> {
             key: _fieldKey,
             controller: _textController,
             focusNode: _focusNode,
+            enabled: widget.enabled,
             validator: widget.validator,
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
               hintText: widget.hintText,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _overlayController.isShowing
-                      ? Icons.arrow_drop_up
-                      : Icons.arrow_drop_down,
-                ),
-                onPressed: _toggleOverlay,
-              ),
+              suffixIcon: widget.enabled
+                  ? IconButton(
+                      icon: Icon(
+                        _overlayController.isShowing
+                            ? Icons.arrow_drop_up
+                            : Icons.arrow_drop_down,
+                      ),
+                      onPressed: _toggleOverlay,
+                    )
+                  : const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
             ),
             onChanged: (text) {
               widget.onChanged(text);
