@@ -47,10 +47,12 @@ class ExploreScreenState extends State<ExploreScreen> {
   bool _loadingSections = false;
   String? _sectionsError;
 
-  // Only 'eventType' uses an inline picker; city/style/price open their own
-  // dialog and date opens the native date picker - none of them touch the
-  // search field, which is always a plain title search.
+  // Which filter's inline picker/input is expanded below the carousel
+  // ('eventType', 'city', 'style', 'price') - date opens the native date
+  // picker instead. None of them touch the search field, which is always a
+  // plain title search.
   String? _expandedPicker;
+  final _filterInputController = TextEditingController();
 
   String? _searchTitle;
   String? _filterCity;
@@ -84,6 +86,7 @@ class ExploreScreenState extends State<ExploreScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _filterInputController.dispose();
     _userSearchController.dispose();
     _userSearchDebounce?.cancel();
     super.dispose();
@@ -203,7 +206,7 @@ class ExploreScreenState extends State<ExploreScreen> {
     return '${_formatDay(_filterDateFrom!)} - ${_formatDay(_filterDateTo!)}';
   }
 
-  // Raw current value for a text filter, used to prefill its dialog.
+  // Raw current value for a text filter, used to prefill its inline input.
   String? _rawValueFor(String key) => switch (key) {
     'city' => _filterCity,
     'style' => _filterStyle,
@@ -231,50 +234,37 @@ class ExploreScreenState extends State<ExploreScreen> {
     _loadEvents();
   }
 
-  // City/style/price each open their own small dialog to enter a value,
+  // City/style/price each expand an inline input below the carousel,
   // instead of repurposing the search field - typing the search first and
   // applying filters after is the whole point of keeping them separate.
-  Future<void> _pickTextFilter(String key) async {
-    final controller = TextEditingController(text: _rawValueFor(key) ?? '');
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Filtrar por ${_filterLabel(key).toLowerCase()}'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(hintText: _hintFor(key)),
-          textCapitalization: key == 'price'
-              ? TextCapitalization.none
-              : TextCapitalization.words,
-          keyboardType: key == 'price'
-              ? const TextInputType.numberWithOptions(decimal: true)
-              : TextInputType.text,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Aplicar'),
-          ),
-        ],
-      ),
-    );
-    if (result == null) return;
+  void _toggleTextFilterPicker(String key) {
+    setState(() {
+      if (_expandedPicker == key) {
+        _expandedPicker = null;
+        return;
+      }
+      _expandedPicker = key;
+      _filterInputController.text = _rawValueFor(key) ?? '';
+      _filterInputController.selection = TextSelection.collapsed(
+        offset: _filterInputController.text.length,
+      );
+    });
+  }
+
+  void _applyTextFilter(String key) {
+    final value = _filterInputController.text.trim();
     setState(() {
       switch (key) {
         case 'city':
-          _filterCity = result.isEmpty ? null : result;
+          _filterCity = value.isEmpty ? null : value;
         case 'style':
-          _filterStyle = result.isEmpty ? null : result;
+          _filterStyle = value.isEmpty ? null : value;
         case 'price':
-          _filterMaxPrice = result.isEmpty
+          _filterMaxPrice = value.isEmpty
               ? null
-              : double.tryParse(result.replaceAll(',', '.'));
+              : double.tryParse(value.replaceAll(',', '.'));
       }
+      _expandedPicker = null;
     });
     _loadEvents();
   }
@@ -362,7 +352,7 @@ class ExploreScreenState extends State<ExploreScreen> {
       case 'eventType':
         _toggleEventTypePicker();
       default:
-        _pickTextFilter(key);
+        _toggleTextFilterPicker(key);
     }
   }
 
@@ -471,6 +461,10 @@ class ExploreScreenState extends State<ExploreScreen> {
           child: _buildFilterCarousel(context),
         ),
         if (_expandedPicker == 'eventType') _buildEventTypeChips(context),
+        if (_expandedPicker == 'city' ||
+            _expandedPicker == 'style' ||
+            _expandedPicker == 'price')
+          _buildTextFilterInput(context, _expandedPicker!),
         if (_hasFilterValues) _buildActiveFilterChips(context),
         Expanded(
           child: _isSearching
@@ -630,9 +624,7 @@ class ExploreScreenState extends State<ExploreScreen> {
         itemBuilder: (context, index) {
           final key = _carouselKeys[index];
           final hasValue = _filterValue(key) != null;
-          final selected = key == 'eventType'
-              ? _expandedPicker == 'eventType'
-              : hasValue;
+          final selected = _expandedPicker == key || hasValue;
           return ChoiceChip(
             label: Text(_filterLabel(key)),
             selected: selected,
@@ -660,6 +652,42 @@ class ExploreScreenState extends State<ExploreScreen> {
               ),
             )
             .toList(),
+      ),
+    );
+  }
+
+  Widget _buildTextFilterInput(BuildContext context, String key) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _filterInputController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: _hintFor(key),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              textCapitalization: key == 'price'
+                  ? TextCapitalization.none
+                  : TextCapitalization.words,
+              keyboardType: key == 'price'
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : TextInputType.text,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _applyTextFilter(key),
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: () => _applyTextFilter(key),
+            child: const Text('Aplicar'),
+          ),
+        ],
       ),
     );
   }
