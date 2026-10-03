@@ -4,6 +4,9 @@ import '../data/country_city_data.dart';
 
 /// Cascading País -> Ciudad dropdowns backed by [CountryCityData].
 ///
+/// Both fields let the user type to filter the list down (e.g. "Esp" ->
+/// España) via [DropdownMenu]'s built-in search/filter.
+///
 /// Accepts the event's current (possibly free-typed, legacy) country/city
 /// values so editing an older event doesn't crash or silently drop data:
 /// a value that doesn't match the dataset is kept as an extra, selectable
@@ -73,14 +76,14 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
   }
 
   void _onCountryChanged(String? value) {
-    if (value == null) return;
     setState(() {
       _selectedCountry = value;
       _selectedCity = null;
       _cities = [];
     });
-    widget.onCountryChanged(value);
+    widget.onCountryChanged(value ?? '');
     widget.onCityChanged('');
+    if (value == null) return;
 
     final countries = _countries ?? [];
     for (final c in countries) {
@@ -92,40 +95,35 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
   }
 
   void _onCityChanged(String? value) {
-    if (value == null) return;
     setState(() => _selectedCity = value);
-    widget.onCityChanged(value);
+    widget.onCityChanged(value ?? '');
   }
 
-  List<DropdownMenuItem<String>> _countryItems() {
+  List<DropdownMenuEntry<String>> _countryEntries() {
     final countries = _countries ?? [];
-    final items = <DropdownMenuItem<String>>[];
+    final entries = <DropdownMenuEntry<String>>[];
     final selected = _selectedCountry;
     if (selected != null &&
         !countries.any(
           (c) => c.nameEs.toLowerCase() == selected.toLowerCase(),
         )) {
-      items.add(DropdownMenuItem(value: selected, child: Text(selected)));
+      entries.add(DropdownMenuEntry(value: selected, label: selected));
     }
-    items.addAll(
-      countries.map(
-        (c) => DropdownMenuItem(value: c.nameEs, child: Text(c.nameEs)),
-      ),
+    entries.addAll(
+      countries.map((c) => DropdownMenuEntry(value: c.nameEs, label: c.nameEs)),
     );
-    return items;
+    return entries;
   }
 
-  List<DropdownMenuItem<String>> _cityItems() {
-    final items = <DropdownMenuItem<String>>[];
+  List<DropdownMenuEntry<String>> _cityEntries() {
+    final entries = <DropdownMenuEntry<String>>[];
     final selected = _selectedCity;
     if (selected != null &&
         !_cities.any((c) => c.toLowerCase() == selected.toLowerCase())) {
-      items.add(DropdownMenuItem(value: selected, child: Text(selected)));
+      entries.add(DropdownMenuEntry(value: selected, label: selected));
     }
-    items.addAll(
-      _cities.map((c) => DropdownMenuItem(value: c, child: Text(c))),
-    );
-    return items;
+    entries.addAll(_cities.map((c) => DropdownMenuEntry(value: c, label: c)));
+    return entries;
   }
 
   @override
@@ -135,32 +133,49 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
       children: [
         Text('País', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedCountry,
-          isExpanded: true,
-          decoration: const InputDecoration(hintText: 'Selecciona un país'),
-          items: _countryItems(),
-          onChanged: _onCountryChanged,
+        FormField<String>(
+          key: ValueKey('country-$_selectedCountry'),
+          initialValue: _selectedCountry,
           validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+          builder: (field) => DropdownMenu<String>(
+            expandedInsets: EdgeInsets.zero,
+            enableFilter: true,
+            requestFocusOnTap: true,
+            initialSelection: _selectedCountry,
+            hintText: 'Selecciona un país',
+            errorText: field.errorText,
+            dropdownMenuEntries: _countryEntries(),
+            onSelected: (value) {
+              field.didChange(value);
+              _onCountryChanged(value);
+            },
+          ),
         ),
         const SizedBox(height: 24),
         Text('Ciudad', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedCity,
-          isExpanded: true,
-          decoration: InputDecoration(
+        FormField<String>(
+          key: ValueKey('city-$_selectedCity'),
+          initialValue: _selectedCity,
+          validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+          builder: (field) => DropdownMenu<String>(
+            expandedInsets: EdgeInsets.zero,
+            enableFilter: true,
+            requestFocusOnTap: true,
+            enabled: _selectedCountry != null && !_loadingCities,
+            initialSelection: _selectedCity,
             hintText: _selectedCountry == null
                 ? 'Selecciona primero un país'
                 : (_loadingCities
                       ? 'Cargando ciudades...'
                       : 'Selecciona una ciudad'),
+            errorText: field.errorText,
+            dropdownMenuEntries: _cityEntries(),
+            onSelected: (value) {
+              field.didChange(value);
+              _onCityChanged(value);
+            },
           ),
-          items: _cityItems(),
-          onChanged: _selectedCountry == null || _loadingCities
-              ? null
-              : _onCityChanged,
-          validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
         ),
       ],
     );
