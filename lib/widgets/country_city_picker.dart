@@ -88,7 +88,10 @@ class _CountryCityPickerState extends State<CountryCityPicker> {
         Text('Ciudad', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         _SearchableTextField(
-          key: ValueKey('city-${widget.initialCity}-$_loadedCountryId'),
+          // Keyed only by the resolved country, not the typed text itself -
+          // otherwise every keystroke would change the key, remounting the
+          // field (and its FocusNode) mid-type and kicking focus elsewhere.
+          key: ValueKey('city-$_loadedCountryId'),
           initialValue: widget.initialCity,
           hintText: 'Ciudad',
           options: _cities,
