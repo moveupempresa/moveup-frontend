@@ -4,11 +4,13 @@ import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/app_location_service.dart';
 import '../services/event_service.dart';
+import '../services/notification_service.dart';
 import 'create_screen.dart';
 import 'event_detail_screen.dart';
 import 'explore_screen.dart';
 import 'my_space_screen.dart';
 import 'profile_screen.dart';
+import 'settings/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final User user;
@@ -36,10 +38,40 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _mySpaceTabIndex = 2;
   static const _profileTabIndex = 3;
 
+  bool _hasUnreadNotifications = false;
+
   @override
   void initState() {
     super.initState();
     _restoreLocation();
+    _loadNotificationStatus();
+  }
+
+  Future<void> _loadNotificationStatus() async {
+    try {
+      final notifications = await NotificationService.getMyNotifications(
+        token: widget.token,
+      );
+      if (mounted) {
+        setState(
+          () => _hasUnreadNotifications = notifications.any((n) => !n.read),
+        );
+      }
+    } catch (_) {
+      // Keep the current badge state if this background check fails.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          token: widget.token,
+          currentUserId: widget.user.id,
+        ),
+      ),
+    );
+    _loadNotificationStatus();
   }
 
   // Only ever meaningfully runs after a genuine cold (re)start - while the
@@ -83,6 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
         key: _exploreKey,
         token: widget.token,
         currentUserId: widget.user.id,
+        hasUnreadNotifications: _hasUnreadNotifications,
+        onNotificationsTap: _openNotifications,
       ),
       CreateScreen(user: widget.user, token: widget.token),
       MySpaceScreen(
@@ -90,12 +124,16 @@ class _HomeScreenState extends State<HomeScreen> {
         token: widget.token,
         currentUserId: widget.user.id,
         isPro: widget.user.subscriptionPlan == SubscriptionPlan.pro,
+        hasUnreadNotifications: _hasUnreadNotifications,
+        onNotificationsTap: _openNotifications,
       ),
       ProfileScreen(
         key: _profileKey,
         user: widget.user,
         profile: widget.profile,
         token: widget.token,
+        hasUnreadNotifications: _hasUnreadNotifications,
+        onNotificationsTap: _openNotifications,
       ),
     ];
 
@@ -106,9 +144,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (index) {
           setState(() => _selectedIndex = index);
           AppLocationService.saveTab(index);
+          _loadNotificationStatus();
           if (index == _profileTabIndex) {
             _profileKey.currentState?.refreshEvents();
-            _profileKey.currentState?.refreshNotificationStatus();
           }
           if (index == _exploreTabIndex) {
             _exploreKey.currentState?.refreshEvents();

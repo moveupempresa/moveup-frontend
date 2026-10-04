@@ -9,6 +9,7 @@ import '../services/registration_service.dart';
 import '../widgets/calendario_tab.dart';
 import '../widgets/cancelled_reservation_card.dart';
 import '../widgets/events_locked_banner.dart';
+import '../widgets/notification_bell_button.dart';
 import '../widgets/profile_events_section.dart';
 import '../widgets/reservation_card.dart';
 import 'event_detail_screen.dart';
@@ -20,12 +21,16 @@ class MySpaceScreen extends StatefulWidget {
   final String token;
   final String currentUserId;
   final bool isPro;
+  final bool hasUnreadNotifications;
+  final VoidCallback onNotificationsTap;
 
   const MySpaceScreen({
     super.key,
     required this.token,
     required this.currentUserId,
     required this.isPro,
+    required this.hasUnreadNotifications,
+    required this.onNotificationsTap,
   });
 
   @override
@@ -150,6 +155,12 @@ class MySpaceScreenState extends State<MySpaceScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Mi espacio'),
+          actions: [
+            NotificationBellButton(
+              hasUnread: widget.hasUnreadNotifications,
+              onTap: widget.onNotificationsTap,
+            ),
+          ],
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,

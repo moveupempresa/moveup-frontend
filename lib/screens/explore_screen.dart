@@ -11,6 +11,7 @@ import '../services/user_service.dart';
 import '../widgets/event_card.dart';
 import '../widgets/event_mini_card.dart';
 import '../widgets/following_profile_card.dart';
+import '../widgets/notification_bell_button.dart';
 import '../widgets/profile_mini_card.dart';
 import 'event_detail_screen.dart';
 import 'public_profile_screen.dart';
@@ -24,11 +25,15 @@ enum _ExploreMode { events, users }
 class ExploreScreen extends StatefulWidget {
   final String token;
   final String currentUserId;
+  final bool hasUnreadNotifications;
+  final VoidCallback onNotificationsTap;
 
   const ExploreScreen({
     super.key,
     required this.token,
     required this.currentUserId,
+    required this.hasUnreadNotifications,
+    required this.onNotificationsTap,
   });
 
   @override
@@ -422,7 +427,15 @@ class ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorar')),
+      appBar: AppBar(
+        title: const Text('Explorar'),
+        actions: [
+          NotificationBellButton(
+            hasUnread: widget.hasUnreadNotifications,
+            onTap: widget.onNotificationsTap,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(

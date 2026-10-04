@@ -5,12 +5,12 @@ import '../models/event.dart';
 import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
-import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../widgets/cv_link.dart';
 import '../widgets/events_locked_banner.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/contact_methods_row.dart';
+import '../widgets/notification_bell_button.dart';
 import '../widgets/profile_events_section.dart';
 import '../widgets/sliver_tab_bar_delegate.dart';
 import '../widgets/social_links_row.dart';
@@ -18,7 +18,6 @@ import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
 import 'network_screen.dart';
 import 'settings/contact_methods_screen.dart';
-import 'settings/notifications_screen.dart';
 import 'settings/pro_plan_screen.dart';
 import 'settings_screen.dart';
 
@@ -26,12 +25,16 @@ class ProfileScreen extends StatefulWidget {
   final User user;
   final Profile profile;
   final String token;
+  final bool hasUnreadNotifications;
+  final VoidCallback onNotificationsTap;
 
   const ProfileScreen({
     super.key,
     required this.user,
     required this.profile,
     required this.token,
+    required this.hasUnreadNotifications,
+    required this.onNotificationsTap,
   });
 
   @override
@@ -44,7 +47,6 @@ class ProfileScreenState extends State<ProfileScreen> {
   List<Event>? _events;
   bool _loadingEvents = false;
   String? _eventsError;
-  bool _hasUnreadNotifications = false;
   int? _followingCount;
   int? _followersCount;
   int? _favoritesCount;
@@ -57,7 +59,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     if (_user.subscriptionPlan == SubscriptionPlan.pro) {
       _loadEvents();
     }
-    _loadNotificationStatus();
     _loadNetworkCounts();
   }
 
@@ -94,21 +95,6 @@ class ProfileScreenState extends State<ProfileScreen> {
         .then((_) => _loadNetworkCounts());
   }
 
-  Future<void> _loadNotificationStatus() async {
-    try {
-      final notifications = await NotificationService.getMyNotifications(
-        token: widget.token,
-      );
-      if (mounted) {
-        setState(
-          () => _hasUnreadNotifications = notifications.any((n) => !n.read),
-        );
-      }
-    } catch (_) {
-      // Keep the current badge state if this background check fails.
-    }
-  }
-
   Future<void> _loadEvents() async {
     setState(() {
       _loadingEvents = true;
@@ -134,11 +120,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     if (_user.subscriptionPlan == SubscriptionPlan.pro) _loadEvents();
   }
 
-  // The badge is only checked once in initState, so without this it goes
-  // stale: a notification that arrives while already on (or after leaving
-  // and returning to) this tab wouldn't show until the app restarts.
-  void refreshNotificationStatus() => _loadNotificationStatus();
-
   Future<void> _editProfile() async {
     final updated = await Navigator.of(context).push<Profile>(
       MaterialPageRoute(
@@ -159,24 +140,9 @@ class ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Perfil'),
         actions: [
-          IconButton(
-            icon: Badge(
-              isLabelVisible: _hasUnreadNotifications,
-              smallSize: 8,
-              child: const Icon(Icons.notifications_outlined),
-            ),
-            tooltip: 'Notificaciones',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => NotificationsScreen(
-                    token: widget.token,
-                    currentUserId: _user.id,
-                  ),
-                ),
-              );
-              _loadNotificationStatus();
-            },
+          NotificationBellButton(
+            hasUnread: widget.hasUnreadNotifications,
+            onTap: widget.onNotificationsTap,
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
