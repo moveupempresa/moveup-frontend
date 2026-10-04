@@ -123,13 +123,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final discoveryUnread =
+        _unreadCount(_savedEventTypes) + _unreadCount(_favoritesTypes);
     final accountUnread =
         _unreadCount(_socialTypes) +
         _unreadCount(_systemTypes) +
         (_updateAvailable == true ? 1 : 0);
 
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Notificaciones'),
@@ -146,13 +148,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   _unreadCount(_myReservationsTypes),
                 ),
               ),
-              Tab(
-                child: _tabLabel(
-                  'Eventos guardados',
-                  _unreadCount(_savedEventTypes),
-                ),
-              ),
-              Tab(child: _tabLabel('Favoritos', _unreadCount(_favoritesTypes))),
+              Tab(child: _tabLabel('Descubrimiento', discoveryUnread)),
               Tab(child: _tabLabel('Cuenta', accountUnread)),
             ],
           ),
@@ -161,8 +157,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           children: [
             _buildFlatTab(_myEventsTypes),
             _buildFlatTab(_myReservationsTypes),
-            _buildFlatTab(_savedEventTypes),
-            _buildFlatTab(_favoritesTypes),
+            _buildDiscoveryTab(context),
             _buildAccountTab(context),
           ],
         ),
@@ -182,6 +177,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(children: [_buildNotificationList(_itemsOfTypes(types))]),
+    );
+  }
+
+  Widget _buildDiscoveryTab(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          TabBar(
+            tabs: [
+              Tab(
+                child: _tabLabel(
+                  'Eventos guardados',
+                  _unreadCount(_savedEventTypes),
+                ),
+              ),
+              Tab(child: _tabLabel('Favoritos', _unreadCount(_favoritesTypes))),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildFlatTab(_savedEventTypes),
+                _buildFlatTab(_favoritesTypes),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
