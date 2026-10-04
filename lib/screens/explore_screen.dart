@@ -497,6 +497,7 @@ class ExploreScreenState extends State<ExploreScreen> {
             _expandedPicker == 'price')
           _buildTextFilterInput(context, _expandedPicker!),
         if (_hasFilterValues) _buildActiveFilterChips(context),
+        const SizedBox(height: 12),
         Expanded(
           child: _isSearching
               ? RefreshIndicator(
