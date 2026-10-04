@@ -189,11 +189,43 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
         : _buildCalendar(context, events);
   }
 
+  bool _isPast(Event event) {
+    final sessions = event.sessions;
+    if (sessions == null || sessions.isEmpty) return false;
+    final now = DateTime.now();
+    return sessions.every((s) => s.endDatetime.isBefore(now));
+  }
+
+  Widget _sectionLabel(BuildContext context, String text) => Text(
+    text,
+    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+      color: Theme.of(context).colorScheme.outline,
+    ),
+  );
+
   Widget _buildList(List<Event> events) {
+    final current = events.where((e) => !_isPast(e)).toList();
+    final finished = events.where(_isPast).toList();
+
     return Column(
-      children: events
-          .map((e) => EventCard(event: e, onTap: () => widget.onEventTap(e)))
-          .toList(),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (current.isNotEmpty) ...[
+          _sectionLabel(context, 'En curso'),
+          const SizedBox(height: 8),
+          ...current.map(
+            (e) => EventCard(event: e, onTap: () => widget.onEventTap(e)),
+          ),
+        ],
+        if (finished.isNotEmpty) ...[
+          if (current.isNotEmpty) const SizedBox(height: 20),
+          _sectionLabel(context, 'Finalizados'),
+          const SizedBox(height: 8),
+          ...finished.map(
+            (e) => EventCard(event: e, onTap: () => widget.onEventTap(e)),
+          ),
+        ],
+      ],
     );
   }
 
