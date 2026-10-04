@@ -450,12 +450,24 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     int.tryParse(capacityCtrl.text.trim()) != null &&
                     int.parse(capacityCtrl.text.trim()) > 0);
 
+            final nameEmpty = nameCtrl.text.trim().isEmpty;
+            final addressEmpty = addressCtrl.text.trim().isEmpty;
+            final startMissing = startDt == null;
+            final endMissing = endDt == null;
+
             final canSave =
-                nameCtrl.text.trim().isNotEmpty &&
-                addressCtrl.text.trim().isNotEmpty &&
-                startDt != null &&
-                endDt != null &&
+                !nameEmpty &&
+                !addressEmpty &&
+                !startMissing &&
+                !endMissing &&
                 capacityValid;
+
+            BorderSide? errorSide(bool hasError) => hasError
+                ? BorderSide(color: Theme.of(ctx).colorScheme.error)
+                : null;
+            TextStyle? errorTextStyle(bool hasError) => hasError
+                ? TextStyle(color: Theme.of(ctx).colorScheme.error)
+                : null;
 
             return SingleChildScrollView(
               padding: EdgeInsets.only(
@@ -475,8 +487,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   const SizedBox(height: 20),
                   TextField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre de la sesión',
+                    decoration: InputDecoration(
+                      labelText: 'Nombre de la sesión *',
+                      errorText: nameEmpty ? 'Requerido' : null,
                     ),
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: (_) => setSheetState(() {}),
@@ -484,7 +497,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: addressCtrl,
-                    decoration: const InputDecoration(labelText: 'Dirección'),
+                    decoration: InputDecoration(
+                      labelText: 'Dirección *',
+                      errorText: addressEmpty ? 'Requerido' : null,
+                    ),
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: onAddressChanged,
                   ),
@@ -521,19 +537,37 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
                     onPressed: pickStart,
-                    icon: const Icon(Icons.play_arrow_outlined),
-                    label: Text('Inicio: ${fmt(startDt)}'),
+                    icon: Icon(
+                      Icons.play_arrow_outlined,
+                      color: startMissing
+                          ? Theme.of(ctx).colorScheme.error
+                          : null,
+                    ),
+                    label: Text(
+                      'Inicio *: ${fmt(startDt)}',
+                      style: errorTextStyle(startMissing),
+                    ),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
+                      side: errorSide(startMissing),
                     ),
                   ),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: pickEnd,
-                    icon: const Icon(Icons.stop_outlined),
-                    label: Text('Fin: ${fmt(endDt)}'),
+                    icon: Icon(
+                      Icons.stop_outlined,
+                      color: endMissing
+                          ? Theme.of(ctx).colorScheme.error
+                          : null,
+                    ),
+                    label: Text(
+                      'Fin *: ${fmt(endDt)}',
+                      style: errorTextStyle(endMissing),
+                    ),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
+                      side: errorSide(endMissing),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -550,8 +584,11 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     const SizedBox(height: 4),
                     TextField(
                       controller: capacityCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Capacidad (nº de personas)',
+                      decoration: InputDecoration(
+                        labelText: 'Capacidad (nº de personas) *',
+                        errorText: !capacityValid
+                            ? 'Introduce un número mayor que 0'
+                            : null,
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (_) => setSheetState(() {}),
