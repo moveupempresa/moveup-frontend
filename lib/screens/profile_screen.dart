@@ -6,6 +6,7 @@ import '../models/profile.dart';
 import '../models/user.dart';
 import '../services/event_service.dart';
 import '../services/notification_service.dart';
+import '../services/user_service.dart';
 import '../widgets/cv_link.dart';
 import '../widgets/events_locked_banner.dart';
 import '../widgets/image_viewer_dialog.dart';
@@ -15,6 +16,7 @@ import '../widgets/sliver_tab_bar_delegate.dart';
 import '../widgets/social_links_row.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
+import 'network_screen.dart';
 import 'settings/contact_methods_screen.dart';
 import 'settings/notifications_screen.dart';
 import 'settings/pro_plan_screen.dart';
@@ -43,6 +45,9 @@ class ProfileScreenState extends State<ProfileScreen> {
   bool _loadingEvents = false;
   String? _eventsError;
   bool _hasUnreadNotifications = false;
+  int? _followingCount;
+  int? _followersCount;
+  int? _favoritesCount;
 
   @override
   void initState() {
@@ -53,6 +58,40 @@ class ProfileScreenState extends State<ProfileScreen> {
       _loadEvents();
     }
     _loadNotificationStatus();
+    _loadNetworkCounts();
+  }
+
+  Future<void> _loadNetworkCounts() async {
+    try {
+      final results = await Future.wait([
+        UserService.getMyFollowing(token: widget.token),
+        UserService.getMyFollowers(token: widget.token),
+        UserService.getMyFavorites(token: widget.token),
+      ]);
+      if (mounted) {
+        setState(() {
+          _followingCount = results[0].length;
+          _followersCount = results[1].length;
+          _favoritesCount = results[2].length;
+        });
+      }
+    } catch (_) {
+      // Leave the stats row showing nothing if this background fetch fails.
+    }
+  }
+
+  void _openNetwork(NetworkMode mode) {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => NetworkScreen(
+              token: widget.token,
+              currentUserId: _user.id,
+              initialMode: mode,
+            ),
+          ),
+        )
+        .then((_) => _loadNetworkCounts());
   }
 
   Future<void> _loadNotificationStatus() async {
@@ -223,6 +262,27 @@ class ProfileScreenState extends State<ProfileScreen> {
               textAlign: TextAlign.center,
             ),
           ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _NetworkStat(
+                count: _followersCount,
+                label: 'Seguidores',
+                onTap: () => _openNetwork(NetworkMode.followers),
+              ),
+              _NetworkStat(
+                count: _followingCount,
+                label: 'Seguidos',
+                onTap: () => _openNetwork(NetworkMode.following),
+              ),
+              _NetworkStat(
+                count: _favoritesCount,
+                label: 'Favoritos',
+                onTap: () => _openNetwork(NetworkMode.favorites),
+              ),
+            ],
+          ),
           if (_profile.city.isNotEmpty || _profile.country.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
@@ -468,6 +528,45 @@ class ProfileScreenState extends State<ProfileScreen> {
           },
         ),
       ],
+    );
+  }
+}
+
+class _NetworkStat extends StatelessWidget {
+  final int? count;
+  final String label;
+  final VoidCallback onTap;
+
+  const _NetworkStat({
+    required this.count,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Column(
+          children: [
+            Text(
+              count != null ? '$count' : '-',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

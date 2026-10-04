@@ -2,24 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../models/cancelled_reservation.dart';
 import '../models/event.dart';
-import '../models/popular_profile.dart';
 import '../models/reservation.dart';
 import '../models/user.dart';
-import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
-import '../services/user_service.dart';
 import '../widgets/calendario_tab.dart';
 import '../widgets/cancelled_reservation_card.dart';
 import '../widgets/events_locked_banner.dart';
-import '../widgets/following_profile_card.dart';
 import '../widgets/profile_events_section.dart';
 import '../widgets/reservation_card.dart';
 import 'event_detail_screen.dart';
-import 'public_profile_screen.dart';
 import 'settings/pro_plan_screen.dart';
-
-enum _NetworkMode { following, followers, favorites }
 
 enum _ReservationsMode { proximas, finalizadas, canceladas }
 
@@ -59,17 +52,6 @@ class MySpaceScreenState extends State<MySpaceScreen> {
   bool _loadingCancelled = false;
   String? _cancelledError;
 
-  _NetworkMode _networkMode = _NetworkMode.following;
-  List<PopularProfile>? _following;
-  bool _loadingFollowing = false;
-  String? _followingError;
-  List<PopularProfile>? _followers;
-  bool _loadingFollowers = false;
-  String? _followersError;
-  List<PopularProfile>? _favorites;
-  bool _loadingFavorites = false;
-  String? _favoritesError;
-
   @override
   void initState() {
     super.initState();
@@ -77,9 +59,6 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     _loadSavedEvents();
     _loadReservations();
     _loadCancelledReservations();
-    _loadFollowing();
-    _loadFollowers();
-    _loadFavorites();
   }
 
   void refreshMySpace() {
@@ -87,9 +66,6 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     _loadSavedEvents();
     _loadReservations();
     _loadCancelledReservations();
-    _loadFollowing();
-    _loadFollowers();
-    _loadFavorites();
     _calendarioKey.currentState?.refresh();
   }
 
@@ -167,102 +143,10 @@ class MySpaceScreenState extends State<MySpaceScreen> {
     }
   }
 
-  Future<void> _loadFollowing() async {
-    setState(() {
-      _loadingFollowing = true;
-      _followingError = null;
-    });
-    try {
-      final profiles = await UserService.getMyFollowing(token: widget.token);
-      if (mounted) setState(() => _following = profiles);
-    } catch (e) {
-      if (mounted) setState(() => _followingError = e.toString());
-    } finally {
-      if (mounted) setState(() => _loadingFollowing = false);
-    }
-  }
-
-  Future<void> _loadFollowers() async {
-    setState(() {
-      _loadingFollowers = true;
-      _followersError = null;
-    });
-    try {
-      final profiles = await UserService.getMyFollowers(token: widget.token);
-      if (mounted) setState(() => _followers = profiles);
-    } catch (e) {
-      if (mounted) setState(() => _followersError = e.toString());
-    } finally {
-      if (mounted) setState(() => _loadingFollowers = false);
-    }
-  }
-
-  Future<void> _loadFavorites() async {
-    setState(() {
-      _loadingFavorites = true;
-      _favoritesError = null;
-    });
-    try {
-      final profiles = await UserService.getMyFavorites(token: widget.token);
-      if (mounted) setState(() => _favorites = profiles);
-    } catch (e) {
-      if (mounted) setState(() => _favoritesError = e.toString());
-    } finally {
-      if (mounted) setState(() => _loadingFavorites = false);
-    }
-  }
-
-  Future<void> _toggleFavorite(PopularProfile profile) async {
-    try {
-      final isFavorite = profile.isFavorite
-          ? await UserService.removeFavorite(
-              token: widget.token,
-              userId: profile.userId,
-            )
-          : await UserService.addFavorite(
-              token: widget.token,
-              userId: profile.userId,
-            );
-      if (!mounted) return;
-      setState(() {
-        _following = _following
-            ?.map(
-              (p) => p.userId == profile.userId
-                  ? p.copyWith(isFavorite: isFavorite)
-                  : p,
-            )
-            .toList();
-        _followers = _followers
-            ?.map(
-              (p) => p.userId == profile.userId
-                  ? p.copyWith(isFavorite: isFavorite)
-                  : p,
-            )
-            .toList();
-        if (isFavorite) {
-          if (_favorites != null &&
-              !_favorites!.any((p) => p.userId == profile.userId)) {
-            _favorites = [profile.copyWith(isFavorite: true), ..._favorites!];
-          }
-        } else {
-          _favorites = _favorites
-              ?.where((p) => p.userId != profile.userId)
-              .toList();
-        }
-      });
-    } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Mi espacio'),
@@ -273,7 +157,6 @@ class MySpaceScreenState extends State<MySpaceScreen> {
               Tab(text: 'Mis Eventos'),
               Tab(text: 'Mis reservas'),
               Tab(text: 'Guardados'),
-              Tab(text: 'Mi red'),
               Tab(text: 'Calendario'),
             ],
           ),
@@ -283,7 +166,6 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             _buildMyEventsTab(context),
             _buildMisReservasTab(context),
             _buildGuardadosTab(context),
-            _buildMiRedTab(context),
             CalendarioTab(
               key: _calendarioKey,
               token: widget.token,
@@ -559,160 +441,6 @@ class MySpaceScreenState extends State<MySpaceScreen> {
             },
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMiRedTab(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: SegmentedButton<_NetworkMode>(
-            segments: [
-              ButtonSegment(
-                value: _NetworkMode.following,
-                label: Text(
-                  _following != null
-                      ? 'Siguiendo (${_following!.length})'
-                      : 'Siguiendo',
-                ),
-              ),
-              ButtonSegment(
-                value: _NetworkMode.followers,
-                label: Text(
-                  _followers != null
-                      ? 'Seguidores (${_followers!.length})'
-                      : 'Seguidores',
-                ),
-              ),
-              ButtonSegment(
-                value: _NetworkMode.favorites,
-                label: Text(
-                  _favorites != null
-                      ? 'Favoritos (${_favorites!.length})'
-                      : 'Favoritos',
-                ),
-              ),
-            ],
-            selected: {_networkMode},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) =>
-                setState(() => _networkMode = selection.first),
-          ),
-        ),
-        Expanded(
-          child: switch (_networkMode) {
-            _NetworkMode.following => _buildProfileList(
-              profiles: _following,
-              isLoading: _loadingFollowing,
-              error: _followingError,
-              onRetry: _loadFollowing,
-              emptyMessage: 'Todavía no sigues a ningún perfil',
-            ),
-            _NetworkMode.followers => _buildProfileList(
-              profiles: _followers,
-              isLoading: _loadingFollowers,
-              error: _followersError,
-              onRetry: _loadFollowers,
-              emptyMessage: 'Todavía no tienes seguidores',
-            ),
-            _NetworkMode.favorites => _buildProfileList(
-              profiles: _favorites,
-              isLoading: _loadingFavorites,
-              error: _favoritesError,
-              onRetry: _loadFavorites,
-              emptyMessage:
-                  'Marca perfiles como favoritos ⭐ para descubrir rápido sus nuevos eventos',
-            ),
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProfileList({
-    required List<PopularProfile>? profiles,
-    required bool isLoading,
-    required String? error,
-    required VoidCallback onRetry,
-    required String emptyMessage,
-  }) {
-    if (isLoading && profiles == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (error != null && profiles == null) {
-      return ListView(
-        children: [
-          const SizedBox(height: 120),
-          Icon(
-            Icons.error_outline,
-            size: 40,
-            color: Theme.of(context).colorScheme.error,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'No se pudo cargar la información',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: TextButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
-          ),
-        ],
-      );
-    }
-
-    final results = profiles ?? [];
-    if (results.isEmpty) {
-      return ListView(
-        children: [
-          const SizedBox(height: 120),
-          Icon(
-            Icons.people_outline,
-            size: 40,
-            color: Theme.of(context).colorScheme.outline,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            emptyMessage,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        _loadFollowing();
-        _loadFollowers();
-        _loadFavorites();
-      },
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: results.length,
-        itemBuilder: (context, index) {
-          final profile = results[index];
-          return FollowingProfileCard(
-            profile: profile,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => PublicProfileScreen(
-                  token: widget.token,
-                  userId: profile.userId,
-                  currentUserId: widget.currentUserId,
-                ),
-              ),
-            ),
-            onToggleFavorite: () => _toggleFavorite(profile),
-          );
-        },
       ),
     );
   }
