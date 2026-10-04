@@ -8,7 +8,9 @@ import '../models/app_notification.dart';
 import 'auth_service.dart';
 
 class NotificationService {
-  static Future<List<AppNotification>> getMyNotifications({required String token}) async {
+  static Future<List<AppNotification>> getMyNotifications({
+    required String token,
+  }) async {
     http.Response response;
     try {
       response = await http
@@ -36,6 +38,30 @@ class NotificationService {
       response = await http
           .post(
             Uri.parse('${ApiConfig.baseUrl}/notifications/mark-read'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    if (response.statusCode >= 400) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+  }
+
+  static Future<void> markAsRead({
+    required String token,
+    required String notificationId,
+  }) async {
+    http.Response response;
+    try {
+      response = await http
+          .patch(
+            Uri.parse(
+              '${ApiConfig.baseUrl}/notifications/$notificationId/read',
+            ),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 10));

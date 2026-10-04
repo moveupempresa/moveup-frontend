@@ -3,13 +3,21 @@ import 'package:flutter/material.dart';
 import '../../models/app_notification.dart';
 import '../../services/app_version_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/event_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/registration_service.dart';
+import '../event_detail_screen.dart';
+import '../public_profile_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String token;
+  final String currentUserId;
 
-  const NotificationsScreen({super.key, required this.token});
+  const NotificationsScreen({
+    super.key,
+    required this.token,
+    required this.currentUserId,
+  });
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -56,7 +64,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<AppNotification>? _notifications;
   bool _loading = true;
   String? _error;
-  bool _markedRead = false;
   bool? _updateAvailable;
 
   @override
@@ -76,7 +83,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         token: widget.token,
       );
       if (mounted) setState(() => _notifications = notifications);
-      _markAllReadOnce(notifications);
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
@@ -108,11 +114,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  void _markAllReadOnce(List<AppNotification> notifications) {
-    if (_markedRead) return;
-    if (!notifications.any((n) => !n.read)) return;
-    _markedRead = true;
-    NotificationService.markAllAsRead(token: widget.token).catchError((_) {});
+  void _markRead(String notificationId) {
+    final notifications = _notifications;
+    if (notifications == null) return;
+    final index = notifications.indexWhere((n) => n.id == notificationId);
+    if (index == -1 || notifications[index].read) return;
+
+    setState(() {
+      _notifications = [...notifications]
+        ..[index] = notifications[index].copyWith(read: true);
+    });
+    NotificationService.markAsRead(
+      token: widget.token,
+      notificationId: notificationId,
+    ).catchError((_) {});
   }
 
   List<AppNotification> _itemsOfTypes(Set<NotificationType> types) =>
@@ -309,7 +324,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             (n) => _NotificationTile(
               notification: n,
               token: widget.token,
+              currentUserId: widget.currentUserId,
               onResolved: _silentRefresh,
+              onMarkRead: () => _markRead(n.id),
             ),
           )
           .toList(),
@@ -320,12 +337,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 class _NotificationTile extends StatefulWidget {
   final AppNotification notification;
   final String token;
+  final String currentUserId;
   final VoidCallback onResolved;
+  final VoidCallback onMarkRead;
 
   const _NotificationTile({
     required this.notification,
     required this.token,
+    required this.currentUserId,
     required this.onResolved,
+    required this.onMarkRead,
   });
 
   @override
@@ -350,6 +371,55 @@ class _NotificationTileState extends State<_NotificationTile> {
 
   bool _isResponding = false;
   bool _responded = false;
+  bool _isNavigating = false;
+
+  Future<void> _handleTap() async {
+    widget.onMarkRead();
+    final n = widget.notification;
+    final eventId = n.relatedEventId;
+    final userId = n.relatedUserId;
+
+    if (eventId != null) {
+      setState(() => _isNavigating = true);
+      try {
+        final event = await EventService.getEvent(
+          token: widget.token,
+          eventId: eventId,
+        );
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => EventDetailScreen(
+              token: widget.token,
+              event: event,
+              currentUserId: widget.currentUserId,
+            ),
+          ),
+        );
+        widget.onResolved();
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir el evento')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isNavigating = false);
+      }
+    } else if (userId != null &&
+        (n.type == NotificationType.followedUser ||
+            n.type == NotificationType.newFollower)) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PublicProfileScreen(
+            token: widget.token,
+            userId: userId,
+            currentUserId: widget.currentUserId,
+          ),
+        ),
+      );
+    }
+  }
 
   String _formatDate(DateTime dt) {
     final local = dt.toLocal();
@@ -529,7 +599,14 @@ class _NotificationTileState extends State<_NotificationTile> {
         organizerPhone.isNotEmpty;
 
     return ListTile(
-      leading: Icon(_icon, color: Theme.of(context).colorScheme.primary),
+      onTap: _isNavigating ? null : _handleTap,
+      leading: _isNavigating
+          ? const SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(_icon, color: Theme.of(context).colorScheme.primary),
       title: Text(
         notification.message,
         style: notification.read

@@ -169,7 +169,10 @@ class ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => NotificationsScreen(token: widget.token),
+                  builder: (_) => NotificationsScreen(
+                    token: widget.token,
+                    currentUserId: _user.id,
+                  ),
                 ),
               );
               _loadNotificationStatus();

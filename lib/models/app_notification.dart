@@ -76,4 +76,18 @@ class AppNotification {
         createdAt: DateTime.parse(json['createdAt'] as String),
         isPending: json['isPending'] as bool?,
       );
+
+  AppNotification copyWith({bool? read}) => AppNotification(
+    id: id,
+    type: type,
+    message: message,
+    relatedUserId: relatedUserId,
+    relatedEventId: relatedEventId,
+    relatedTargetType: relatedTargetType,
+    relatedTargetId: relatedTargetId,
+    organizerPhone: organizerPhone,
+    read: read ?? this.read,
+    createdAt: createdAt,
+    isPending: isPending,
+  );
 }
