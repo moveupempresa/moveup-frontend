@@ -6,12 +6,21 @@ import '../models/popular_profile.dart';
 class FollowingProfileCard extends StatelessWidget {
   final PopularProfile profile;
   final VoidCallback onTap;
+  final VoidCallback? onToggleFavorite;
 
-  const FollowingProfileCard({super.key, required this.profile, required this.onTap});
+  const FollowingProfileCard({
+    super.key,
+    required this.profile,
+    required this.onTap,
+    this.onToggleFavorite,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final location = [profile.city, profile.country].where((s) => s.isNotEmpty).join(', ');
+    final location = [
+      profile.city,
+      profile.country,
+    ].where((s) => s.isNotEmpty).join(', ');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -46,7 +55,22 @@ class FollowingProfileCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.chevron_right_outlined, color: Theme.of(context).colorScheme.outline),
+                      if (onToggleFavorite != null)
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onToggleFavorite,
+                          tooltip: profile.isFavorite
+                              ? 'Quitar de favoritos'
+                              : 'Añadir a favoritos',
+                          icon: Icon(
+                            profile.isFavorite ? Icons.star : Icons.star_border,
+                            color: profile.isFavorite ? Colors.amber : null,
+                          ),
+                        ),
+                      Icon(
+                        Icons.chevron_right_outlined,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                     ],
                   ),
                   if (profile.artisticName.isNotEmpty) ...[
@@ -54,9 +78,9 @@ class FollowingProfileCard extends StatelessWidget {
                     Text(
                       profile.artisticName,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontStyle: FontStyle.italic,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                        fontStyle: FontStyle.italic,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -86,8 +110,8 @@ class FollowingProfileCard extends StatelessWidget {
                     Text(
                       profile.bio,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -110,8 +134,8 @@ class FollowingProfileCard extends StatelessWidget {
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+              color: Theme.of(context).colorScheme.outline,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

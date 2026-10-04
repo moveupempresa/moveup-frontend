@@ -45,10 +45,8 @@ class ProfileService {
     );
   }
 
-  static Future<(Profile, String, bool, int, ContactInfo?)> getUserProfile({
-    required String token,
-    required String userId,
-  }) async {
+  static Future<(Profile, String, bool, int, ContactInfo?, bool)>
+  getUserProfile({required String token, required String userId}) async {
     http.Response response;
     try {
       response = await http
@@ -72,7 +70,15 @@ class ProfileService {
     final contact = data['contact'] != null
         ? ContactInfo.fromJson(data['contact'] as Map<String, dynamic>)
         : null;
-    return (profile, username, isFollowing, followersCount, contact);
+    final isFavorite = data['isFavorite'] as bool? ?? false;
+    return (
+      profile,
+      username,
+      isFollowing,
+      followersCount,
+      contact,
+      isFavorite,
+    );
   }
 
   static Future<Profile> addGalleryAlbum({

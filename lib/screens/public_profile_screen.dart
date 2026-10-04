@@ -43,6 +43,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   bool _isFollowing = false;
   int _followersCount = 0;
   bool _isTogglingFollow = false;
+  bool _isFavorite = false;
+  bool _isTogglingFavorite = false;
 
   bool get _isOwnProfile => widget.userId == widget.currentUserId;
 
@@ -69,7 +71,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         ),
       ]);
       final profileResult =
-          results[0] as (Profile, String, bool, int, ContactInfo?);
+          results[0] as (Profile, String, bool, int, ContactInfo?, bool);
       final events = results[1] as List<Event>;
       if (mounted) {
         setState(() {
@@ -78,6 +80,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           _isFollowing = profileResult.$3;
           _followersCount = profileResult.$4;
           _contact = profileResult.$5;
+          _isFavorite = profileResult.$6;
           _events = events;
         });
       }
@@ -116,6 +119,30 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _isTogglingFollow = false);
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    setState(() => _isTogglingFavorite = true);
+    try {
+      final isFavorite = _isFavorite
+          ? await UserService.removeFavorite(
+              token: widget.token,
+              userId: widget.userId,
+            )
+          : await UserService.addFavorite(
+              token: widget.token,
+              userId: widget.userId,
+            );
+      if (mounted) setState(() => _isFavorite = isFavorite);
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isTogglingFavorite = false);
     }
   }
 
@@ -221,30 +248,54 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           ),
           if (!_isOwnProfile) ...[
             const SizedBox(height: 12),
-            Center(
-              child: _isFollowing
-                  ? OutlinedButton.icon(
-                      onPressed: _isTogglingFollow ? null : _toggleFollow,
-                      icon: _isTogglingFollow
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.check),
-                      label: const Text('Siguiendo'),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _isTogglingFollow ? null : _toggleFollow,
-                      icon: _isTogglingFollow
-                          ? const SizedBox(
-                              height: 16,
-                              width: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.add),
-                      label: const Text('Seguir'),
-                    ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _isFollowing
+                    ? OutlinedButton.icon(
+                        onPressed: _isTogglingFollow ? null : _toggleFollow,
+                        icon: _isTogglingFollow
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.check),
+                        label: const Text('Siguiendo'),
+                      )
+                    : FilledButton.icon(
+                        onPressed: _isTogglingFollow ? null : _toggleFollow,
+                        icon: _isTogglingFollow
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.add),
+                        label: const Text('Seguir'),
+                      ),
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  onPressed: _isTogglingFavorite ? null : _toggleFavorite,
+                  tooltip: _isFavorite
+                      ? 'Quitar de favoritos'
+                      : 'Añadir a favoritos',
+                  icon: _isTogglingFavorite
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _isFavorite ? Icons.star : Icons.star_border,
+                          color: _isFavorite ? Colors.amber : null,
+                        ),
+                ),
+              ],
             ),
           ],
           if (profile.artisticName.isNotEmpty) ...[

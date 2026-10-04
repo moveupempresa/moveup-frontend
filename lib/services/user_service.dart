@@ -154,6 +154,67 @@ class UserService {
         .toList();
   }
 
+  static Future<List<PopularProfile>> getMyFavorites({
+    required String token,
+  }) async {
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/users/me/favorites'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return (data['profiles'] as List<dynamic>)
+        .map((p) => PopularProfile.fromJson(p as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<bool> addFavorite({
+    required String token,
+    required String userId,
+  }) => _favoriteRequest(token: token, userId: userId, remove: false);
+
+  static Future<bool> removeFavorite({
+    required String token,
+    required String userId,
+  }) => _favoriteRequest(token: token, userId: userId, remove: true);
+
+  static Future<bool> _favoriteRequest({
+    required String token,
+    required String userId,
+    required bool remove,
+  }) async {
+    http.Response response;
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/$userId/favorite');
+      final headers = {'Authorization': 'Bearer $token'};
+      response = remove
+          ? await http
+                .delete(uri, headers: headers)
+                .timeout(const Duration(seconds: 10))
+          : await http
+                .post(uri, headers: headers)
+                .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    return data['isFavorite'] as bool;
+  }
+
   static Future<List<PopularProfile>> getMyFollowers({
     required String token,
   }) async {

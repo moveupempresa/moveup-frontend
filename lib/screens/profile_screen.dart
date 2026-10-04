@@ -95,6 +95,11 @@ class ProfileScreenState extends State<ProfileScreen> {
     if (_user.subscriptionPlan == SubscriptionPlan.pro) _loadEvents();
   }
 
+  // The badge is only checked once in initState, so without this it goes
+  // stale: a notification that arrives while already on (or after leaving
+  // and returning to) this tab wouldn't show until the app restarts.
+  void refreshNotificationStatus() => _loadNotificationStatus();
+
   Future<void> _editProfile() async {
     final updated = await Navigator.of(context).push<Profile>(
       MaterialPageRoute(

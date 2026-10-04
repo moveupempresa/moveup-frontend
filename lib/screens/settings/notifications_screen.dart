@@ -46,7 +46,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.savedEventSpotFreed,
     NotificationType.savedEventReminder,
   };
-  static const _followedUsersTypes = {NotificationType.followedUserNewEvent};
+  static const _discoveryTypes = {NotificationType.followedUserNewEvent};
   static const _socialTypes = {
     NotificationType.followedUser,
     NotificationType.newFollower,
@@ -124,7 +124,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final discoveryUnread =
-        _unreadCount(_savedEventTypes) + _unreadCount(_followedUsersTypes);
+        _unreadCount(_savedEventTypes) + _unreadCount(_discoveryTypes);
     final accountUnread =
         _unreadCount(_socialTypes) +
         _unreadCount(_systemTypes) +
@@ -193,7 +193,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             'Usuarios que sigo',
             Icons.person_search_outlined,
           ),
-          _buildNotificationList(_itemsOfTypes(_followedUsersTypes)),
+          _buildNotificationList(_itemsOfTypes(_discoveryTypes)),
         ],
       ),
     );

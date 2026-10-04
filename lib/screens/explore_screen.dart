@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../models/explore_sections.dart';
 import '../models/popular_profile.dart';
+import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/user_service.dart';
 import '../widgets/event_card.dart';
@@ -124,6 +125,36 @@ class ExploreScreenState extends State<ExploreScreen> {
       if (mounted) setState(() => _userSearchError = e.toString());
     } finally {
       if (mounted) setState(() => _loadingUserSearch = false);
+    }
+  }
+
+  Future<void> _toggleFavorite(PopularProfile profile) async {
+    try {
+      final isFavorite = profile.isFavorite
+          ? await UserService.removeFavorite(
+              token: widget.token,
+              userId: profile.userId,
+            )
+          : await UserService.addFavorite(
+              token: widget.token,
+              userId: profile.userId,
+            );
+      if (!mounted) return;
+      setState(() {
+        _userSearchResults = _userSearchResults
+            ?.map(
+              (p) => p.userId == profile.userId
+                  ? p.copyWith(isFavorite: isFavorite)
+                  : p,
+            )
+            .toList();
+      });
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -608,6 +639,7 @@ class ExploreScreenState extends State<ExploreScreen> {
                 ),
               ),
             ),
+            onToggleFavorite: () => _toggleFavorite(profile),
           );
         },
       ),

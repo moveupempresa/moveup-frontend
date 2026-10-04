@@ -36,7 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      ExploreScreen(key: _exploreKey, token: widget.token, currentUserId: widget.user.id),
+      ExploreScreen(
+        key: _exploreKey,
+        token: widget.token,
+        currentUserId: widget.user.id,
+      ),
       CreateScreen(user: widget.user, token: widget.token),
       MySpaceScreen(
         key: _mySpaceKey,
@@ -58,15 +62,36 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() => _selectedIndex = index);
-          if (index == _profileTabIndex) _profileKey.currentState?.refreshEvents();
-          if (index == _exploreTabIndex) _exploreKey.currentState?.refreshEvents();
-          if (index == _mySpaceTabIndex) _mySpaceKey.currentState?.refreshMySpace();
+          if (index == _profileTabIndex) {
+            _profileKey.currentState?.refreshEvents();
+            _profileKey.currentState?.refreshNotificationStatus();
+          }
+          if (index == _exploreTabIndex)
+            _exploreKey.currentState?.refreshEvents();
+          if (index == _mySpaceTabIndex)
+            _mySpaceKey.currentState?.refreshMySpace();
         },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Explorar'),
-          NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: 'Crear'),
-          NavigationDestination(icon: Icon(Icons.bookmark_outline), selectedIcon: Icon(Icons.bookmark), label: 'Mi espacio'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Perfil'),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
+            label: 'Explorar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_circle_outline),
+            selectedIcon: Icon(Icons.add_circle),
+            label: 'Crear',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bookmark_outline),
+            selectedIcon: Icon(Icons.bookmark),
+            label: 'Mi espacio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
         ],
       ),
     );
