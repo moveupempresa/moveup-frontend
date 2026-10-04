@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/user.dart';
+import '../../services/app_location_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/auth_storage_service.dart';
 import '../../services/user_service.dart';
@@ -33,6 +34,8 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _logout() async {
     await AuthStorageService.clearToken();
+    await AppLocationService.saveTab(0);
+    await AppLocationService.saveOpenEvent(null);
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -179,6 +182,8 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await UserService.deleteAccount(token: widget.token);
       await AuthStorageService.clearToken();
+      await AppLocationService.saveTab(0);
+      await AppLocationService.saveOpenEvent(null);
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),

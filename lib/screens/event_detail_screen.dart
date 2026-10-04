@@ -5,6 +5,7 @@ import '../config/api_config.dart';
 import '../models/event.dart';
 import '../models/pack.dart';
 import '../models/session.dart';
+import '../services/app_location_service.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
@@ -61,6 +62,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   bool _isTogglingSave = false;
   late bool _isSaved = widget.event.isSaved;
   int _heroCoverPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    AppLocationService.saveOpenEvent(widget.event.id);
+  }
+
+  @override
+  void dispose() {
+    AppLocationService.saveOpenEvent(null);
+    super.dispose();
+  }
 
   List<Widget> _coverSlides(BuildContext context, Event event) {
     final slides = <Widget>[];

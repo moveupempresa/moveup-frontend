@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../models/profile.dart';
 import '../models/user.dart';
+import '../services/app_location_service.dart';
+import '../services/event_service.dart';
 import 'create_screen.dart';
+import 'event_detail_screen.dart';
 import 'explore_screen.dart';
 import 'my_space_screen.dart';
 import 'profile_screen.dart';
@@ -34,6 +37,46 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _profileTabIndex = 3;
 
   @override
+  void initState() {
+    super.initState();
+    _restoreLocation();
+  }
+
+  // Only ever meaningfully runs after a genuine cold (re)start - while the
+  // app is simply backgrounded and resumed, this State survives in memory
+  // and initState doesn't re-run, so this never fights with normal in-app
+  // navigation.
+  Future<void> _restoreLocation() async {
+    final tab = await AppLocationService.loadTab();
+    if (mounted && tab != _selectedIndex) {
+      setState(() => _selectedIndex = tab);
+    }
+
+    final eventId = await AppLocationService.loadOpenEvent();
+    if (eventId == null || !mounted) return;
+    try {
+      final event = await EventService.getEvent(
+        token: widget.token,
+        eventId: eventId,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EventDetailScreen(
+            token: widget.token,
+            event: event,
+            currentUserId: widget.user.id,
+          ),
+        ),
+      );
+    } catch (_) {
+      // Event may have been deleted, or this was a network hiccup - either
+      // way, landing on the restored tab underneath is a fine fallback.
+      AppLocationService.saveOpenEvent(null);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final screens = [
       ExploreScreen(
@@ -62,14 +105,17 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() => _selectedIndex = index);
+          AppLocationService.saveTab(index);
           if (index == _profileTabIndex) {
             _profileKey.currentState?.refreshEvents();
             _profileKey.currentState?.refreshNotificationStatus();
           }
-          if (index == _exploreTabIndex)
+          if (index == _exploreTabIndex) {
             _exploreKey.currentState?.refreshEvents();
-          if (index == _mySpaceTabIndex)
+          }
+          if (index == _mySpaceTabIndex) {
             _mySpaceKey.currentState?.refreshMySpace();
+          }
         },
         destinations: const [
           NavigationDestination(
