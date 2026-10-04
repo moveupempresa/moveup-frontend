@@ -15,7 +15,7 @@ enum PaymentType {
   bizum('bizum', 'Bizum'),
   paypal('paypal', 'PayPal'),
   offline('offline', 'Efectivo'),
-  online('online', 'Pago online');
+  online('online', 'Pago con plataforma externa online');
 
   const PaymentType(this.value, this.label);
   final String value;
