@@ -205,7 +205,6 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
     final shown = _eventsMode == _EventsMode.current ? current : finished;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SegmentedButton<_EventsMode>(
           segments: [
