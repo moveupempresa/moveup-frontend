@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
+import '../models/contact_info.dart';
 import '../models/event.dart';
 import '../models/profile.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/profile_service.dart';
 import '../services/user_service.dart';
+import '../widgets/contact_methods_row.dart';
 import '../widgets/cv_link.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/profile_events_section.dart';
@@ -33,6 +35,7 @@ class PublicProfileScreen extends StatefulWidget {
 class _PublicProfileScreenState extends State<PublicProfileScreen> {
   Profile? _profile;
   String? _username;
+  ContactInfo? _contact;
   List<Event>? _events;
   bool _loading = true;
   String? _error;
@@ -65,7 +68,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           userId: widget.userId,
         ),
       ]);
-      final profileResult = results[0] as (Profile, String, bool, int);
+      final profileResult =
+          results[0] as (Profile, String, bool, int, ContactInfo?);
       final events = results[1] as List<Event>;
       if (mounted) {
         setState(() {
@@ -73,6 +77,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           _username = profileResult.$2;
           _isFollowing = profileResult.$3;
           _followersCount = profileResult.$4;
+          _contact = profileResult.$5;
           _events = events;
         });
       }
@@ -289,6 +294,13 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
             CvLink(cvUrl: profile.cvUrl),
           ],
           SocialLinksRow(socialLinks: profile.socialLinks),
+          if (_contact?.hasAny ?? false) ...[
+            const SizedBox(height: 12),
+            ContactMethodsRow.fromContactInfo(
+              _contact,
+              alignment: WrapAlignment.center,
+            ),
+          ],
         ],
       ),
     );

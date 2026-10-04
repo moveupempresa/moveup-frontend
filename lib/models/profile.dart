@@ -12,9 +12,9 @@ class GalleryItem {
   bool get isVideo => isGalleryVideoUrl(urls.first);
 
   factory GalleryItem.fromJson(Map<String, dynamic> json) => GalleryItem(
-        id: json['id'] as String,
-        urls: (json['urls'] as List<dynamic>).cast<String>(),
-      );
+    id: json['id'] as String,
+    urls: (json['urls'] as List<dynamic>).cast<String>(),
+  );
 }
 
 class SocialLinks {
@@ -43,12 +43,12 @@ class SocialLinks {
   }
 
   Map<String, String> toJson() => {
-        'instagram': instagram,
-        'tiktok': tiktok,
-        'youtube': youtube,
-        'facebook': facebook,
-        'twitter': twitter,
-      };
+    'instagram': instagram,
+    'tiktok': tiktok,
+    'youtube': youtube,
+    'facebook': facebook,
+    'twitter': twitter,
+  };
 
   SocialLinks copyWith({
     String? instagram,
@@ -67,6 +67,62 @@ class SocialLinks {
   }
 }
 
+/// Which of the user's already-filled-in fields (their account phone/
+/// email, or one of [SocialLinks]) they've chosen to surface as contact
+/// info - on their own profile, and (for event creators) on their events.
+class ContactMethods {
+  final bool phone;
+  final bool email;
+  final bool socialEnabled;
+  final String? socialPlatform;
+
+  const ContactMethods({
+    required this.phone,
+    required this.email,
+    required this.socialEnabled,
+    required this.socialPlatform,
+  });
+
+  static const empty = ContactMethods(
+    phone: false,
+    email: false,
+    socialEnabled: false,
+    socialPlatform: null,
+  );
+
+  bool get hasAny => phone || email || socialEnabled;
+
+  factory ContactMethods.fromJson(Map<String, dynamic>? json) {
+    final social = json?['social'] as Map<String, dynamic>?;
+    return ContactMethods(
+      phone: json?['phone'] as bool? ?? false,
+      email: json?['email'] as bool? ?? false,
+      socialEnabled: social?['enabled'] as bool? ?? false,
+      socialPlatform: social?['platform'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'phone': phone,
+    'email': email,
+    'social': {'enabled': socialEnabled, 'platform': socialPlatform},
+  };
+
+  ContactMethods copyWith({
+    bool? phone,
+    bool? email,
+    bool? socialEnabled,
+    String? socialPlatform,
+  }) {
+    return ContactMethods(
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      socialEnabled: socialEnabled ?? this.socialEnabled,
+      socialPlatform: socialPlatform ?? this.socialPlatform,
+    );
+  }
+}
+
 class Profile {
   final String id;
   final String userId;
@@ -81,6 +137,7 @@ class Profile {
   final String cvUrl;
   final int experience;
   final SocialLinks socialLinks;
+  final ContactMethods contactMethods;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -98,6 +155,7 @@ class Profile {
     required this.cvUrl,
     required this.experience,
     required this.socialLinks,
+    required this.contactMethods,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -112,7 +170,8 @@ class Profile {
       city: json['city'] as String? ?? '',
       country: json['country'] as String? ?? '',
       profileImage: json['profileImage'] as String?,
-      gallery: (json['gallery'] as List<dynamic>?)
+      gallery:
+          (json['gallery'] as List<dynamic>?)
               ?.map((g) => GalleryItem.fromJson(g as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -121,6 +180,9 @@ class Profile {
       experience: (json['experience'] as num?)?.toInt() ?? 0,
       socialLinks: SocialLinks.fromJson(
         (json['socialLinks'] as Map<String, dynamic>?) ?? {},
+      ),
+      contactMethods: ContactMethods.fromJson(
+        json['contactMethods'] as Map<String, dynamic>?,
       ),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -139,6 +201,7 @@ class Profile {
     String? cvUrl,
     int? experience,
     SocialLinks? socialLinks,
+    ContactMethods? contactMethods,
   }) {
     return Profile(
       id: id,
@@ -154,6 +217,7 @@ class Profile {
       cvUrl: cvUrl ?? this.cvUrl,
       experience: experience ?? this.experience,
       socialLinks: socialLinks ?? this.socialLinks,
+      contactMethods: contactMethods ?? this.contactMethods,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

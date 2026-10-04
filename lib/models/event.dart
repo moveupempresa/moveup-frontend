@@ -1,3 +1,4 @@
+import 'contact_info.dart';
 import 'pack.dart';
 import 'session.dart';
 
@@ -84,6 +85,7 @@ class Event {
   final List<Pack>? packs;
   final String ownerUsername;
   final String ownerDisplayName;
+  final ContactInfo? creatorContact;
   final bool isSaved;
 
   const Event({
@@ -109,6 +111,7 @@ class Event {
     this.packs,
     this.ownerUsername = '',
     this.ownerDisplayName = '',
+    this.creatorContact,
     this.isSaved = false,
   });
 
@@ -157,6 +160,9 @@ class Event {
         : null,
     ownerUsername: json['ownerUsername'] as String? ?? '',
     ownerDisplayName: json['ownerDisplayName'] as String? ?? '',
+    creatorContact: json['creatorContact'] != null
+        ? ContactInfo.fromJson(json['creatorContact'] as Map<String, dynamic>)
+        : null,
     isSaved: json['isSaved'] as bool? ?? false,
   );
 }

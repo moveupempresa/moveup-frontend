@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 import '../config/api_config.dart';
+import '../models/contact_info.dart';
 import '../models/profile.dart';
 import 'auth_service.dart';
 
@@ -20,6 +21,7 @@ class ProfileService {
     String? cvUrl,
     int? experience,
     Map<String, String>? socialLinks,
+    ContactMethods? contactMethods,
   }) async {
     final body = <String, dynamic>{};
     if (displayName != null) body['displayName'] = displayName;
@@ -31,6 +33,9 @@ class ProfileService {
     if (cvUrl != null) body['cvUrl'] = cvUrl;
     if (experience != null) body['experience'] = experience;
     if (socialLinks != null) body['socialLinks'] = socialLinks;
+    if (contactMethods != null) {
+      body['contactMethods'] = contactMethods.toJson();
+    }
 
     return _profileRequest(
       method: 'PATCH',
@@ -40,7 +45,7 @@ class ProfileService {
     );
   }
 
-  static Future<(Profile, String, bool, int)> getUserProfile({
+  static Future<(Profile, String, bool, int, ContactInfo?)> getUserProfile({
     required String token,
     required String userId,
   }) async {
@@ -64,7 +69,10 @@ class ProfileService {
     final username = data['username'] as String;
     final isFollowing = data['isFollowing'] as bool? ?? false;
     final followersCount = data['followersCount'] as int? ?? 0;
-    return (profile, username, isFollowing, followersCount);
+    final contact = data['contact'] != null
+        ? ContactInfo.fromJson(data['contact'] as Map<String, dynamic>)
+        : null;
+    return (profile, username, isFollowing, followersCount, contact);
   }
 
   static Future<Profile> addGalleryAlbum({

@@ -9,11 +9,13 @@ import '../services/notification_service.dart';
 import '../widgets/cv_link.dart';
 import '../widgets/events_locked_banner.dart';
 import '../widgets/image_viewer_dialog.dart';
+import '../widgets/contact_methods_row.dart';
 import '../widgets/profile_events_section.dart';
 import '../widgets/sliver_tab_bar_delegate.dart';
 import '../widgets/social_links_row.dart';
 import 'edit_profile_screen.dart';
 import 'event_detail_screen.dart';
+import 'settings/contact_methods_screen.dart';
 import 'settings/notifications_screen.dart';
 import 'settings/pro_plan_screen.dart';
 import 'settings_screen.dart';
@@ -133,13 +135,23 @@ class ProfileScreenState extends State<ProfileScreen> {
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Configuración',
             onPressed: () async {
-              final updatedUser = await Navigator.of(context).push(
+              final result = await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) =>
-                      SettingsScreen(token: widget.token, user: _user),
+                  builder: (_) => SettingsScreen(
+                    token: widget.token,
+                    user: _user,
+                    profile: _profile,
+                  ),
                 ),
               );
-              if (updatedUser != null) setState(() => _user = updatedUser);
+              if (result != null) {
+                final (updatedUser, updatedProfile) =
+                    result as (User?, Profile?);
+                setState(() {
+                  if (updatedUser != null) _user = updatedUser;
+                  if (updatedProfile != null) _profile = updatedProfile;
+                });
+              }
             },
           ),
         ],
@@ -245,6 +257,56 @@ class ProfileScreenState extends State<ProfileScreen> {
             CvLink(cvUrl: _profile.cvUrl),
           ],
           SocialLinksRow(socialLinks: _profile.socialLinks),
+          if (_profile.contactMethods.hasAny) ...[
+            const SizedBox(height: 8),
+            ContactMethodsRow.fromProfile(
+              user: _user,
+              profile: _profile,
+              alignment: WrapAlignment.center,
+            ),
+          ] else ...[
+            const SizedBox(height: 16),
+            Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: ListTile(
+                leading: Icon(
+                  Icons.warning_amber_outlined,
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+                title: Text(
+                  'Añade un método de contacto',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                subtitle: Text(
+                  'Teléfono, email o red social, para que puedan contactarte',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                onTap: () async {
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ContactMethodsScreen(
+                        token: widget.token,
+                        user: _user,
+                        profile: _profile,
+                      ),
+                    ),
+                  );
+                  if (result != null) {
+                    final (updatedUser, updatedProfile) =
+                        result as (User, Profile);
+                    setState(() {
+                      _user = updatedUser;
+                      _profile = updatedProfile;
+                    });
+                  }
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           OutlinedButton(
             onPressed: _editProfile,

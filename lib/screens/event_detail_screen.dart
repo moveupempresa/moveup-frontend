@@ -8,6 +8,7 @@ import '../models/session.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
+import '../widgets/contact_methods_row.dart';
 import '../widgets/video_player_view.dart';
 import 'event_form_screen.dart';
 import 'payment_screen.dart';
@@ -431,6 +432,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         )
                         .toList(),
                   ),
+                  const SizedBox(height: 20),
+                ],
+                if (!isOwner && (event.creatorContact?.hasAny ?? false)) ...[
+                  Text(
+                    'Contactar con el creador del evento',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  ContactMethodsRow.fromContactInfo(event.creatorContact),
                   const SizedBox(height: 20),
                 ],
                 _SessionsSection(
