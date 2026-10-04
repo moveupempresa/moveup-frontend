@@ -376,6 +376,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
               final time = await showTimePicker(
                 context: ctx,
                 initialTime: TimeOfDay.now(),
+                initialEntryMode: TimePickerEntryMode.inputOnly,
               );
               if (time == null) return;
               setSheetState(
@@ -402,6 +403,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
               final time = await showTimePicker(
                 context: ctx,
                 initialTime: TimeOfDay.now(),
+                initialEntryMode: TimePickerEntryMode.inputOnly,
               );
               if (time == null) return;
               setSheetState(
