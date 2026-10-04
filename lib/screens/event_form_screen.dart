@@ -53,6 +53,7 @@ class _PackDraft {
   String? paymentDetails;
   String? bizumConcept;
   double price;
+  String currency;
   ApprovalMode approvalMode;
   PackType packType;
   int? maxSelectableSessions;
@@ -65,6 +66,7 @@ class _PackDraft {
     this.paymentDetails,
     this.bizumConcept,
     required this.price,
+    this.currency = 'EUR',
     required this.approvalMode,
     required this.packType,
     this.maxSelectableSessions,
@@ -79,6 +81,7 @@ class _PackDraft {
         paymentDetails: p.paymentDetails,
         bizumConcept: p.bizumConcept,
         price: p.price,
+        currency: p.currency,
         approvalMode: p.approvalMode,
         packType: p.packType,
         maxSelectableSessions: p.maxSelectableSessions,
@@ -629,6 +632,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
           ? existing!.maxSelectableSessions.toString()
           : '',
     );
+    String currency = existing?.currency ?? 'EUR';
     PaymentType paymentType = existing?.paymentType ?? PaymentType.online;
     ApprovalMode approvalMode =
         existing?.approvalMode ?? ApprovalMode.automatic;
@@ -719,13 +723,34 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     }),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: priceCtrl,
-                    decoration: const InputDecoration(labelText: 'Precio'),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    onChanged: (_) => setSheetState(() {}),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: priceCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Precio',
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setSheetState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      DropdownButton<String>(
+                        value: currency,
+                        items: kPackCurrencies
+                            .map(
+                              (c) => DropdownMenuItem(value: c, child: Text(c)),
+                            )
+                            .toList(),
+                        onChanged: (v) => setSheetState(() {
+                          if (v != null) currency = v;
+                        }),
+                      ),
+                    ],
                   ),
                   if (paymentType.needsPaymentDetails) ...[
                     const SizedBox(height: 12),
@@ -879,6 +904,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                 existing.paymentDetails = paymentDetails;
                                 existing.bizumConcept = bizumConcept;
                                 existing.price = price;
+                                existing.currency = currency;
                                 existing.approvalMode = approvalMode;
                                 existing.packType = packType;
                                 existing.maxSelectableSessions = maxSelectable;
@@ -891,6 +917,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                                     paymentDetails: paymentDetails,
                                     bizumConcept: bizumConcept,
                                     price: price,
+                                    currency: currency,
                                     approvalMode: approvalMode,
                                     packType: packType,
                                     maxSelectableSessions: maxSelectable,
@@ -1090,6 +1117,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             eventId: eventId,
             name: pack.name,
             price: pack.price,
+            currency: pack.currency,
             paymentType: pack.paymentType,
             paymentDetails: pack.paymentDetails,
             bizumConcept: pack.bizumConcept,
@@ -1105,6 +1133,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             packId: pack.id!,
             name: pack.name,
             price: pack.price,
+            currency: pack.currency,
             paymentType: pack.paymentType,
             paymentDetails: pack.paymentDetails,
             bizumConcept: pack.bizumConcept,
@@ -1510,7 +1539,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     final i = entry.key;
                     final p = entry.value;
                     final priceLabel =
-                        '${p.price.toStringAsFixed(2)} · ${p.paymentType.label}';
+                        '${p.price.toStringAsFixed(2)} ${p.currency} · ${p.paymentType.label}';
                     final packTypeLabel = p.packType == PackType.customizable
                         ? '${p.packType.label} (máx. ${p.maxSelectableSessions} sesiones)'
                         : p.packType.label;

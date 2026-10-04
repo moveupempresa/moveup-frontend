@@ -1,3 +1,16 @@
+/// Currencies offered in the pack price's currency selector.
+const kPackCurrencies = [
+  'EUR',
+  'USD',
+  'GBP',
+  'MXN',
+  'COP',
+  'ARS',
+  'PEN',
+  'CLP',
+  'BRL',
+];
+
 enum PaymentType {
   bizum('bizum', 'Bizum'),
   paypal('paypal', 'PayPal'),
@@ -47,6 +60,7 @@ class Pack {
   final String name;
   final String? description;
   final double price;
+  final String currency;
   final PaymentType paymentType;
   final String? paymentDetails;
   final String? bizumConcept;
@@ -71,6 +85,7 @@ class Pack {
     required this.name,
     this.description,
     required this.price,
+    this.currency = 'EUR',
     required this.paymentType,
     this.paymentDetails,
     this.bizumConcept,
@@ -96,6 +111,7 @@ class Pack {
     name: json['name'] as String,
     description: json['description'] as String?,
     price: (json['price'] as num).toDouble(),
+    currency: json['currency'] as String? ?? 'EUR',
     paymentType: PaymentType.fromValue(json['paymentType'] as String),
     paymentDetails: json['paymentDetails'] as String?,
     bizumConcept: json['bizumConcept'] as String?,

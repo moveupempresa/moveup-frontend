@@ -1250,7 +1250,7 @@ class _PackCardState extends State<_PackCard> {
   Widget build(BuildContext context) {
     final pack = widget.pack;
     final priceLabel =
-        '${pack.price.toStringAsFixed(2)} · ${pack.paymentType.label}';
+        '${pack.price.toStringAsFixed(2)} ${pack.currency} · ${pack.paymentType.label}';
 
     final includedSessionNames = pack.sessionIds
         .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull?.name)
