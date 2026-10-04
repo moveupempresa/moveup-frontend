@@ -46,7 +46,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.savedEventSpotFreed,
     NotificationType.savedEventReminder,
   };
-  static const _discoveryTypes = {NotificationType.followedUserNewEvent};
+  static const _favoritesTypes = {NotificationType.followedUserNewEvent};
   static const _socialTypes = {
     NotificationType.followedUser,
     NotificationType.newFollower,
@@ -123,15 +123,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final discoveryUnread =
-        _unreadCount(_savedEventTypes) + _unreadCount(_discoveryTypes);
     final accountUnread =
         _unreadCount(_socialTypes) +
         _unreadCount(_systemTypes) +
         (_updateAvailable == true ? 1 : 0);
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Notificaciones'),
@@ -148,7 +146,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   _unreadCount(_myReservationsTypes),
                 ),
               ),
-              Tab(child: _tabLabel('Descubrimiento', discoveryUnread)),
+              Tab(
+                child: _tabLabel(
+                  'Eventos guardados',
+                  _unreadCount(_savedEventTypes),
+                ),
+              ),
+              Tab(child: _tabLabel('Favoritos', _unreadCount(_favoritesTypes))),
               Tab(child: _tabLabel('Cuenta', accountUnread)),
             ],
           ),
@@ -157,7 +161,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           children: [
             _buildFlatTab(_myEventsTypes),
             _buildFlatTab(_myReservationsTypes),
-            _buildDiscoveryTab(context),
+            _buildFlatTab(_savedEventTypes),
+            _buildFlatTab(_favoritesTypes),
             _buildAccountTab(context),
           ],
         ),
@@ -177,25 +182,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(children: [_buildNotificationList(_itemsOfTypes(types))]),
-    );
-  }
-
-  Widget _buildDiscoveryTab(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        children: [
-          _sectionHeader(context, 'Eventos guardados', Icons.bookmark_outline),
-          _buildNotificationList(_itemsOfTypes(_savedEventTypes)),
-          const Divider(height: 32),
-          _sectionHeader(
-            context,
-            'Usuarios que sigo',
-            Icons.person_search_outlined,
-          ),
-          _buildNotificationList(_itemsOfTypes(_discoveryTypes)),
-        ],
-      ),
     );
   }
 
