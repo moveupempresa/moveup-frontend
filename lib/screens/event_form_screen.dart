@@ -777,21 +777,35 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<ApprovalMode>(
-                    value: approvalMode,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirmación de reserva',
-                    ),
-                    items: ApprovalMode.values
-                        .map(
-                          (a) =>
-                              DropdownMenuItem(value: a, child: Text(a.label)),
-                        )
-                        .toList(),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setSheetState(() => approvalMode = v);
-                    },
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<ApprovalMode>(
+                          value: approvalMode,
+                          decoration: const InputDecoration(
+                            labelText: 'Confirmación de reserva',
+                          ),
+                          items: ApprovalMode.values
+                              .map(
+                                (a) => DropdownMenuItem(
+                                  value: a,
+                                  child: Text(a.label),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setSheetState(() => approvalMode = v);
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline),
+                        tooltip: '¿Cómo funciona la confirmación de reserva?',
+                        onPressed: () => _showApprovalModeInfo(ctx),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -993,7 +1007,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _PackTypeExplanation(
+                _InfoSection(
                   title: 'Pack fijo',
                   body:
                       'El creador selecciona las sesiones concretas que '
@@ -1005,7 +1019,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                       'las clases del mes.',
                 ),
                 const Divider(height: 32),
-                _PackTypeExplanation(
+                _InfoSection(
                   title: 'Pack personalizado',
                   body:
                       'El creador selecciona las sesiones disponibles y '
@@ -1016,6 +1030,74 @@ class _EventFormScreenState extends State<EventFormScreen> {
                       'Ejemplo: un pack de 3 clases por 15 €. El creador '
                       'ofrece todas las sesiones disponibles y el usuario '
                       'puede escoger las 3 que prefiera.',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showApprovalModeInfo(BuildContext context) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '¿Cómo funciona la confirmación de reserva?',
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const _InfoSection(
+                  title: 'Confirmación automática',
+                  body:
+                      'Cualquier usuario puede reservar directamente la '
+                      'sesión. La reserva queda confirmada en el momento, '
+                      'sin que el creador tenga que revisar ni aceptar '
+                      'previamente a la persona.',
+                ),
+                const Divider(height: 32),
+                const _InfoSection(
+                  title: 'Confirmación manual',
+                  body:
+                      'El usuario puede solicitar una reserva, pero esta no '
+                      'se confirma automáticamente. El creador recibe la '
+                      'solicitud y decide si quiere aceptar o rechazar a '
+                      'esa persona antes de confirmar su reserva.',
+                ),
+                const SizedBox(height: 20),
+                Text('En resumen:', style: Theme.of(ctx).textTheme.titleSmall),
+                const SizedBox(height: 6),
+                Text(
+                  'Automática → cualquiera puede reservar directamente.',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                Text(
+                  'Manual → el creador decide quién puede reservar.',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
                 ),
               ],
             ),
@@ -1669,16 +1751,12 @@ class _EventFormScreenState extends State<EventFormScreen> {
       Text(text, style: Theme.of(context).textTheme.titleSmall);
 }
 
-class _PackTypeExplanation extends StatelessWidget {
+class _InfoSection extends StatelessWidget {
   final String title;
   final String body;
-  final String example;
+  final String? example;
 
-  const _PackTypeExplanation({
-    required this.title,
-    required this.body,
-    required this.example,
-  });
+  const _InfoSection({required this.title, required this.body, this.example});
 
   @override
   Widget build(BuildContext context) {
@@ -1693,14 +1771,16 @@ class _PackTypeExplanation extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(body, style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 8),
-        Text(
-          example,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontStyle: FontStyle.italic,
-            color: Theme.of(context).colorScheme.outline,
+        if (example != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            example!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontStyle: FontStyle.italic,
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
