@@ -6,6 +6,8 @@ import 'event_card.dart';
 
 enum _ViewMode { list, calendar }
 
+enum _EventsMode { current, finished }
+
 class ProfileEventsSection extends StatefulWidget {
   final List<Event>? events;
   final bool isLoading;
@@ -34,6 +36,7 @@ class ProfileEventsSection extends StatefulWidget {
 
 class _ProfileEventsSectionState extends State<ProfileEventsSection> {
   _ViewMode _viewMode = _ViewMode.list;
+  _EventsMode _eventsMode = _EventsMode.current;
   late DateTime _focusedDay = _initialFocusedDay;
   DateTime? _selectedDay;
 
@@ -196,35 +199,52 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
     return sessions.every((s) => s.endDatetime.isBefore(now));
   }
 
-  Widget _sectionLabel(BuildContext context, String text) => Text(
-    text,
-    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-      color: Theme.of(context).colorScheme.outline,
-    ),
-  );
-
   Widget _buildList(List<Event> events) {
     final current = events.where((e) => !_isPast(e)).toList();
     final finished = events.where(_isPast).toList();
+    final shown = _eventsMode == _EventsMode.current ? current : finished;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (current.isNotEmpty) ...[
-          _sectionLabel(context, 'En curso'),
-          const SizedBox(height: 8),
-          ...current.map(
+        SegmentedButton<_EventsMode>(
+          segments: [
+            ButtonSegment(
+              value: _EventsMode.current,
+              label: Text('En curso (${current.length})'),
+            ),
+            ButtonSegment(
+              value: _EventsMode.finished,
+              label: Text('Finalizados (${finished.length})'),
+            ),
+          ],
+          selected: {_eventsMode},
+          showSelectedIcon: false,
+          onSelectionChanged: (selection) =>
+              setState(() => _eventsMode = selection.first),
+        ),
+        const SizedBox(height: 12),
+        if (shown.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _eventsMode == _EventsMode.current
+                  ? 'Sin eventos en curso'
+                  : 'Sin eventos finalizados',
+            ),
+          )
+        else
+          ...shown.map(
             (e) => EventCard(event: e, onTap: () => widget.onEventTap(e)),
           ),
-        ],
-        if (finished.isNotEmpty) ...[
-          if (current.isNotEmpty) const SizedBox(height: 20),
-          _sectionLabel(context, 'Finalizados'),
-          const SizedBox(height: 8),
-          ...finished.map(
-            (e) => EventCard(event: e, onTap: () => widget.onEventTap(e)),
-          ),
-        ],
       ],
     );
   }
