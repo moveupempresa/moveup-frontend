@@ -643,7 +643,29 @@ class _EventFormScreenState extends State<EventFormScreen> {
     addressDebounce?.cancel();
   }
 
-  void _removeSession(_SessionDraft session) {
+  Future<void> _removeSession(_SessionDraft session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar sesión?'),
+        content: Text('¿Estás seguro/a que deseas eliminar "${session.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     setState(() {
       if (session.id != null) _deletedSessionIds.add(session.id!);
       _sessions.remove(session);
