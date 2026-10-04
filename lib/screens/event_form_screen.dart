@@ -794,26 +794,42 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<PackType>(
-                    value: packType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de pack',
-                    ),
-                    items: PackType.values
-                        .map(
-                          (p) =>
-                              DropdownMenuItem(value: p, child: Text(p.label)),
-                        )
-                        .toList(),
-                    onChanged: (v) => setSheetState(() {
-                      if (v != null) {
-                        packType = v;
-                        if (v != PackType.customizable) {
-                          maxSelectableSessionsCtrl.clear();
-                        }
-                        if (v != PackType.fixed) selectedSessions.clear();
-                      }
-                    }),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<PackType>(
+                          value: packType,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo de pack',
+                          ),
+                          items: PackType.values
+                              .map(
+                                (p) => DropdownMenuItem(
+                                  value: p,
+                                  child: Text(p.label),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) => setSheetState(() {
+                            if (v != null) {
+                              packType = v;
+                              if (v != PackType.customizable) {
+                                maxSelectableSessionsCtrl.clear();
+                              }
+                              if (v != PackType.fixed) {
+                                selectedSessions.clear();
+                              }
+                            }
+                          }),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline),
+                        tooltip: '¿Qué tipo de pack quieres ofrecer?',
+                        onPressed: () => _showPackTypeInfo(ctx),
+                      ),
+                    ],
                   ),
                   if (packType == PackType.customizable) ...[
                     const SizedBox(height: 12),
@@ -942,6 +958,70 @@ class _EventFormScreenState extends State<EventFormScreen> {
           },
         );
       },
+    );
+  }
+
+  Future<void> _showPackTypeInfo(BuildContext context) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '¿Qué tipo de pack quieres ofrecer?',
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _PackTypeExplanation(
+                  title: 'Pack fijo',
+                  body:
+                      'El creador selecciona las sesiones concretas que '
+                      'incluye el pack. El usuario paga un precio '
+                      'determinado y tiene incluidas exactamente esas '
+                      'sesiones, sin posibilidad de cambiarlas.',
+                  example:
+                      'Ejemplo: una mensualidad de 50 € que incluye todas '
+                      'las clases del mes.',
+                ),
+                const Divider(height: 32),
+                _PackTypeExplanation(
+                  title: 'Pack personalizado',
+                  body:
+                      'El creador selecciona las sesiones disponibles y '
+                      'establece un precio y un número de sesiones. El '
+                      'usuario puede elegir libremente qué sesiones quiere '
+                      'reservar dentro de las disponibles.',
+                  example:
+                      'Ejemplo: un pack de 3 clases por 15 €. El creador '
+                      'ofrece todas las sesiones disponibles y el usuario '
+                      'puede escoger las 3 que prefiera.',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1587,6 +1667,43 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   Widget _label(String text) =>
       Text(text, style: Theme.of(context).textTheme.titleSmall);
+}
+
+class _PackTypeExplanation extends StatelessWidget {
+  final String title;
+  final String body;
+  final String example;
+
+  const _PackTypeExplanation({
+    required this.title,
+    required this.body,
+    required this.example,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title.toUpperCase(),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 6),
+        Text(body, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 8),
+        Text(
+          example,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            fontStyle: FontStyle.italic,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _ReservationCard extends StatelessWidget {
