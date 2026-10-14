@@ -1295,39 +1295,41 @@ class _PackCardState extends State<_PackCard> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.confirmation_number_outlined, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      pack.packType.label,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.people_outline, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$_confirmedCount inscritos',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.rule_outlined, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Aprobación ${pack.approvalMode.label.toLowerCase()}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
+                if (widget.isOwner) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.confirmation_number_outlined, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        pack.packType.label,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.people_outline, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_confirmedCount inscritos',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.rule_outlined, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Aprobación ${pack.approvalMode.label.toLowerCase()}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ],
                 if (pack.packType == PackType.customizable) ...[
                   const SizedBox(height: 4),
                   Row(
