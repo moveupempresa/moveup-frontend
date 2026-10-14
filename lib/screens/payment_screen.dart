@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/pack.dart';
 import '../services/auth_service.dart';
@@ -31,6 +34,52 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   bool _isPaying = false;
+  final _picker = ImagePicker();
+  File? _proofImage;
+  bool _isUploadingProof = false;
+
+  Future<void> _pickProofImage() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    setState(() => _proofImage = File(picked.path));
+  }
+
+  Future<void> _uploadProof() async {
+    final image = _proofImage;
+    if (image == null) return;
+    setState(() => _isUploadingProof = true);
+    try {
+      await RegistrationService.uploadPaymentProof(
+        token: widget.token,
+        eventId: widget.eventId,
+        packId: widget.packId,
+        imageFile: image,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Captura subida, ya estás inscrito/a')),
+        );
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingProof = false);
+    }
+  }
 
   Future<void> _pay() async {
     setState(() => _isPaying = true);
@@ -186,14 +235,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         absorbing: _isPaying,
         child: switch (widget.paymentType) {
           PaymentType.online => _buildCardOption(context),
-          PaymentType.bizum => _buildManualConfirm(
-            context,
-            icon: Icons.phone_android,
-            title: 'Pagar por Bizum',
-            instructions: 'Envía el importe por Bizum a este número:',
-            fallbackInstructions:
-                'Envía el importe por Bizum al organizador del evento.',
-          ),
+          PaymentType.bizum => _buildBizumUpload(context),
           PaymentType.paypal => _buildManualConfirm(
             context,
             icon: Icons.account_balance_wallet,
@@ -251,11 +293,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }) {
     final details = widget.paymentDetails;
     final hasDetails = details != null && details.isNotEmpty;
-    final concept = widget.bizumConcept;
-    final hasConcept =
-        widget.paymentType == PaymentType.bizum &&
-        concept != null &&
-        concept.isNotEmpty;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
@@ -281,12 +318,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
             const SizedBox(height: 12),
             _copyBox(context, details),
           ],
-          if (hasConcept) ...[
-            const SizedBox(height: 16),
-            Text('Indica este concepto al hacer el Bizum:'),
-            const SizedBox(height: 8),
-            _copyBox(context, concept),
-          ],
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _isPaying ? null : _pay,
@@ -300,6 +331,117 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Text('Ya he pagado'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBizumUpload(BuildContext context) {
+    final details = widget.paymentDetails;
+    final hasDetails = details != null && details.isNotEmpty;
+    final concept = widget.bizumConcept;
+    final hasConcept = concept != null && concept.isNotEmpty;
+    final colorScheme = Theme.of(context).colorScheme;
+    final busy = _isUploadingProof;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pagar "${widget.packName}"',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Icon(Icons.phone_android, color: colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Pagar por Bizum',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            hasDetails
+                ? 'Envía el importe por Bizum a este número:'
+                : 'Envía el importe por Bizum al organizador del evento.',
+          ),
+          if (hasDetails) ...[
+            const SizedBox(height: 12),
+            _copyBox(context, details),
+          ],
+          if (hasConcept) ...[
+            const SizedBox(height: 16),
+            Text('Indica este concepto al hacer el Bizum:'),
+            const SizedBox(height: 8),
+            _copyBox(context, concept),
+          ],
+          const SizedBox(height: 20),
+          Text(
+            'Sube una captura del pago para confirmar tu plaza',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 12),
+          if (_proofImage != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                _proofImage!,
+                height: 220,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            )
+          else
+            InkWell(
+              onTap: busy ? null : _pickProofImage,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: 160,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border.all(color: colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.add_a_photo_outlined,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Seleccionar captura'),
+                  ],
+                ),
+              ),
+            ),
+          if (_proofImage != null) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: busy ? null : _pickProofImage,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Cambiar captura'),
+            ),
+          ],
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _proofImage != null && !busy ? _uploadProof : null,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+            child: busy
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Subir captura'),
           ),
         ],
       ),

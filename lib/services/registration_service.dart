@@ -218,6 +218,46 @@ class RegistrationService {
     return data['hasPaid'] as bool;
   }
 
+  /// Uploads a Bizum payment-proof screenshot, which confirms the
+  /// registration. Returns the resulting status ('confirmed') and the
+  /// stored proof image path.
+  static Future<(String, String)> uploadPaymentProof({
+    required String token,
+    required String eventId,
+    required String packId,
+    required File imageFile,
+  }) async {
+    http.Response response;
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+          '${ApiConfig.baseUrl}/events/$eventId/packs/$packId/payment-proof',
+        ),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath('image', imageFile.path),
+      );
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      response = await http.Response.fromStream(streamed);
+    } on SocketException {
+      throw AuthException('No se pudo conectar con el servidor');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 400) {
+      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
+    }
+    final registration = data['registration'] as Map<String, dynamic>;
+    return (
+      registration['status'] as String,
+      registration['paymentProofUrl'] as String,
+    );
+  }
+
   static Future<List<Reservation>> getMyReservations({
     required String token,
   }) async {

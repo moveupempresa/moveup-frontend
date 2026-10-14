@@ -6,6 +6,7 @@ import '../models/registrant.dart';
 import '../models/session.dart';
 import '../services/auth_service.dart';
 import '../services/registration_service.dart';
+import '../widgets/image_viewer_dialog.dart';
 import 'public_profile_screen.dart';
 
 enum RegistrantsTargetType { session, pack }
@@ -288,6 +289,16 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                             ? 'Marcar como no asistido'
                             : 'Marcar como asistido',
                         onPressed: () => _toggleAttendance(r),
+                      ),
+                    if (_showsPayment &&
+                        widget.paymentType == PaymentType.bizum &&
+                        r.paymentProofUrl != null)
+                      IconButton(
+                        icon: const Icon(Icons.receipt_long_outlined),
+                        tooltip: 'Ver comprobante',
+                        onPressed: () => showImageViewer(context, [
+                          ApiConfig.mediaUrl(r.paymentProofUrl!),
+                        ]),
                       ),
                     if (_showsPayment && _canTogglePayment)
                       IconButton(

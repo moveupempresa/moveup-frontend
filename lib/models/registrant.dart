@@ -20,6 +20,7 @@ class Registrant {
   final RegistrationStatus status;
   final List<String> selectedSessionIds;
   final bool hasPaid;
+  final String? paymentProofUrl;
   final String? viaPack;
   final bool attended;
   final DateTime createdAt;
@@ -32,36 +33,43 @@ class Registrant {
     required this.status,
     required this.selectedSessionIds,
     required this.hasPaid,
+    this.paymentProofUrl,
     this.viaPack,
     this.attended = false,
     required this.createdAt,
   });
 
   factory Registrant.fromJson(Map<String, dynamic> json) => Registrant(
-        userId: json['userId'] as String,
-        username: json['username'] as String? ?? '',
-        displayName: json['displayName'] as String? ?? '',
-        profileImage: json['profileImage'] as String?,
-        status: RegistrationStatus.fromValue(json['status'] as String),
-        selectedSessionIds: json['selectedSessionIds'] != null
-            ? (json['selectedSessionIds'] as List<dynamic>).cast<String>()
-            : const [],
-        hasPaid: json['hasPaid'] as bool? ?? false,
-        viaPack: json['viaPack'] as String?,
-        attended: json['attended'] as bool? ?? false,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-      );
+    userId: json['userId'] as String,
+    username: json['username'] as String? ?? '',
+    displayName: json['displayName'] as String? ?? '',
+    profileImage: json['profileImage'] as String?,
+    status: RegistrationStatus.fromValue(json['status'] as String),
+    selectedSessionIds: json['selectedSessionIds'] != null
+        ? (json['selectedSessionIds'] as List<dynamic>).cast<String>()
+        : const [],
+    hasPaid: json['hasPaid'] as bool? ?? false,
+    paymentProofUrl: json['paymentProofUrl'] as String?,
+    viaPack: json['viaPack'] as String?,
+    attended: json['attended'] as bool? ?? false,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
 
-  Registrant copyWith({bool? hasPaid, bool? attended}) => Registrant(
-        userId: userId,
-        username: username,
-        displayName: displayName,
-        profileImage: profileImage,
-        status: status,
-        selectedSessionIds: selectedSessionIds,
-        hasPaid: hasPaid ?? this.hasPaid,
-        viaPack: viaPack,
-        attended: attended ?? this.attended,
-        createdAt: createdAt,
-      );
+  Registrant copyWith({
+    bool? hasPaid,
+    String? paymentProofUrl,
+    bool? attended,
+  }) => Registrant(
+    userId: userId,
+    username: username,
+    displayName: displayName,
+    profileImage: profileImage,
+    status: status,
+    selectedSessionIds: selectedSessionIds,
+    hasPaid: hasPaid ?? this.hasPaid,
+    paymentProofUrl: paymentProofUrl ?? this.paymentProofUrl,
+    viaPack: viaPack,
+    attended: attended ?? this.attended,
+    createdAt: createdAt,
+  );
 }
