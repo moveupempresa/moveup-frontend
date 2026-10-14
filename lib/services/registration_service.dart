@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../config/api_config.dart';
 import '../models/cancelled_reservation.dart';
@@ -237,7 +238,11 @@ class RegistrationService {
       );
       request.headers['Authorization'] = 'Bearer $token';
       request.files.add(
-        await http.MultipartFile.fromPath('image', imageFile.path),
+        await http.MultipartFile.fromPath(
+          'image',
+          imageFile.path,
+          contentType: _mediaTypeFromPath(imageFile.path),
+        ),
       );
       final streamed = await request.send().timeout(
         const Duration(seconds: 30),
@@ -256,6 +261,15 @@ class RegistrationService {
       registration['status'] as String,
       registration['paymentProofUrl'] as String,
     );
+  }
+
+  static MediaType _mediaTypeFromPath(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    return switch (ext) {
+      'png' => MediaType('image', 'png'),
+      'webp' => MediaType('image', 'webp'),
+      _ => MediaType('image', 'jpeg'),
+    };
   }
 
   static Future<List<Reservation>> getMyReservations({
