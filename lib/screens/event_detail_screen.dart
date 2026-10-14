@@ -944,6 +944,10 @@ class _SignupActionButton extends StatelessWidget {
   final bool isLoading;
   final bool isExpandable;
   final bool isExpanded;
+  final String defaultLabel;
+  final IconData? payIcon;
+  final String? payTooltip;
+  final VoidCallback? onPay;
   final VoidCallback onToggleSignUp;
   final VoidCallback onToggleWaitlist;
 
@@ -956,6 +960,10 @@ class _SignupActionButton extends StatelessWidget {
     required this.isLoading,
     this.isExpandable = false,
     this.isExpanded = false,
+    this.defaultLabel = 'Reservar',
+    this.payIcon,
+    this.payTooltip,
+    this.onPay,
     required this.onToggleSignUp,
     required this.onToggleWaitlist,
   });
@@ -1007,6 +1015,16 @@ class _SignupActionButton extends StatelessWidget {
       );
     }
     if (isAwaitingPayment) {
+      if (onPay != null) {
+        return _button(
+          context,
+          icon: payIcon ?? Icons.payment,
+          label: 'Pagar',
+          color: Colors.amber.shade800,
+          tooltip: payTooltip,
+          onPressed: onPay!,
+        );
+      }
       return _button(
         context,
         icon: Icons.hourglass_bottom,
@@ -1042,7 +1060,7 @@ class _SignupActionButton extends StatelessWidget {
     return _button(
       context,
       icon: isSignedUp ? Icons.check_circle : Icons.check_circle_outline,
-      label: isSignedUp ? 'Cancelar' : 'Reservar',
+      label: isSignedUp ? 'Cancelar' : defaultLabel,
       color: isSignedUp ? primary : outline,
       tooltip: isSignedUp ? 'Cancelar inscripción' : null,
       onPressed: onToggleSignUp,
@@ -1074,7 +1092,6 @@ class _PackCardState extends State<_PackCard> {
   late bool _isSignedUp = widget.pack.isSignedUp;
   late bool _isPending = widget.pack.isPending;
   late bool _isAwaitingPayment = widget.pack.isAwaitingPayment;
-  late final bool _myHasPaid = widget.pack.myHasPaid;
   late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds
       .toSet();
   bool _isLoading = false;
@@ -1108,26 +1125,6 @@ class _PackCardState extends State<_PackCard> {
 
   bool get _isCustomizable => widget.pack.packType == PackType.customizable;
 
-  bool get _isPaymentReady => _isAwaitingPayment || _isSignedUp;
-
-  void _onPaymentIconTap() {
-    if (_myHasPaid) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Ya has pagado este pack')));
-      return;
-    }
-    if (!_isPaymentReady) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Esperando aprobación del organizador')),
-      );
-      return;
-    }
-    widget.pack.paymentType == PaymentType.offline
-        ? _showCashMessage()
-        : _openPayment();
-  }
-
   void _openPayment() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1157,34 +1154,6 @@ class _PackCardState extends State<_PackCard> {
     PaymentType.bizum => 'Pagar por Bizum',
     PaymentType.paypal => 'Pagar por PayPal',
   };
-
-  Widget _buildPaymentButton(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final color = _myHasPaid
-        ? Colors.green.shade700
-        : (_isPaymentReady ? Colors.green.shade700 : colorScheme.outline);
-    final button = FilledButton.tonalIcon(
-      onPressed: _onPaymentIconTap,
-      icon: Icon(_paymentIcon(widget.pack.paymentType), size: 18),
-      label: Text(_myHasPaid ? 'Pagado' : 'Pagar'),
-      style: FilledButton.styleFrom(
-        foregroundColor: color,
-        backgroundColor: color.withValues(alpha: 0.12),
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
-    );
-    return Tooltip(
-      message: _paymentTooltip(widget.pack.paymentType),
-      child: button,
-    );
-  }
-
-  void _showCashMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('El pago de este pack es en efectivo')),
-    );
-  }
 
   Future<void> _toggleSignUp() async {
     if (_isCommitted) {
@@ -1251,6 +1220,7 @@ class _PackCardState extends State<_PackCard> {
           _isAwaitingPayment = status == 'awaiting_payment';
           _confirmedCount = count;
         });
+        if (status == 'awaiting_payment') _openPayment();
       }
     } catch (e) {
       _showError(e);
@@ -1413,7 +1383,11 @@ class _PackCardState extends State<_PackCard> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: _isLoading ? null : _confirmSignUp,
-                        child: const Text('Confirmar inscripción'),
+                        child: Text(
+                          pack.paymentType == PaymentType.offline
+                              ? 'Confirmar inscripción'
+                              : 'Confirmar y pagar',
+                        ),
                       ),
                     ),
                   ],
@@ -1449,11 +1423,17 @@ class _PackCardState extends State<_PackCard> {
                         isLoading: _isLoading,
                         isExpandable: _isCustomizable,
                         isExpanded: _isExpanded,
+                        defaultLabel: pack.paymentType == PaymentType.offline
+                            ? 'Reservar'
+                            : 'Reservar y pagar',
+                        payIcon: _paymentIcon(pack.paymentType),
+                        payTooltip: _paymentTooltip(pack.paymentType),
+                        onPay: pack.paymentType == PaymentType.offline
+                            ? null
+                            : _openPayment,
                         onToggleSignUp: _toggleSignUp,
                         onToggleWaitlist: () {},
                       ),
-                      const SizedBox(width: 8),
-                      _buildPaymentButton(context),
                     ],
                   ),
                 ],
