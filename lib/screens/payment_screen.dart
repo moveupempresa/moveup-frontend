@@ -58,12 +58,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         packId: widget.packId,
         imageFile: image,
       );
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Captura subida, ya estás inscrito/a')),
-        );
-      }
+      if (mounted) Navigator.of(context).pop(true);
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -89,28 +84,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
         eventId: widget.eventId,
         packId: widget.packId,
       );
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.paymentType == PaymentType.bizum
-                  ? 'Organizador notificado, verificará tu pago'
-                  : 'Pago realizado',
-            ),
-          ),
-        );
-      }
+      if (mounted) Navigator.of(context).pop(true);
     } on AuthException catch (e) {
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(false);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(false);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
