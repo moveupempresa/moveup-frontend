@@ -433,15 +433,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   ContactMethodsRow.fromContactInfo(event.creatorContact),
                   const SizedBox(height: 20),
                 ],
-                SessionsSection(
-                  sessions: sessions,
-                  cardBuilder: (s) => _buildSessionCard(
-                    s,
-                    event.id,
-                    isOwner,
-                    !event.reservationEnabled,
+                // Students only see the event-level sessions list when the
+                // event has no packs (reservationEnabled: false) - that's
+                // the only case where a session is directly bookable.
+                // Otherwise sessions only matter inside each pack, which
+                // students now reach via PackDetailScreen.
+                if (isOwner || !event.reservationEnabled)
+                  SessionsSection(
+                    sessions: sessions,
+                    cardBuilder: (s) => _buildSessionCard(
+                      s,
+                      event.id,
+                      isOwner,
+                      !event.reservationEnabled,
+                    ),
                   ),
-                ),
                 if (event.reservationEnabled) ...[
                   const SizedBox(height: 24),
                   Text(
