@@ -222,6 +222,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             targetType: RegistrantsTargetType.session,
             targetId: s.id,
             targetName: s.name,
+            sessionStart: s.startDatetime,
+            sessionEnd: s.endDatetime,
           ),
         ),
       ),

@@ -6,6 +6,7 @@ import '../models/registrant.dart';
 import '../models/session.dart';
 import '../services/auth_service.dart';
 import '../services/registration_service.dart';
+import '../utils/session_format.dart';
 import '../widgets/image_viewer_dialog.dart';
 import 'public_profile_screen.dart';
 
@@ -20,6 +21,8 @@ class RegistrantsScreen extends StatefulWidget {
   final String targetName;
   final List<Session> sessions;
   final PaymentType? paymentType;
+  final DateTime? sessionStart;
+  final DateTime? sessionEnd;
 
   const RegistrantsScreen({
     super.key,
@@ -31,6 +34,8 @@ class RegistrantsScreen extends StatefulWidget {
     required this.targetName,
     this.sessions = const [],
     this.paymentType,
+    this.sessionStart,
+    this.sessionEnd,
   });
 
   @override
@@ -42,6 +47,13 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
   bool _loading = true;
   String? _error;
   final Set<String> _respondingUserIds = {};
+  final Set<String> _expandedUserIds = {};
+
+  void _toggleExpanded(String userId) {
+    setState(() {
+      if (!_expandedUserIds.remove(userId)) _expandedUserIds.add(userId);
+    });
+  }
 
   @override
   void initState() {
@@ -127,20 +139,20 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
   bool get _showsAttendance =>
       widget.targetType == RegistrantsTargetType.session;
 
-  Future<void> _toggleAttendance(Registrant r) async {
-    final newValue = !r.attended;
+  Future<void> _setAttendance(Registrant r, bool attended) async {
+    if (r.attended == attended) return;
     try {
       await RegistrationService.markSessionAttendance(
         token: widget.token,
         eventId: widget.eventId,
         sessionId: widget.targetId,
         userId: r.userId,
-        attended: newValue,
+        attended: attended,
       );
       if (mounted) {
         setState(() {
           final index = _registrants!.indexWhere((x) => x.userId == r.userId);
-          _registrants![index] = r.copyWith(attended: newValue);
+          _registrants![index] = r.copyWith(attended: attended);
         });
       }
     } on AuthException catch (e) {
@@ -245,8 +257,28 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sessionStart = widget.sessionStart;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.targetName)),
+      appBar: AppBar(
+        title: sessionStart != null
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.targetName),
+                  Text(
+                    widget.sessionEnd != null
+                        ? '${formatSessionDate(sessionStart)} · ${formatSessionTime(sessionStart)} – ${formatSessionTime(widget.sessionEnd!)}'
+                        : '${formatSessionDate(sessionStart)} · ${formatSessionTime(sessionStart)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
+              )
+            : Text(widget.targetName),
+      ),
       body: Builder(
         builder: (context) {
           if (_loading) {
@@ -286,6 +318,12 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final r = registrants[index];
+              final isSession =
+                  widget.targetType == RegistrantsTargetType.session;
+              final isExpanded = _expandedUserIds.contains(r.userId);
+              final displayName = r.displayName.isNotEmpty
+                  ? r.displayName
+                  : r.username;
               final sessionNames = r.selectedSessionIds
                   .map(
                     (id) => widget.sessions
@@ -304,15 +342,115 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                       ? const Icon(Icons.person_outline)
                       : null,
                 ),
-                title: Text(
-                  r.displayName.isNotEmpty ? r.displayName : r.username,
-                ),
-                subtitle: Text(
-                  [
-                    '@${r.username}',
-                    if (sessionNames.isNotEmpty) sessionNames.join(', '),
-                    if (r.viaPack != null) 'vía pack "${r.viaPack}"',
-                  ].join(' · '),
+                title: isSession
+                    ? Row(
+                        children: [
+                          Expanded(child: Text(displayName)),
+                          IconButton(
+                            icon: Icon(
+                              isExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                            ),
+                            tooltip: isExpanded
+                                ? 'Ocultar info'
+                                : 'Ver pago y confirmación',
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => _toggleExpanded(r.userId),
+                          ),
+                        ],
+                      )
+                    : Text(displayName),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      [
+                        '@${r.username}',
+                        if (sessionNames.isNotEmpty) sessionNames.join(', '),
+                        if (r.viaPack != null) 'vía pack "${r.viaPack}"',
+                      ].join(' · '),
+                    ),
+                    if (isSession && isExpanded) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _statusColor(
+                                r.status,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: _statusColor(r.status)),
+                            ),
+                            child: Text(
+                              r.status.label,
+                              style: TextStyle(
+                                color: _statusColor(r.status),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          if (r.viaPack != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  r.hasPaid ? Icons.paid : Icons.money_off,
+                                  size: 16,
+                                  color: r.hasPaid
+                                      ? Colors.green.shade700
+                                      : Colors.red.shade700,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  r.hasPaid ? 'Pagado' : 'No pagado',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          if (r.paymentProofUrl != null)
+                            InkWell(
+                              onTap: () => showImageViewer(context, [
+                                ApiConfig.mediaUrl(r.paymentProofUrl!),
+                              ]),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.receipt_long_outlined,
+                                    size: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Ver comprobante',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -344,17 +482,24 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                       ],
                     ],
                     if (_showsAttendance &&
-                        r.status == RegistrationStatus.confirmed)
+                        r.status == RegistrationStatus.confirmed) ...[
                       IconButton(
-                        icon: Icon(
-                          r.attended ? Icons.event_available : Icons.close,
-                        ),
-                        color: r.attended ? Colors.green.shade700 : null,
-                        tooltip: r.attended
-                            ? 'Marcar como no asistido'
-                            : 'Marcar como asistido',
-                        onPressed: () => _toggleAttendance(r),
+                        icon: const Icon(Icons.check_circle),
+                        color: r.attended
+                            ? Colors.green.shade700
+                            : Colors.grey.shade400,
+                        tooltip: 'Asistido',
+                        onPressed: () => _setAttendance(r, true),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.cancel),
+                        color: !r.attended
+                            ? Colors.red.shade700
+                            : Colors.grey.shade400,
+                        tooltip: 'No asistido',
+                        onPressed: () => _setAttendance(r, false),
+                      ),
+                    ],
                     if (_showsPayment &&
                         widget.paymentType == PaymentType.bizum &&
                         r.paymentProofUrl != null)
@@ -397,7 +542,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                         tooltip: 'Revocar inscripción',
                         onPressed: () => _confirmRevoke(r),
                       ),
-                    if (r.status != RegistrationStatus.pending)
+                    if (!isSession && r.status != RegistrationStatus.pending)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
