@@ -7,6 +7,7 @@ import '../../services/event_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/registration_service.dart';
 import '../event_detail_screen.dart';
+import '../pack_detail_screen.dart';
 import '../public_profile_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -387,13 +388,26 @@ class _NotificationTileState extends State<_NotificationTile> {
           eventId: eventId,
         );
         if (!mounted) return;
+        // A pending-payment notification is about the student's own pack
+        // registration, so it should drop them straight into that pack's
+        // reserve/pay screen instead of just the event page.
+        final pack = n.type == NotificationType.paymentRequired
+            ? event.packs?.where((p) => p.id == n.relatedTargetId).firstOrNull
+            : null;
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => EventDetailScreen(
-              token: widget.token,
-              event: event,
-              currentUserId: widget.currentUserId,
-            ),
+            builder: (_) => pack != null
+                ? PackDetailScreen(
+                    token: widget.token,
+                    eventId: event.id,
+                    pack: pack,
+                    sessions: event.sessions ?? [],
+                  )
+                : EventDetailScreen(
+                    token: widget.token,
+                    event: event,
+                    currentUserId: widget.currentUserId,
+                  ),
           ),
         );
         widget.onResolved();
