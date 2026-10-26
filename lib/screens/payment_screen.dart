@@ -363,7 +363,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
             const SizedBox(height: 16),
             Text('Indica este concepto al hacer el Bizum:'),
             const SizedBox(height: 8),
-            _copyBox(context, concept),
+            Text(
+              concept,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
           ],
           const SizedBox(height: 20),
           Text(
