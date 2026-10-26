@@ -87,9 +87,11 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
       widget.targetType == RegistrantsTargetType.pack &&
       widget.paymentType != null;
 
-  bool get _canTogglePayment =>
-      widget.paymentType == PaymentType.offline ||
-      widget.paymentType == PaymentType.bizum;
+  // Only cash genuinely needs a manual toggle - the organizer is the only
+  // source of truth for whether it was handed over. Every other payment
+  // type confirms itself (online/PayPal through payment, Bizum through the
+  // uploaded proof), so the icon here is read-only for them.
+  bool get _canTogglePayment => widget.paymentType == PaymentType.offline;
 
   Future<void> _togglePaid(Registrant r) async {
     final newValue = !r.hasPaid;
