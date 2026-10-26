@@ -395,25 +395,26 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                         tooltip: 'Revocar inscripción',
                         onPressed: () => _confirmRevoke(r),
                       ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _statusColor(r.status).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: _statusColor(r.status)),
-                      ),
-                      child: Text(
-                        r.status.label,
-                        style: TextStyle(
-                          color: _statusColor(r.status),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                    if (r.status != RegistrationStatus.pending)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _statusColor(r.status).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: _statusColor(r.status)),
+                        ),
+                        child: Text(
+                          r.status.label,
+                          style: TextStyle(
+                            color: _statusColor(r.status),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 onTap: () => Navigator.of(context).push(
