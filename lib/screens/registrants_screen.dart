@@ -41,6 +41,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
   List<Registrant>? _registrants;
   bool _loading = true;
   String? _error;
+  final Set<String> _respondingUserIds = {};
 
   @override
   void initState() {
@@ -151,6 +152,42 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    }
+  }
+
+  Future<void> _respondToRequest(Registrant r, bool approve) async {
+    setState(() => _respondingUserIds.add(r.userId));
+    try {
+      approve
+          ? await RegistrationService.approvePackRequest(
+              token: widget.token,
+              eventId: widget.eventId,
+              packId: widget.targetId,
+              userId: r.userId,
+            )
+          : await RegistrationService.rejectPackRequest(
+              token: widget.token,
+              eventId: widget.eventId,
+              packId: widget.targetId,
+              userId: r.userId,
+            );
+      if (mounted) await _load();
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _respondingUserIds.remove(r.userId));
       }
     }
   }
@@ -278,6 +315,32 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (widget.targetType == RegistrantsTargetType.pack &&
+                        r.status == RegistrationStatus.pending) ...[
+                      if (_respondingUserIds.contains(r.userId))
+                        const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      else ...[
+                        IconButton(
+                          icon: const Icon(Icons.check_circle_outline),
+                          color: Colors.green.shade700,
+                          tooltip: 'Aprobar solicitud',
+                          onPressed: () => _respondToRequest(r, true),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.cancel_outlined),
+                          color: Colors.red.shade700,
+                          tooltip: 'Rechazar solicitud',
+                          onPressed: () => _respondToRequest(r, false),
+                        ),
+                      ],
+                    ],
                     if (_showsAttendance &&
                         r.status == RegistrationStatus.confirmed)
                       IconButton(
