@@ -474,33 +474,6 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
-              if (_isPending) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.hourglass_top, color: colorScheme.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Tu solicitud está pendiente de aprobación por '
-                          'parte del profesor. Si la acepta, te '
-                          'notificaremos para que puedas continuar con la '
-                          'reserva. Si la rechaza, también te informaremos.',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: colorScheme.onPrimaryContainer),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const SizedBox(height: 24),
               const Divider(),
               const SizedBox(height: 16),
@@ -528,27 +501,59 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
         ),
         bottomNavigationBar: SafeArea(
           minimum: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: SignupActionButton(
-              isFull: false,
-              isSignedUp: _isSignedUp,
-              isWaitlisted: false,
-              isPending: _isPending,
-              isAwaitingPayment: _isAwaitingPayment,
-              isLoading: _isLoading,
-              defaultLabel: pack.paymentType == PaymentType.offline
-                  ? 'Reservar'
-                  : 'Reservar y pagar',
-              payIcon: _packPaymentIcon(pack.paymentType),
-              payTooltip: _packPaymentTooltip(pack.paymentType),
-              onPay: pack.paymentType == PaymentType.offline
-                  ? null
-                  : _openPayment,
-              onToggleSignUp: _toggleSignUp,
-              onToggleWaitlist: () {},
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isPending) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.hourglass_top, color: colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Tu solicitud está pendiente de aprobación por '
+                          'parte del profesor. Si la acepta, te '
+                          'notificaremos para que puedas continuar con la '
+                          'reserva. Si la rechaza, también te informaremos.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onPrimaryContainer),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: SignupActionButton(
+                  isFull: false,
+                  isSignedUp: _isSignedUp,
+                  isWaitlisted: false,
+                  isPending: _isPending,
+                  isAwaitingPayment: _isAwaitingPayment,
+                  isLoading: _isLoading,
+                  defaultLabel: pack.paymentType == PaymentType.offline
+                      ? 'Reservar'
+                      : 'Reservar y pagar',
+                  payIcon: _packPaymentIcon(pack.paymentType),
+                  payTooltip: _packPaymentTooltip(pack.paymentType),
+                  onPay: pack.paymentType == PaymentType.offline
+                      ? null
+                      : _openPayment,
+                  onToggleSignUp: _toggleSignUp,
+                  onToggleWaitlist: () {},
+                ),
+              ),
+            ],
           ),
         ),
       ),
