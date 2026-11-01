@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
 import '../models/event.dart';
+import 'finished_badge.dart';
 
 /// Compact poster-style event card for horizontally-scrolling category rows.
 class EventMiniCard extends StatelessWidget {
@@ -61,6 +62,10 @@ class EventMiniCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (event.isPast) ...[
+                      const SizedBox(height: 4),
+                      const FinishedBadge(),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       [

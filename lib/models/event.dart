@@ -118,6 +118,15 @@ class Event {
   String get organizerName =>
       ownerDisplayName.isNotEmpty ? ownerDisplayName : ownerUsername;
 
+  /// Past once every session has already ended. An event with no sessions
+  /// attached (not loaded, or genuinely none yet) is never considered past.
+  bool get isPast {
+    final list = sessions;
+    if (list == null || list.isEmpty) return false;
+    final now = DateTime.now();
+    return list.every((s) => s.endDatetime.isBefore(now));
+  }
+
   /// A single representative thumbnail URL for contexts that can't show the
   /// full image+video carousel (small cards, etc.) - prefers the image.
   String? get primaryCoverUrl => coverImageUrl ?? coverVideoUrl;

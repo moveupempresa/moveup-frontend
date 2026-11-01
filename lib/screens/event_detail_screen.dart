@@ -10,6 +10,7 @@ import '../services/event_service.dart';
 import '../services/registration_service.dart';
 import '../utils/session_format.dart';
 import '../widgets/contact_methods_row.dart';
+import '../widgets/finished_badge.dart';
 import '../widgets/sessions_section.dart';
 import '../widgets/signup_action_button.dart';
 import '../widgets/video_player_view.dart';
@@ -721,7 +722,7 @@ class _SessionCardState extends State<_SessionCard> {
                 ),
                 if (isPast) ...[
                   const SizedBox(width: 8),
-                  _FinishedBadge(colorScheme: colorScheme),
+                  const FinishedBadge(label: 'Finalizada'),
                 ] else if (!session.isUnlimitedCapacity &&
                     session.capacity != null) ...[
                   const SizedBox(width: 8),
@@ -834,33 +835,6 @@ class _CapacityBadge extends StatelessWidget {
         '$confirmedCount/$capacity',
         style: TextStyle(
           color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-class _FinishedBadge extends StatelessWidget {
-  final ColorScheme colorScheme;
-  final String label;
-
-  const _FinishedBadge({required this.colorScheme, this.label = 'Finalizada'});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: colorScheme.outline.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colorScheme.outline, width: 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: colorScheme.outline,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
@@ -1188,7 +1162,7 @@ class _PackCardState extends State<_PackCard> {
                     ),
                   )
                 else if (isPast)
-                  _FinishedBadge(colorScheme: colorScheme, label: 'Finalizado')
+                  const FinishedBadge(label: 'Finalizado')
                 else
                   Icon(Icons.chevron_right, color: onCardColor),
               ],

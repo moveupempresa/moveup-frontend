@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
 import '../models/event.dart';
+import 'finished_badge.dart';
 
 class EventCard extends StatelessWidget {
   final Event event;
@@ -76,11 +77,21 @@ class EventCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    event.title,
-                    style: Theme.of(context).textTheme.titleSmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.title,
+                          style: Theme.of(context).textTheme.titleSmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (event.isPast) ...[
+                        const SizedBox(width: 6),
+                        const FinishedBadge(),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(

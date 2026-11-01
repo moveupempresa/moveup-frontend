@@ -192,16 +192,9 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
         : _buildCalendar(context, events);
   }
 
-  bool _isPast(Event event) {
-    final sessions = event.sessions;
-    if (sessions == null || sessions.isEmpty) return false;
-    final now = DateTime.now();
-    return sessions.every((s) => s.endDatetime.isBefore(now));
-  }
-
   Widget _buildList(List<Event> events) {
-    final current = events.where((e) => !_isPast(e)).toList();
-    final finished = events.where(_isPast).toList();
+    final current = events.where((e) => !e.isPast).toList();
+    final finished = events.where((e) => e.isPast).toList();
     final shown = _eventsMode == _EventsMode.current ? current : finished;
 
     return Column(
