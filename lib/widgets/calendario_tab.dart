@@ -468,6 +468,10 @@ class CalendarioTabState extends State<CalendarioTab> {
             },
             onPageChanged: (focused) => _focusedDay = focused,
             calendarStyle: CalendarStyle(
+              // The day number's own circle (defaultBuilder, below) already
+              // encodes the categories - table_calendar's own small event
+              // dots would just duplicate that under the number.
+              markersMaxCount: 0,
               selectedDecoration: BoxDecoration(
                 color: attendingColor,
                 shape: BoxShape.circle,
