@@ -540,7 +540,39 @@ class _SessionCardState extends State<_SessionCard> {
     }
   }
 
+  Future<bool> _confirmCancel() async {
+    final session = widget.session;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cancelar reserva?'),
+        content: Text(
+          '${session.name}\n'
+          '${formatSessionDate(session.startDatetime)} · '
+          '${formatSessionTime(session.startDatetime)} – '
+          '${formatSessionTime(session.endDatetime)}\n\n'
+          'Perderás tu plaza en esta sesión.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, mantener'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Cancelar reserva'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _toggleSignUp() async {
+    if (_isSignedUp && !await _confirmCancel()) return;
     setState(() => _isLoading = true);
     try {
       final (status, count) = _isSignedUp

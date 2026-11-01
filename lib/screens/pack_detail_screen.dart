@@ -91,8 +91,39 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
     }
   }
 
+  Future<bool> _confirmCancel() async {
+    final pack = widget.pack;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_isPending ? '¿Retirar solicitud?' : '¿Cancelar reserva?'),
+        content: Text(
+          _isPending
+              ? 'Se retirará tu solicitud para "${pack.name}". Tendrás que volver a solicitarla si cambias de opinión.'
+              : '${pack.name}\n${pack.price.toStringAsFixed(2)} ${pack.currency} · ${pack.paymentType.label}\n\n'
+                    'Perderás tu plaza${_isAwaitingPayment ? ' y no será necesario completar el pago' : ''}.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, mantener'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(_isPending ? 'Retirar solicitud' : 'Cancelar reserva'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _toggleSignUp() async {
     if (_isCommitted) {
+      if (!await _confirmCancel()) return;
       setState(() => _isLoading = true);
       try {
         final (status, _) = await RegistrationService.cancelPackSignUp(
