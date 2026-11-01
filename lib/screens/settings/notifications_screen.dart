@@ -403,6 +403,7 @@ class _NotificationTileState extends State<_NotificationTile> {
                     eventId: event.id,
                     pack: pack,
                     sessions: event.sessions ?? [],
+                    organizerName: event.organizerName,
                   )
                 : EventDetailScreen(
                     token: widget.token,

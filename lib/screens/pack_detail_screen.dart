@@ -35,6 +35,7 @@ class PackDetailScreen extends StatefulWidget {
   final String eventId;
   final Pack pack;
   final List<Session> sessions;
+  final String organizerName;
 
   const PackDetailScreen({
     super.key,
@@ -42,6 +43,7 @@ class PackDetailScreen extends StatefulWidget {
     required this.eventId,
     required this.pack,
     required this.sessions,
+    required this.organizerName,
   });
 
   @override
@@ -91,34 +93,176 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
     }
   }
 
+  // The money, for every non-cash method, moved outside the app (straight
+  // to the organizer, or through their external platform) - cancelling here
+  // never refunds it automatically, so that needs to be spelled out
+  // whenever a payment has actually happened (not for a still-pending
+  // request, or a spot still awaiting payment).
+  bool get _showsPaymentDisclaimer =>
+      _isSignedUp &&
+      (widget.pack.paymentType != PaymentType.offline || widget.pack.myHasPaid);
+
+  String get _paymentMethodNote => switch (widget.pack.paymentType) {
+    PaymentType.online => 'Pago a través de la plataforma del organizador',
+    PaymentType.offline => 'Pago en efectivo',
+    _ => 'Pago directo al organizador',
+  };
+
   Future<bool> _confirmCancel() async {
     final pack = widget.pack;
-    final confirmed = await showDialog<bool>(
+    final isPending = _isPending;
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_isPending ? '¿Retirar solicitud?' : '¿Cancelar reserva?'),
-        content: Text(
-          _isPending
-              ? 'Se retirará tu solicitud para "${pack.name}". Tendrás que volver a solicitarla si cambias de opinión.'
-              : '${pack.name}\n${pack.price.toStringAsFixed(2)} ${pack.currency} · ${pack.paymentType.label}\n\n'
-                    'Perderás tu plaza${_isAwaitingPayment ? ' y no será necesario completar el pago' : ''}.',
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('No, mantener'),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isPending
+                    ? '¿Retirar tu solicitud?'
+                    : '¿Quieres cancelar tu reserva?',
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${pack.name} · ${widget.organizerName}',
+                style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(ctx).colorScheme.outline,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _infoRow(
+                ctx,
+                icon: Icons.calendar_month_outlined,
+                label: 'PACK CONTRATADO',
+                value: pack.name,
+              ),
+              if (!isPending) ...[
+                const Divider(height: 32),
+                _infoRow(
+                  ctx,
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'MÉTODO DE PAGO',
+                  value: '${pack.paymentType.label} · $_paymentMethodNote',
+                ),
+              ],
+              if (_showsPaymentDisclaimer) ...[
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    border: Border.all(color: Colors.amber.shade200),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: Colors.amber.shade800,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Información sobre tu pago',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'El pago se realizó ${widget.pack.paymentType == PaymentType.online ? 'a través de la plataforma del organizador' : 'directamente a ${widget.organizerName}'} mediante ${pack.paymentType.label}. '
+                        'Cancelar tu reserva no genera un reembolso automático.',
+                        style: Theme.of(ctx).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Si deseas solicitar una devolución, contacta con ${widget.organizerName}.',
+                        style: Theme.of(ctx).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                child: Text(
+                  isPending ? 'Retirar solicitud' : 'Confirmar cancelación',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                ),
+                child: const Text('Mantener mi reserva'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(_isPending ? 'Retirar solicitud' : 'Cancelar reserva'),
-          ),
-        ],
+        ),
       ),
     );
     return confirmed == true;
+  }
+
+  Widget _infoRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: colorScheme.outline),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.outline,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _toggleSignUp() async {

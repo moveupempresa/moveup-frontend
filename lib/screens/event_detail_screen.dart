@@ -236,6 +236,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     String eventId,
     List<Session> sessions,
     bool isOwner,
+    String organizerName,
   ) {
     final card = _PackCard(
       pack: p,
@@ -243,6 +244,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       token: widget.token,
       eventId: eventId,
       isOwner: isOwner,
+      organizerName: organizerName,
     );
     if (!isOwner) return card;
     return GestureDetector(
@@ -470,7 +472,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     )
                   else
                     ...packs.map(
-                      (p) => _buildPackCard(p, event.id, sessions, isOwner),
+                      (p) => _buildPackCard(
+                        p,
+                        event.id,
+                        sessions,
+                        isOwner,
+                        event.organizerName,
+                      ),
                     ),
                 ],
               ]),
@@ -542,30 +550,86 @@ class _SessionCardState extends State<_SessionCard> {
 
   Future<bool> _confirmCancel() async {
     final session = widget.session;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Cancelar reserva?'),
-        content: Text(
-          '${session.name}\n'
-          '${formatSessionDate(session.startDatetime)} · '
-          '${formatSessionTime(session.startDatetime)} – '
-          '${formatSessionTime(session.endDatetime)}\n\n'
-          'Perderás tu plaza en esta sesión.',
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('No, mantener'),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '¿Quieres cancelar tu reserva?',
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.calendar_month_outlined,
+                    color: Theme.of(ctx).colorScheme.outline,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SESIÓN',
+                          style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                            color: Theme.of(ctx).colorScheme.outline,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          session.name,
+                          style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${formatSessionDate(session.startDatetime)} · '
+                          '${formatSessionTime(session.startDatetime)} – '
+                          '${formatSessionTime(session.endDatetime)}',
+                          style: Theme.of(ctx).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                child: const Text('Confirmar cancelación'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                ),
+                child: const Text('Mantener mi reserva'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: const Text('Cancelar reserva'),
-          ),
-        ],
+        ),
       ),
     );
     return confirmed == true;
@@ -781,6 +845,7 @@ class _PackCard extends StatefulWidget {
   final String token;
   final String eventId;
   final bool isOwner;
+  final String organizerName;
 
   const _PackCard({
     required this.pack,
@@ -788,6 +853,7 @@ class _PackCard extends StatefulWidget {
     required this.token,
     required this.eventId,
     required this.isOwner,
+    required this.organizerName,
   });
 
   @override
@@ -810,6 +876,7 @@ class _PackCardState extends State<_PackCard> {
           eventId: widget.eventId,
           pack: widget.pack,
           sessions: widget.sessions,
+          organizerName: widget.organizerName,
         ),
       ),
     );
