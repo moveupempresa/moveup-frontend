@@ -38,7 +38,10 @@ class AddressService {
     http.Response response;
     try {
       response = await http
-          .get(uri, headers: {'User-Agent': 'MoveUpApp/1.0 (contact@moveupapp.com)'})
+          .get(
+            uri,
+            headers: {'User-Agent': 'AtryumApp/1.0 (contact@atryumapp.com)'},
+          )
           .timeout(const Duration(seconds: 8));
     } on SocketException {
       return [];
@@ -49,7 +52,10 @@ class AddressService {
     if (response.statusCode != 200) return [];
     final data = jsonDecode(response.body) as List<dynamic>;
     return data
-        .map((item) => AddressSuggestion(displayName: item['display_name'] as String))
+        .map(
+          (item) =>
+              AddressSuggestion(displayName: item['display_name'] as String),
+        )
         .toList();
   }
 }
