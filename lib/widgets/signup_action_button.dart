@@ -41,18 +41,31 @@ class SignupActionButton extends StatelessWidget {
     required Color color,
     required VoidCallback onPressed,
     String? tooltip,
+    bool filled = false,
   }) {
-    final button = FilledButton.tonalIcon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        foregroundColor: color,
-        backgroundColor: color.withValues(alpha: 0.12),
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
-    );
+    final button = filled
+        ? FilledButton.icon(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            label: Text(label),
+            style: FilledButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            ),
+          )
+        : FilledButton.tonalIcon(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            label: Text(label),
+            style: FilledButton.styleFrom(
+              foregroundColor: color,
+              backgroundColor: color.withValues(alpha: 0.12),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            ),
+          );
     return tooltip == null ? button : Tooltip(message: tooltip, child: button);
   }
 
@@ -127,7 +140,8 @@ class SignupActionButton extends StatelessWidget {
       context,
       icon: isSignedUp ? Icons.check_circle : Icons.check_circle_outline,
       label: isSignedUp ? 'Cancelar' : defaultLabel,
-      color: isSignedUp ? primary : outline,
+      color: primary,
+      filled: !isSignedUp,
       tooltip: isSignedUp ? 'Cancelar inscripción' : null,
       onPressed: onToggleSignUp,
     );
