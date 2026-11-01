@@ -877,6 +877,7 @@ class _PackCardState extends State<_PackCard> {
   late bool _isSignedUp = widget.pack.isSignedUp;
   late bool _isPending = widget.pack.isPending;
   late bool _isAwaitingPayment = widget.pack.isAwaitingPayment;
+  late bool _isWaitlisted = widget.pack.isWaitlisted;
 
   // The whole reserve/pay flow now lives in PackDetailScreen; this card just
   // needs to reflect whatever status it comes back with.
@@ -897,6 +898,7 @@ class _PackCardState extends State<_PackCard> {
         _isSignedUp = result == 'confirmed';
         _isPending = result == 'pending';
         _isAwaitingPayment = result == 'awaiting_payment';
+        _isWaitlisted = result == 'waitlisted';
       });
     }
   }
@@ -1063,6 +1065,7 @@ class _PackCardState extends State<_PackCard> {
     if (_isSignedUp) return ('Reservado', Colors.green.shade700);
     if (_isAwaitingPayment) return ('Pago pendiente', Colors.amber.shade800);
     if (_isPending) return ('Pendiente', colorScheme.primary);
+    if (_isWaitlisted) return ('En espera', colorScheme.primary);
     return (null, null);
   }
 

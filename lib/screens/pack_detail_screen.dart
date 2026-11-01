@@ -54,6 +54,7 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
   late bool _isSignedUp = widget.pack.isSignedUp;
   late bool _isPending = widget.pack.isPending;
   late bool _isAwaitingPayment = widget.pack.isAwaitingPayment;
+  late bool _isWaitlisted = widget.pack.isWaitlisted;
   late final Set<String> _selectedSessionIds = widget.pack.mySelectedSessionIds
       .toSet();
   bool _isLoading = false;
@@ -61,15 +62,30 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
   bool get _isCommitted => _isSignedUp || _isPending || _isAwaitingPayment;
   bool get _isCustomizable => widget.pack.packType == PackType.customizable;
 
+  List<Session> get _candidateSessions => widget.pack.sessionIds
+      .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull)
+      .whereType<Session>()
+      .toList();
+
   // Same "every session over" convention used for the closed pack card.
   bool get _isPast {
-    final candidateSessions = widget.pack.sessionIds
-        .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull)
-        .whereType<Session>()
-        .toList();
+    final candidateSessions = _candidateSessions;
     if (candidateSessions.isEmpty) return false;
     final now = DateTime.now();
     return candidateSessions.every((s) => s.endDatetime.isBefore(now));
+  }
+
+  // A pack has no capacity of its own - it's full once the sessions it
+  // needs have none left. A fixed pack needs every session it covers, so
+  // any one of them being full blocks it; a customizable pack only needs
+  // whichever sessions get picked, so it's only truly full once nothing is
+  // left to pick from at all.
+  bool get _isFull {
+    final candidateSessions = _candidateSessions;
+    if (candidateSessions.isEmpty) return false;
+    return _isCustomizable
+        ? candidateSessions.every((s) => s.isFull)
+        : candidateSessions.any((s) => s.isFull);
   }
 
   bool get _selectionValid {
@@ -84,6 +100,8 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
       ? 'pending'
       : _isAwaitingPayment
       ? 'awaiting_payment'
+      : _isWaitlisted
+      ? 'waitlisted'
       : null;
 
   void _onSessionToggled(String sessionId, bool checked) {
@@ -101,6 +119,30 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _toggleWaitlist() async {
+    setState(() => _isLoading = true);
+    try {
+      final (status, _) = _isWaitlisted
+          ? await RegistrationService.leavePackWaitlist(
+              token: widget.token,
+              eventId: widget.eventId,
+              packId: widget.pack.id,
+            )
+          : await RegistrationService.joinPackWaitlist(
+              token: widget.token,
+              eventId: widget.eventId,
+              packId: widget.pack.id,
+            );
+      if (mounted) {
+        setState(() => _isWaitlisted = status == 'waitlisted');
+      }
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -546,6 +588,37 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+              ] else if (_isFull &&
+                  !_isSignedUp &&
+                  !_isPending &&
+                  !_isAwaitingPayment) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.groups_outlined, color: colorScheme.error),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _isWaitlisted
+                              ? 'Esta clase ha alcanzado el aforo máximo. Te '
+                                    'avisaremos en cuanto se libere una plaza.'
+                              : 'Esta clase ha alcanzado el aforo máximo. '
+                                    'Puedes avisarte para saber si se libera '
+                                    'una plaza.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onErrorContainer),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
               ] else if (_isPending) ...[
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -577,9 +650,9 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                 width: double.infinity,
                 height: 48,
                 child: SignupActionButton(
-                  isFull: false,
+                  isFull: _isFull,
                   isSignedUp: _isSignedUp,
-                  isWaitlisted: false,
+                  isWaitlisted: _isWaitlisted,
                   isPending: _isPending,
                   isAwaitingPayment: _isAwaitingPayment,
                   isPast: _isPast,
@@ -593,7 +666,7 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                       ? null
                       : _openPayment,
                   onToggleSignUp: _toggleSignUp,
-                  onToggleWaitlist: () {},
+                  onToggleWaitlist: _toggleWaitlist,
                 ),
               ),
             ],
