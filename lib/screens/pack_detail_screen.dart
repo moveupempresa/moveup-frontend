@@ -299,6 +299,33 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
+              if (_isPending) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.hourglass_top, color: colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Tu solicitud está pendiente de aprobación por '
+                          'parte del profesor. Si la acepta, te '
+                          'notificaremos para que puedas continuar con la '
+                          'reserva. Si la rechaza, también te informaremos.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.onPrimaryContainer),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               const Divider(),
               const SizedBox(height: 16),
