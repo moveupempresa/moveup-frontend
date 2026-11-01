@@ -253,6 +253,7 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
           lastDay: _calendarLastDay(events),
           focusedDay: _focusedDay,
           locale: 'es_ES',
+          startingDayOfWeek: StartingDayOfWeek.monday,
           selectedDayPredicate: (day) =>
               isSameDay(_selectedDay ?? _focusedDay, day),
           eventLoader: (day) =>

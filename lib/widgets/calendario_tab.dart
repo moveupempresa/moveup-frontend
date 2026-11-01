@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -450,6 +453,7 @@ class CalendarioTabState extends State<CalendarioTab> {
             lastDay: _calendarLastDay(items),
             focusedDay: _focusedDay,
             locale: 'es_ES',
+            startingDayOfWeek: StartingDayOfWeek.monday,
             calendarFormat: CalendarFormat.month,
             selectedDayPredicate: (day) =>
                 isSameDay(_selectedDay ?? _focusedDay, day),
@@ -474,27 +478,20 @@ class CalendarioTabState extends State<CalendarioTab> {
               ),
             ),
             calendarBuilders: CalendarBuilders<_CalendarItem>(
-              markerBuilder: (context, day, dayItems) {
+              defaultBuilder: (context, day, focusedDay) {
+                final dayItems =
+                    itemsByDay[_calendarDayKey(day)] ?? const <_CalendarItem>[];
                 final hasAttending = dayItems.any((i) => i.isAttending);
                 final hasOwned = dayItems.any((i) => i.isOwned);
                 final hasNote = _notesByDate.containsKey(_dateKey(day));
-                final dots = [
+                final colors = [
                   if (hasAttending) attendingColor,
                   if (hasOwned) ownedColor,
                   if (hasNote) noteColor,
                 ];
-                if (dots.isEmpty) return null;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < dots.length; i++) ...[
-                        if (i > 0) const SizedBox(width: 3),
-                        _dot(dots[i]),
-                      ],
-                    ],
-                  ),
+                if (colors.isEmpty) return null;
+                return Center(
+                  child: _DayCircle(day: day.day, colors: colors),
                 );
               },
             ),
@@ -1186,4 +1183,67 @@ class CalendarioTabState extends State<CalendarioTab> {
     height: 8,
     decoration: BoxDecoration(color: color, shape: BoxShape.circle),
   );
+}
+
+/// A day cell marked with one or more category colors, as a full circle
+/// behind the number instead of small dots beneath it - a solid fill for
+/// one color, an even pie split when more than one applies the same day.
+class _DayCircle extends StatelessWidget {
+  final int day;
+  final List<Color> colors;
+
+  const _DayCircle({required this.day, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: const Size(36, 36),
+            painter: _DayCirclePainter(colors),
+          ),
+          Text(
+            '$day',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCirclePainter extends CustomPainter {
+  final List<Color> colors;
+
+  const _DayCirclePainter(this.colors);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    if (colors.length == 1) {
+      canvas.drawOval(rect, Paint()..color = colors.first);
+      return;
+    }
+    final sweep = 2 * math.pi / colors.length;
+    for (var i = 0; i < colors.length; i++) {
+      canvas.drawArc(
+        rect,
+        -math.pi / 2 + i * sweep,
+        sweep,
+        true,
+        Paint()..color = colors[i],
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DayCirclePainter oldDelegate) =>
+      !listEquals(oldDelegate.colors, colors);
 }
