@@ -85,6 +85,22 @@ class SignupActionButton extends StatelessWidget {
     }
     final primary = Theme.of(context).colorScheme.primary;
     final outline = Theme.of(context).colorScheme.outline;
+    // Once it's past, no action applies any more - not just reserving, but
+    // also cancelling, paying, or leaving a waitlist for it.
+    if (isPast) {
+      return Tooltip(
+        message: 'Este evento ya ha finalizado',
+        child: FilledButton.tonalIcon(
+          onPressed: null,
+          icon: const Icon(Icons.event_busy_outlined, size: 18),
+          label: const Text('Finalizado'),
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          ),
+        ),
+      );
+    }
     if (isPending) {
       return _button(
         context,
@@ -113,20 +129,6 @@ class SignupActionButton extends StatelessWidget {
         color: Colors.amber.shade800,
         tooltip: 'Esperando tu pago · toca para cancelar',
         onPressed: onToggleSignUp,
-      );
-    }
-    if (isPast && !isSignedUp) {
-      return Tooltip(
-        message: 'Este evento ya ha finalizado',
-        child: FilledButton.tonalIcon(
-          onPressed: null,
-          icon: const Icon(Icons.event_busy_outlined, size: 18),
-          label: const Text('Finalizado'),
-          style: FilledButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          ),
-        ),
       );
     }
     if (isFull && !isSignedUp) {

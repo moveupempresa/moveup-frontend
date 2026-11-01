@@ -515,7 +515,38 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_isPending) ...[
+              if (_isPast) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.event_busy_outlined,
+                        color: colorScheme.outline,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _isCommitted
+                              ? 'Este evento ya ha finalizado. Tu reserva se '
+                                    'mantiene en tu historial, pero ya no se '
+                                    'puede modificar ni cancelar.'
+                              : 'Este evento ya ha finalizado, así que ya no '
+                                    'es posible reservar una plaza.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.outline),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ] else if (_isPending) ...[
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -535,33 +566,6 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                           'reserva. Si la rechaza, también te informaremos.',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: colorScheme.onPrimaryContainer),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ] else if (_isPast && !_isCommitted) ...[
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.event_busy_outlined,
-                        color: colorScheme.outline,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Este evento ya ha finalizado, así que ya no es '
-                          'posible reservar una plaza.',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: colorScheme.outline),
                         ),
                       ),
                     ],
