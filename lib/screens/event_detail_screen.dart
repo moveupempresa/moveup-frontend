@@ -540,6 +540,8 @@ class _SessionCardState extends State<_SessionCard> {
       widget.session.capacity != null &&
       _confirmedCount >= widget.session.capacity!;
 
+  bool get _isPast => widget.session.endDatetime.isBefore(DateTime.now());
+
   void _showError(Object e) {
     if (e is AuthException && mounted) {
       ScaffoldMessenger.of(
@@ -695,9 +697,12 @@ class _SessionCardState extends State<_SessionCard> {
     final session = widget.session;
     final start = session.startDatetime.toLocal();
     final end = session.endDatetime.toLocal();
+    final colorScheme = Theme.of(context).colorScheme;
+    final isPast = _isPast;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: isPast ? colorScheme.surfaceContainerHighest : null,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -709,10 +714,15 @@ class _SessionCardState extends State<_SessionCard> {
                 Expanded(
                   child: Text(
                     session.name,
-                    style: Theme.of(context).textTheme.titleSmall,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: isPast ? colorScheme.outline : null,
+                    ),
                   ),
                 ),
-                if (!session.isUnlimitedCapacity &&
+                if (isPast) ...[
+                  const SizedBox(width: 8),
+                  _FinishedBadge(colorScheme: colorScheme),
+                ] else if (!session.isUnlimitedCapacity &&
                     session.capacity != null) ...[
                   const SizedBox(width: 8),
                   _CapacityBadge(
@@ -780,6 +790,7 @@ class _SessionCardState extends State<_SessionCard> {
                 alignment: Alignment.centerRight,
                 child: SignupActionButton(
                   isFull: _isFull,
+                  isPast: isPast,
                   isSignedUp: _isSignedUp,
                   isWaitlisted: _isWaitlisted,
                   isLoading: _isLoading,
@@ -823,6 +834,33 @@ class _CapacityBadge extends StatelessWidget {
         '$confirmedCount/$capacity',
         style: TextStyle(
           color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _FinishedBadge extends StatelessWidget {
+  final ColorScheme colorScheme;
+  final String label;
+
+  const _FinishedBadge({required this.colorScheme, this.label = 'Finalizada'});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: colorScheme.outline.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colorScheme.outline, width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: colorScheme.outline,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
@@ -1054,6 +1092,18 @@ class _PackCardState extends State<_PackCard> {
     return (null, null);
   }
 
+  // A pack is past once every session it covers has already ended - matches
+  // the "every session over" convention used elsewhere (Mis Eventos, etc).
+  bool get _isPast {
+    final candidateSessions = widget.pack.sessionIds
+        .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull)
+        .whereType<Session>()
+        .toList();
+    if (candidateSessions.isEmpty) return false;
+    final now = DateTime.now();
+    return candidateSessions.every((s) => s.endDatetime.isBefore(now));
+  }
+
   // Closed, student-facing card: just enough to decide whether to open it -
   // name, price and payment method - styled to look clearly tappable. Every
   // other detail (sessions included, reserving, paying) lives in
@@ -1064,11 +1114,18 @@ class _PackCardState extends State<_PackCard> {
     final priceLabel =
         '${pack.price.toStringAsFixed(2)} ${pack.currency} · ${pack.paymentType.label}';
     final (statusLabel, statusColor) = _statusBadge(colorScheme);
+    final isPast = _isPast;
+    final cardColor = isPast
+        ? colorScheme.surfaceContainerHighest
+        : colorScheme.primaryContainer;
+    final onCardColor = isPast
+        ? colorScheme.outline
+        : colorScheme.onPrimaryContainer;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Material(
-        color: colorScheme.primaryContainer,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1078,8 +1135,12 @@ class _PackCardState extends State<_PackCard> {
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
+                  backgroundColor: isPast
+                      ? colorScheme.outline
+                      : colorScheme.primary,
+                  foregroundColor: isPast
+                      ? colorScheme.surface
+                      : colorScheme.onPrimary,
                   child: Icon(_packPaymentIcon(pack.paymentType)),
                 ),
                 const SizedBox(width: 14),
@@ -1092,16 +1153,14 @@ class _PackCardState extends State<_PackCard> {
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: colorScheme.onPrimaryContainer,
+                              color: onCardColor,
                             ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         priceLabel,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onPrimaryContainer.withValues(
-                            alpha: 0.85,
-                          ),
+                          color: onCardColor.withValues(alpha: 0.85),
                         ),
                       ),
                     ],
@@ -1128,11 +1187,10 @@ class _PackCardState extends State<_PackCard> {
                       ),
                     ),
                   )
+                else if (isPast)
+                  _FinishedBadge(colorScheme: colorScheme, label: 'Finalizado')
                 else
-                  Icon(
-                    Icons.chevron_right,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
+                  Icon(Icons.chevron_right, color: onCardColor),
               ],
             ),
           ),

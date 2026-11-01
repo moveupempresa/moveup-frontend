@@ -61,6 +61,17 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
   bool get _isCommitted => _isSignedUp || _isPending || _isAwaitingPayment;
   bool get _isCustomizable => widget.pack.packType == PackType.customizable;
 
+  // Same "every session over" convention used for the closed pack card.
+  bool get _isPast {
+    final candidateSessions = widget.pack.sessionIds
+        .map((id) => widget.sessions.where((s) => s.id == id).firstOrNull)
+        .whereType<Session>()
+        .toList();
+    if (candidateSessions.isEmpty) return false;
+    final now = DateTime.now();
+    return candidateSessions.every((s) => s.endDatetime.isBefore(now));
+  }
+
   bool get _selectionValid {
     if (_selectedSessionIds.isEmpty) return false;
     final max = widget.pack.maxSelectableSessions;
@@ -530,6 +541,33 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+              ] else if (_isPast && !_isCommitted) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.event_busy_outlined,
+                        color: colorScheme.outline,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Este evento ya ha finalizado, así que ya no es '
+                          'posible reservar una plaza.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: colorScheme.outline),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
               ],
               SizedBox(
                 width: double.infinity,
@@ -540,6 +578,7 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
                   isWaitlisted: false,
                   isPending: _isPending,
                   isAwaitingPayment: _isAwaitingPayment,
+                  isPast: _isPast,
                   isLoading: _isLoading,
                   defaultLabel: pack.paymentType == PaymentType.offline
                       ? 'Reservar'

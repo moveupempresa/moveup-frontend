@@ -6,6 +6,7 @@ class SignupActionButton extends StatelessWidget {
   final bool isWaitlisted;
   final bool isPending;
   final bool isAwaitingPayment;
+  final bool isPast;
   final bool isLoading;
   final bool isExpandable;
   final bool isExpanded;
@@ -23,6 +24,7 @@ class SignupActionButton extends StatelessWidget {
     required this.isWaitlisted,
     this.isPending = false,
     this.isAwaitingPayment = false,
+    this.isPast = false,
     required this.isLoading,
     this.isExpandable = false,
     this.isExpanded = false,
@@ -111,6 +113,20 @@ class SignupActionButton extends StatelessWidget {
         color: Colors.amber.shade800,
         tooltip: 'Esperando tu pago · toca para cancelar',
         onPressed: onToggleSignUp,
+      );
+    }
+    if (isPast && !isSignedUp) {
+      return Tooltip(
+        message: 'Este evento ya ha finalizado',
+        child: FilledButton.tonalIcon(
+          onPressed: null,
+          icon: const Icon(Icons.event_busy_outlined, size: 18),
+          label: const Text('Finalizado'),
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          ),
+        ),
       );
     }
     if (isFull && !isSignedUp) {
