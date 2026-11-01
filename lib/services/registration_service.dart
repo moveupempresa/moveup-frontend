@@ -195,32 +195,8 @@ class RegistrationService {
     return data['hasPaid'] as bool;
   }
 
-  static Future<bool> payForPack({
-    required String token,
-    required String eventId,
-    required String packId,
-  }) async {
-    http.Response response;
-    try {
-      final uri = Uri.parse(
-        '${ApiConfig.baseUrl}/events/$eventId/packs/$packId/payment',
-      );
-      response = await http
-          .post(uri, headers: {'Authorization': 'Bearer $token'})
-          .timeout(const Duration(seconds: 10));
-    } on SocketException {
-      throw AuthException('No se pudo conectar con el servidor');
-    }
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode >= 400) {
-      throw AuthException(data['message'] as String? ?? 'Ocurrió un error');
-    }
-    return data['hasPaid'] as bool;
-  }
-
-  /// Uploads a Bizum payment-proof screenshot, which confirms the
-  /// registration. Returns the resulting status ('confirmed') and the
+  /// Uploads a payment-proof screenshot for a self-pay pack, which confirms
+  /// the registration. Returns the resulting status ('confirmed') and the
   /// stored proof image path.
   static Future<(String, String)> uploadPaymentProof({
     required String token,

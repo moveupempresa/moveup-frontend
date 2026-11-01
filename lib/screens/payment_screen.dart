@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/pack.dart';
 import '../services/auth_service.dart';
@@ -33,7 +34,6 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  bool _isPaying = false;
   final _picker = ImagePicker();
   File? _proofImage;
   bool _isUploadingProof = false;
@@ -76,139 +76,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  Future<void> _pay() async {
-    setState(() => _isPaying = true);
-    try {
-      await RegistrationService.payForPack(
-        token: widget.token,
-        eventId: widget.eventId,
-        packId: widget.packId,
-      );
-      if (mounted) Navigator.of(context).pop(true);
-    } on AuthException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } catch (_) {
-      if (mounted) {
-        Navigator.of(context).pop(false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Ocurrió un error')));
-      }
-    } finally {
-      if (mounted) setState(() => _isPaying = false);
-    }
-  }
-
-  void _openCardSheet() {
-    final numberCtrl = TextEditingController();
-    final expiryCtrl = TextEditingController();
-    final cvvCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            final numberValid = RegExp(
-              r'^[0-9]{13,19}$',
-            ).hasMatch(numberCtrl.text.replaceAll(' ', ''));
-            final expiryValid = RegExp(
-              r'^(0[1-9]|1[0-2])\/[0-9]{2}$',
-            ).hasMatch(expiryCtrl.text.trim());
-            final cvvValid = RegExp(
-              r'^[0-9]{3,4}$',
-            ).hasMatch(cvvCtrl.text.trim());
-            final nameValid = nameCtrl.text.trim().isNotEmpty;
-            final canPay = numberValid && expiryValid && cvvValid && nameValid;
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pagar con tarjeta',
-                    style: Theme.of(ctx).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre del titular',
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    onChanged: (_) => setSheetState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: numberCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Número de tarjeta',
-                      hintText: '0000 0000 0000 0000',
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 19,
-                    onChanged: (_) => setSheetState(() {}),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: expiryCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Caducidad',
-                            hintText: 'MM/AA',
-                          ),
-                          keyboardType: TextInputType.datetime,
-                          maxLength: 5,
-                          onChanged: (_) => setSheetState(() {}),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: cvvCtrl,
-                          decoration: const InputDecoration(labelText: 'CVV'),
-                          keyboardType: TextInputType.number,
-                          maxLength: 4,
-                          obscureText: true,
-                          onChanged: (_) => setSheetState(() {}),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: canPay && !_isPaying
-                        ? () {
-                            Navigator.pop(ctx);
-                            _pay();
-                          }
-                        : null,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                    child: const Text('Pagar'),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+  Future<void> _openPaymentLink(String url) async {
+    final trimmed = url.trim();
+    final uri = Uri.tryParse(
+      trimmed.contains('://') ? trimmed : 'https://$trimmed',
     );
+    final launched =
+        uri != null &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el enlace')),
+      );
+    }
   }
 
   @override
@@ -216,70 +96,53 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Pago')),
       body: AbsorbPointer(
-        absorbing: _isPaying,
-        child: switch (widget.paymentType) {
-          PaymentType.online => _buildCardOption(context),
-          PaymentType.bizum => _buildBizumUpload(context),
-          PaymentType.paypal => _buildManualConfirm(
-            context,
-            icon: Icons.account_balance_wallet,
-            title: 'Pagar por PayPal',
-            instructions: 'Envía el importe por PayPal a:',
-            fallbackInstructions:
-                'Envía el importe por PayPal al organizador del evento.',
-          ),
-          PaymentType.offline => const SizedBox.shrink(),
-        },
+        absorbing: _isUploadingProof,
+        child: widget.paymentType == PaymentType.offline
+            ? const SizedBox.shrink()
+            : _buildProofPayment(context),
       ),
     );
   }
 
-  Widget _buildCardOption(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Pagar "${widget.packName}"',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 20),
-          Card(
-            margin: EdgeInsets.zero,
-            child: ListTile(
-              leading: Icon(
-                Icons.credit_card,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: const Text('Tarjeta'),
-              trailing: _isPaying
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.chevron_right),
-              onTap: _isPaying ? null : _openCardSheet,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildManualConfirm(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String instructions,
-    required String fallbackInstructions,
-  }) {
+  Widget _buildProofPayment(BuildContext context) {
+    final type = widget.paymentType;
     final details = widget.paymentDetails;
     final hasDetails = details != null && details.isNotEmpty;
+    final concept = widget.bizumConcept;
+    final hasConcept =
+        type == PaymentType.bizum && concept != null && concept.isNotEmpty;
     final colorScheme = Theme.of(context).colorScheme;
+    final busy = _isUploadingProof;
 
-    return Padding(
+    final (icon, title, instructions, fallbackInstructions) = switch (type) {
+      PaymentType.bizum => (
+        Icons.phone_android,
+        'Pagar por Bizum',
+        'Envía el importe por Bizum a este número:',
+        'Envía el importe por Bizum al organizador del evento.',
+      ),
+      PaymentType.paypal => (
+        Icons.account_balance_wallet,
+        'Pagar por PayPal',
+        'Envía el importe por PayPal a:',
+        'Envía el importe por PayPal al organizador del evento.',
+      ),
+      PaymentType.bankTransfer => (
+        Icons.account_balance,
+        'Pagar por transferencia bancaria',
+        'Realiza la transferencia a esta cuenta:',
+        'Solicita los datos bancarios al organizador del evento.',
+      ),
+      PaymentType.online => (
+        Icons.open_in_new,
+        'Pagar en plataforma externa',
+        'Completa el pago en el siguiente enlace:',
+        'Solicita el enlace de pago al organizador del evento.',
+      ),
+      PaymentType.offline => (Icons.money, '', '', ''),
+    };
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,68 +163,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
           Text(hasDetails ? instructions : fallbackInstructions),
           if (hasDetails) ...[
             const SizedBox(height: 12),
-            _copyBox(context, details),
-          ],
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _isPaying ? null : _pay,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-            ),
-            child: _isPaying
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Ya he pagado'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBizumUpload(BuildContext context) {
-    final details = widget.paymentDetails;
-    final hasDetails = details != null && details.isNotEmpty;
-    final concept = widget.bizumConcept;
-    final hasConcept = concept != null && concept.isNotEmpty;
-    final colorScheme = Theme.of(context).colorScheme;
-    final busy = _isUploadingProof;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Pagar "${widget.packName}"',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Icon(Icons.phone_android, color: colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'Pagar por Bizum',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            hasDetails
-                ? 'Envía el importe por Bizum a este número:'
-                : 'Envía el importe por Bizum al organizador del evento.',
-          ),
-          if (hasDetails) ...[
-            const SizedBox(height: 12),
-            _copyBox(context, details),
+            if (type == PaymentType.online)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openPaymentLink(details),
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Abrir enlace de pago'),
+                ),
+              )
+            else
+              _copyBox(context, details),
           ],
           if (hasConcept) ...[
             const SizedBox(height: 16),
-            Text('Indica este concepto al hacer el Bizum:'),
+            const Text('Indica este concepto al hacer el Bizum:'),
             const SizedBox(height: 8),
             Text(
               concept,

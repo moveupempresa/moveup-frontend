@@ -692,7 +692,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
           : '',
     );
     String currency = existing?.currency ?? 'EUR';
-    PaymentType paymentType = existing?.paymentType ?? PaymentType.online;
+    PaymentType paymentType = existing?.paymentType ?? PaymentType.offline;
     ApprovalMode approvalMode =
         existing?.approvalMode ?? ApprovalMode.automatic;
     PackType packType = existing?.packType ?? PackType.fixed;
@@ -816,9 +816,16 @@ class _EventFormScreenState extends State<EventFormScreen> {
                     TextField(
                       controller: paymentDetailsCtrl,
                       decoration: InputDecoration(
-                        labelText: paymentType == PaymentType.bizum
-                            ? 'Teléfono de Bizum'
-                            : 'Enlace o email de PayPal',
+                        labelText: switch (paymentType) {
+                          PaymentType.bizum => 'Teléfono de Bizum',
+                          PaymentType.paypal => 'Enlace o email de PayPal',
+                          PaymentType.bankTransfer => 'Número de cuenta (IBAN)',
+                          PaymentType.online => 'Enlace de pago',
+                          PaymentType.offline => '',
+                        },
+                        hintText: paymentType == PaymentType.online
+                            ? 'Enlace de Stripe, Monei...'
+                            : null,
                       ),
                       onChanged: (_) => setSheetState(() {}),
                     ),

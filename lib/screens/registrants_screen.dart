@@ -500,9 +500,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                         onPressed: () => _setAttendance(r, false),
                       ),
                     ],
-                    if (_showsPayment &&
-                        widget.paymentType == PaymentType.bizum &&
-                        r.paymentProofUrl != null)
+                    if (_showsPayment && r.paymentProofUrl != null)
                       IconButton(
                         icon: const Icon(Icons.receipt_long_outlined),
                         tooltip: 'Ver comprobante',

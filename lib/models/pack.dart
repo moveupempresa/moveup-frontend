@@ -12,19 +12,20 @@ const kPackCurrencies = [
 ];
 
 enum PaymentType {
+  offline('offline', 'Efectivo'),
   bizum('bizum', 'Bizum'),
   paypal('paypal', 'PayPal'),
-  offline('offline', 'Efectivo'),
-  online('online', 'Pago con plataforma externa online');
+  bankTransfer('bank_transfer', 'Transferencia bancaria'),
+  online('online', 'Plataforma externa (Stripe, Monei...)');
 
   const PaymentType(this.value, this.label);
   final String value;
   final String label;
 
-  /// Bizum and PayPal are paid outside the app, same as Efectivo - the
-  /// organizer confirms payment manually rather than through the in-app
-  /// payment flow.
-  bool get needsPaymentDetails => this == bizum || this == paypal;
+  /// Every method except cash needs somewhere/something for the student to
+  /// pay to - a phone, an account, a link - which doubles as what the
+  /// organizer fills in to tell them where.
+  bool get needsPaymentDetails => this != offline;
 
   static PaymentType fromValue(String value) =>
       PaymentType.values.firstWhere((e) => e.value == value);

@@ -19,6 +19,7 @@ enum NotificationType {
   spotFreed('spot_freed'),
   eventCancelled('event_cancelled'),
   bizumPaymentClaimed('bizum_payment_claimed'),
+  paymentProofSubmitted('payment_proof_submitted'),
   savedEventCapacityLow('saved_event_capacity_low'),
   savedEventCapacityFull('saved_event_capacity_full'),
   savedEventSpotFreed('saved_event_spot_freed'),

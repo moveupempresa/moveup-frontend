@@ -10,17 +10,19 @@ import '../widgets/signup_action_button.dart';
 import 'payment_screen.dart';
 
 IconData _packPaymentIcon(PaymentType type) => switch (type) {
-  PaymentType.online => Icons.credit_card,
+  PaymentType.online => Icons.open_in_new,
   PaymentType.offline => Icons.money,
   PaymentType.bizum => Icons.phone_android,
   PaymentType.paypal => Icons.account_balance_wallet,
+  PaymentType.bankTransfer => Icons.account_balance,
 };
 
 String _packPaymentTooltip(PaymentType type) => switch (type) {
-  PaymentType.online => 'Pagar con tarjeta',
+  PaymentType.online => 'Pagar en plataforma externa',
   PaymentType.offline => 'Pago en efectivo',
   PaymentType.bizum => 'Pagar por Bizum',
   PaymentType.paypal => 'Pagar por PayPal',
+  PaymentType.bankTransfer => 'Pagar por transferencia',
 };
 
 /// Full-page detail for a pack, opened by a student tapping its (closed)
@@ -172,8 +174,8 @@ class _PackDetailScreenState extends State<PackDetailScreen> {
         ),
       ),
     );
-    // payForPack and uploadPaymentProof only ever resolve awaiting_payment
-    // straight to confirmed on success, so this is always the right status.
+    // uploadPaymentProof only ever resolves awaiting_payment straight to
+    // confirmed on success, so this is always the right status.
     if (success == true && mounted) {
       setState(() {
         _isSignedUp = true;

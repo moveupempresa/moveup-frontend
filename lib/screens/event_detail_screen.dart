@@ -736,10 +736,11 @@ class _CapacityBadge extends StatelessWidget {
 }
 
 IconData _packPaymentIcon(PaymentType type) => switch (type) {
-  PaymentType.online => Icons.credit_card,
+  PaymentType.online => Icons.open_in_new,
   PaymentType.offline => Icons.money,
   PaymentType.bizum => Icons.phone_android,
   PaymentType.paypal => Icons.account_balance_wallet,
+  PaymentType.bankTransfer => Icons.account_balance,
 };
 
 class _PackCard extends StatefulWidget {
