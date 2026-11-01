@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
 import '../models/reservation.dart';
+import 'finished_badge.dart';
 
 class ReservationCard extends StatelessWidget {
   final Reservation reservation;
@@ -104,11 +105,21 @@ class ReservationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      event.title,
-                      style: Theme.of(context).textTheme.titleSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            event.title,
+                            style: Theme.of(context).textTheme.titleSmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (reservation.isPast) ...[
+                          const SizedBox(width: 6),
+                          const FinishedBadge(),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
