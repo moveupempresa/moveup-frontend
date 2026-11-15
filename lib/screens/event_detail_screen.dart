@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../config/api_config.dart';
 import '../models/event.dart';
@@ -9,6 +10,7 @@ import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/registration_service.dart';
 import '../utils/session_format.dart';
+import '../utils/story_card_capture.dart';
 import '../widgets/contact_methods_row.dart';
 import '../widgets/finished_badge.dart';
 import '../widgets/sessions_section.dart';
@@ -38,6 +40,7 @@ class EventDetailScreen extends StatefulWidget {
 class _EventDetailScreenState extends State<EventDetailScreen> {
   bool _isDeleting = false;
   bool _isTogglingSave = false;
+  bool _isSharingStory = false;
   late bool _isSaved = widget.event.isSaved;
   int _heroCoverPage = 0;
 
@@ -143,6 +146,28 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
     } finally {
       if (mounted) setState(() => _isTogglingSave = false);
+    }
+  }
+
+  Future<void> _shareToStory() async {
+    setState(() => _isSharingStory = true);
+    try {
+      final file = await captureEventStoryCard(
+        context: context,
+        event: widget.event,
+      );
+      if (!mounted) return;
+      if (file == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo preparar la imagen para compartir'),
+          ),
+        );
+        return;
+      }
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+    } finally {
+      if (mounted) setState(() => _isSharingStory = false);
     }
   }
 
@@ -299,6 +324,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ),
+                    IconButton(
+                      icon: _isSharingStory
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.ios_share),
+                      tooltip: 'Compartir en historia',
+                      onPressed: _isSharingStory ? null : _shareToStory,
                     ),
                     if (!isOwner)
                       IconButton(
