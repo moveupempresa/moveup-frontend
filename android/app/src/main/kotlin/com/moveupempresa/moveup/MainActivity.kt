@@ -1,4 +1,4 @@
-package com.example.move_up_app
+package com.moveupempresa.moveup
 
 import io.flutter.embedding.android.FlutterActivity
 
