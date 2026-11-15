@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../models/event.dart';
+import 'day_circle.dart';
 import 'event_card.dart';
 
 enum _ViewMode { list, calendar }
@@ -266,10 +267,10 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
           },
           onPageChanged: (focused) => _focusedDay = focused,
           calendarStyle: CalendarStyle(
-            markerDecoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              shape: BoxShape.circle,
-            ),
+            // A defaultBuilder below already circles the number for days
+            // with events - markersMaxCount: 0 stops the package from also
+            // drawing its own default dot underneath it.
+            markersMaxCount: 0,
             selectedDecoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
               shape: BoxShape.circle,
@@ -278,6 +279,19 @@ class _ProfileEventsSectionState extends State<ProfileEventsSection> {
               color: Theme.of(context).colorScheme.primaryContainer,
               shape: BoxShape.circle,
             ),
+          ),
+          calendarBuilders: CalendarBuilders<Event>(
+            defaultBuilder: (context, day, focusedDay) {
+              final dayEvents =
+                  eventsByDay[_calendarDayKey(day)] ?? const <Event>[];
+              if (dayEvents.isEmpty) return null;
+              return Center(
+                child: DayCircle(
+                  day: day.day,
+                  colors: [Theme.of(context).colorScheme.primary],
+                ),
+              );
+            },
           ),
           headerStyle: const HeaderStyle(
             formatButtonVisible: false,
