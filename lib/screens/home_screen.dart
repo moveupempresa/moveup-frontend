@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
 import '../models/profile.dart';
@@ -40,11 +43,72 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _hasUnreadNotifications = false;
 
+  final _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+
   @override
   void initState() {
     super.initState();
     _restoreLocation();
     _loadNotificationStatus();
+    _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  // Handles https://atryumapp.com/evento/<id> links shared from outside the
+  // app (e.g. an Instagram story link sticker) once they're verified as
+  // Universal/App Links by iOS/Android and handed off to us.
+  Future<void> _initDeepLinks() async {
+    try {
+      final initial = await _appLinks.getInitialLink();
+      if (initial != null) _handleDeepLink(initial);
+    } catch (_) {
+      // No initial link, or the platform channel isn't ready yet - either
+      // way there's nothing to recover from here.
+    }
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      _handleDeepLink,
+      onError: (_) {},
+    );
+  }
+
+  void _handleDeepLink(Uri uri) {
+    final segments = uri.pathSegments;
+    final i = segments.indexOf('evento');
+    if (i == -1 || i + 1 >= segments.length) return;
+    final eventId = segments[i + 1];
+    if (eventId.isEmpty) return;
+    _openEventById(eventId);
+  }
+
+  Future<void> _openEventById(String eventId) async {
+    try {
+      final event = await EventService.getEvent(
+        token: widget.token,
+        eventId: eventId,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EventDetailScreen(
+            token: widget.token,
+            event: event,
+            currentUserId: widget.user.id,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el evento')),
+        );
+      }
+    }
   }
 
   Future<void> _loadNotificationStatus() async {
