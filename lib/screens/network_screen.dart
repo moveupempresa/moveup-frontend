@@ -29,6 +29,8 @@ class NetworkScreen extends StatefulWidget {
 
 class _NetworkScreenState extends State<NetworkScreen> {
   late NetworkMode _mode = widget.initialMode;
+  final _searchCtrl = TextEditingController();
+  String _query = '';
   List<PopularProfile>? _following;
   bool _loadingFollowing = false;
   String? _followingError;
@@ -45,6 +47,12 @@ class _NetworkScreenState extends State<NetworkScreen> {
     _loadFollowing();
     _loadFollowers();
     _loadFavorites();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFollowing() async {
@@ -180,6 +188,27 @@ class _NetworkScreenState extends State<NetworkScreen> {
                   setState(() => _mode = selection.first),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Buscar por nombre o usuario',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _query = '');
+                        },
+                      ),
+                isDense: true,
+              ),
+              onChanged: (value) => setState(() => _query = value),
+            ),
+          ),
           Expanded(
             child: switch (_mode) {
               NetworkMode.following => _buildProfileList(
@@ -246,19 +275,36 @@ class _NetworkScreenState extends State<NetworkScreen> {
       );
     }
 
-    final results = profiles ?? [];
+    final all = profiles ?? [];
+    final query = _query.trim().toLowerCase();
+    final results = query.isEmpty
+        ? all
+        : all
+              .where(
+                (p) =>
+                    p.name.toLowerCase().contains(query) ||
+                    p.username.toLowerCase().contains(query) ||
+                    p.artisticName.toLowerCase().contains(query),
+              )
+              .toList();
+
     if (results.isEmpty) {
+      final message = query.isNotEmpty && all.isNotEmpty
+          ? 'No se encontraron resultados para "${_query.trim()}"'
+          : emptyMessage;
       return ListView(
         children: [
           const SizedBox(height: 120),
           Icon(
-            Icons.people_outline,
+            query.isNotEmpty && all.isNotEmpty
+                ? Icons.search_off
+                : Icons.people_outline,
             size: 40,
             color: Theme.of(context).colorScheme.outline,
           ),
           const SizedBox(height: 12),
           Text(
-            emptyMessage,
+            message,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.outline,
