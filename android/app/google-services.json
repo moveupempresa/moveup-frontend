@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "423846146602",
+    "project_id": "atryum-a29db",
+    "storage_bucket": "atryum-a29db.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:423846146602:android:d6017f787bcaa402144953",
+        "android_client_info": {
+          "package_name": "com.moveupempresa.moveup"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmACnDKs6xRZqrIDstV_3I6F8VcBZjlbI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
