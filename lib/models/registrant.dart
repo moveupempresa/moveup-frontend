@@ -1,3 +1,5 @@
+import 'pack.dart';
+
 enum RegistrationStatus {
   confirmed('confirmed', 'Confirmado'),
   pending('pending', 'Pendiente de aprobación'),
@@ -22,6 +24,8 @@ class Registrant {
   final bool hasPaid;
   final String? paymentProofUrl;
   final String? viaPack;
+  final String? viaPackId;
+  final PaymentType? viaPackPaymentType;
   final bool attended;
   final DateTime createdAt;
 
@@ -35,6 +39,8 @@ class Registrant {
     required this.hasPaid,
     this.paymentProofUrl,
     this.viaPack,
+    this.viaPackId,
+    this.viaPackPaymentType,
     this.attended = false,
     required this.createdAt,
   });
@@ -51,6 +57,10 @@ class Registrant {
     hasPaid: json['hasPaid'] as bool? ?? false,
     paymentProofUrl: json['paymentProofUrl'] as String?,
     viaPack: json['viaPack'] as String?,
+    viaPackId: json['viaPackId'] as String?,
+    viaPackPaymentType: json['viaPackPaymentType'] != null
+        ? PaymentType.fromValue(json['viaPackPaymentType'] as String)
+        : null,
     attended: json['attended'] as bool? ?? false,
     createdAt: DateTime.parse(json['createdAt'] as String),
   );
@@ -69,6 +79,8 @@ class Registrant {
     hasPaid: hasPaid ?? this.hasPaid,
     paymentProofUrl: paymentProofUrl ?? this.paymentProofUrl,
     viaPack: viaPack,
+    viaPackId: viaPackId,
+    viaPackPaymentType: viaPackPaymentType,
     attended: attended ?? this.attended,
     createdAt: createdAt,
   );

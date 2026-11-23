@@ -105,13 +105,24 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
   // uploaded proof), so the icon here is read-only for them.
   bool get _canTogglePayment => widget.paymentType == PaymentType.offline;
 
-  Future<void> _togglePaid(Registrant r) async {
+  // While taking attendance for a session, a registrant who got in through
+  // a cash-paying pack can also be marked as paid right here, instead of
+  // making the organizer leave and find them again in that pack's own
+  // registrants screen.
+  bool _canToggleRegistrantPayment(Registrant r) {
+    if (widget.targetType == RegistrantsTargetType.pack) {
+      return _canTogglePayment;
+    }
+    return r.viaPackId != null && r.viaPackPaymentType == PaymentType.offline;
+  }
+
+  Future<void> _togglePaid(Registrant r, {required String packId}) async {
     final newValue = !r.hasPaid;
     try {
       await RegistrationService.setPackPaymentStatus(
         token: widget.token,
         eventId: widget.eventId,
-        packId: widget.targetId,
+        packId: packId,
         userId: r.userId,
         hasPaid: newValue,
       );
@@ -508,7 +519,7 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                           ApiConfig.mediaUrl(r.paymentProofUrl!),
                         ]),
                       ),
-                    if (_showsPayment && _canTogglePayment)
+                    if (_canToggleRegistrantPayment(r))
                       IconButton(
                         icon: Icon(r.hasPaid ? Icons.paid : Icons.money_off),
                         color: r.hasPaid
@@ -517,7 +528,13 @@ class _RegistrantsScreenState extends State<RegistrantsScreen> {
                         tooltip: r.hasPaid
                             ? 'Marcar como no pagado'
                             : 'Marcar como pagado',
-                        onPressed: () => _togglePaid(r),
+                        onPressed: () => _togglePaid(
+                          r,
+                          packId:
+                              widget.targetType == RegistrantsTargetType.pack
+                              ? widget.targetId
+                              : r.viaPackId!,
+                        ),
                       )
                     else if (_showsPayment)
                       Padding(
