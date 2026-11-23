@@ -42,6 +42,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.waitlisted,
     NotificationType.spotAvailable,
     NotificationType.targetUpdated,
+    NotificationType.locationUpdated,
     NotificationType.signupApproved,
     NotificationType.signupRejected,
     NotificationType.registrationRevoked,
@@ -49,6 +50,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationType.selfCancelConfirmed,
     NotificationType.eventCancelled,
     NotificationType.eventReminderStudent,
+    NotificationType.eventReminderStudentHours,
+    NotificationType.organizerAnnouncement,
   };
   static const _savedEventTypes = {
     NotificationType.savedEventCapacityLow,
@@ -472,6 +475,9 @@ class _NotificationTileState extends State<_NotificationTile> {
     NotificationType.eventReminderStudent => Icons.today_outlined,
     NotificationType.savedEventReminder => Icons.today_outlined,
     NotificationType.phoneNumberRequired => Icons.phone_outlined,
+    NotificationType.eventReminderStudentHours => Icons.access_time_outlined,
+    NotificationType.locationUpdated => Icons.location_on_outlined,
+    NotificationType.organizerAnnouncement => Icons.campaign_outlined,
   };
 
   Future<void> _respond(bool approve) async {

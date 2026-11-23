@@ -26,8 +26,11 @@ enum NotificationType {
   eventReminderOrganizerDay('event_reminder_organizer_day'),
   eventReminderOrganizerHours('event_reminder_organizer_hours'),
   eventReminderStudent('event_reminder_student'),
+  eventReminderStudentHours('event_reminder_student_hours'),
   savedEventReminder('saved_event_reminder'),
-  phoneNumberRequired('phone_number_required');
+  phoneNumberRequired('phone_number_required'),
+  locationUpdated('location_updated'),
+  organizerAnnouncement('organizer_announcement');
 
   const NotificationType(this.value);
   final String value;
