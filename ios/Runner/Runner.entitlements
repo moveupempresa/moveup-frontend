@@ -7,5 +7,7 @@
 		<string>applinks:atryumapp.com</string>
 		<string>applinks:www.atryumapp.com</string>
 	</array>
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 import '../models/profile.dart';
@@ -8,6 +9,7 @@ import '../models/user.dart';
 import '../services/app_location_service.dart';
 import '../services/event_service.dart';
 import '../services/notification_service.dart';
+import '../services/push_notification_service.dart';
 import 'create_screen.dart';
 import 'event_detail_screen.dart';
 import 'explore_screen.dart';
@@ -45,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
+  StreamSubscription<RemoteMessage>? _pushTapSubscription;
 
   @override
   void initState() {
@@ -52,12 +55,33 @@ class _HomeScreenState extends State<HomeScreen> {
     _restoreLocation();
     _loadNotificationStatus();
     _initDeepLinks();
+    _initPushNotifications();
   }
 
   @override
   void dispose() {
     _linkSubscription?.cancel();
+    _pushTapSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initPushNotifications() async {
+    await PushNotificationService.registerDevice(widget.token);
+
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) _handlePushTap(initialMessage);
+
+    _pushTapSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+      _handlePushTap,
+    );
+  }
+
+  // The same relatedEventId the backend already puts on every push's data
+  // payload (utils/push.js) - reuse the event-opening path below rather
+  // than building a second one.
+  void _handlePushTap(RemoteMessage message) {
+    final eventId = message.data['relatedEventId'];
+    if (eventId is String && eventId.isNotEmpty) _openEventById(eventId);
   }
 
   // Handles https://atryumapp.com/evento/<id> links shared from outside the

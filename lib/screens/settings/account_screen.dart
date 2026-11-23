@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/user.dart';
 import '../../services/app_location_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/auth_storage_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../services/user_service.dart';
 import '../login_screen.dart';
 import 'change_email_screen.dart';
+
+const _pushNotificationsPrefKey = 'push_notifications_enabled';
 
 class AccountScreen extends StatefulWidget {
   final String token;
@@ -30,9 +34,28 @@ class _AccountScreenState extends State<AccountScreen> {
   void initState() {
     super.initState();
     _user = widget.user;
+    _loadPushPreference();
+  }
+
+  Future<void> _loadPushPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool(_pushNotificationsPrefKey) ?? true;
+    if (mounted) setState(() => _pushNotifications = enabled);
+  }
+
+  Future<void> _togglePushNotifications(bool enabled) async {
+    setState(() => _pushNotifications = enabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_pushNotificationsPrefKey, enabled);
+    if (enabled) {
+      await PushNotificationService.registerDevice(widget.token);
+    } else {
+      await PushNotificationService.unregisterDevice(widget.token);
+    }
   }
 
   Future<void> _logout() async {
+    await PushNotificationService.unregisterDevice(widget.token);
     await AuthStorageService.clearToken();
     await AppLocationService.saveTab(0);
     await AppLocationService.saveOpenEvent(null);
@@ -245,7 +268,7 @@ class _AccountScreenState extends State<AccountScreen> {
             title: const Text('Notificaciones push'),
             subtitle: const Text('Recibe alertas en tu dispositivo'),
             value: _pushNotifications,
-            onChanged: (val) => setState(() => _pushNotifications = val),
+            onChanged: _togglePushNotifications,
           ),
           SwitchListTile(
             secondary: const Icon(Icons.mark_email_unread_outlined),
