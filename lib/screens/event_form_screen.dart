@@ -16,6 +16,22 @@ import '../services/session_service.dart';
 import '../widgets/country_city_picker.dart';
 import '../widgets/video_player_view.dart';
 
+/// Suggested styles grouped by category, shown as selectable chips - the
+/// organizer can still type anything not on this list.
+const _styleCategories = <String, List<String>>{
+  'Latinos': ['Salsa', 'Bachata', 'Kizomba', 'Merengue', 'Zouk', 'Cha cha chá'],
+  'Urbano': ['Hip-hop', 'Reggaetón', 'Dancehall', 'Afrobeats', 'Twerk'],
+  'Danza clásica y contemporánea': [
+    'Ballet',
+    'Contemporáneo',
+    'Jazz',
+    'Danza moderna',
+  ],
+  'Folclore y flamenco': ['Flamenco', 'Sevillanas', 'Folclore'],
+  'Swing y social': ['Swing', 'Tango', 'Vals'],
+  'Fitness y bienestar': ['Zumba', 'Pilates', 'Yoga'],
+};
+
 class _SessionDraft {
   String? id;
   String name;
@@ -208,6 +224,18 @@ class _EventFormScreenState extends State<EventFormScreen> {
       _styles.add(value);
       _styleInputController.clear();
     });
+  }
+
+  void _toggleStyle(String name) {
+    if (_styles.contains(name)) {
+      setState(() => _styles.remove(name));
+      return;
+    }
+    if (_styles.length >= 3) {
+      _showError('Puedes elegir hasta 3 estilos');
+      return;
+    }
+    setState(() => _styles.add(name));
   }
 
   Future<void> _pickCoverImage() async {
@@ -1635,6 +1663,31 @@ class _EventFormScreenState extends State<EventFormScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          for (final category in _styleCategories.entries) ...[
+            Text(
+              category.key,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: category.value
+                  .map(
+                    (name) => FilterChip(
+                      label: Text(name),
+                      selected: _styles.contains(name),
+                      onSelected: (_) => _toggleStyle(name),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+          ],
+          _label('¿No está en la lista?'),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -1644,7 +1697,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   decoration: InputDecoration(
                     hintText: _styles.length >= 3
                         ? 'Máximo de estilos alcanzado'
-                        : 'ej: Salsa, Bachata, Hip-hop...',
+                        : 'Escribe tu propio estilo...',
                   ),
                   enabled: _styles.length < 3,
                   textCapitalization: TextCapitalization.sentences,
@@ -1664,7 +1717,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
             ],
           ),
           if (_styles.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
+            Text('Elegidos', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
