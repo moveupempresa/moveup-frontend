@@ -102,7 +102,8 @@ class EventFormScreen extends StatefulWidget {
 }
 
 class _EventFormScreenState extends State<EventFormScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _basicInfoFormKey = GlobalKey<FormState>();
+  final _descriptionFormKey = GlobalKey<FormState>();
   final _picker = ImagePicker();
 
   final _titleController = TextEditingController();
@@ -128,7 +129,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   final _stepController = PageController();
   int _currentStep = 0;
-  static const _stepCount = 5;
+  static const _stepCount = 7;
 
   EventType _eventType = EventType.specialEvent;
   LocationType _locationType = LocationType.presential;
@@ -1197,7 +1198,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
         return;
       }
     } else {
-      if (!_formKey.currentState!.validate()) return;
+      if (!_basicInfoFormKey.currentState!.validate()) return;
+      if (!_descriptionFormKey.currentState!.validate()) return;
       if (_styles.isEmpty) {
         _showError('Añade al menos un estilo');
         return;
@@ -1397,25 +1399,28 @@ class _EventFormScreenState extends State<EventFormScreen> {
   bool _validateStep(int step) {
     switch (step) {
       case 0:
-        if (!_formKey.currentState!.validate()) return false;
+        return _basicInfoFormKey.currentState!.validate();
+      case 1:
         if (_styles.isEmpty) {
           _showError('Añade al menos un estilo');
           return false;
         }
         return true;
-      case 1:
+      case 2:
+        return _descriptionFormKey.currentState!.validate();
+      case 3:
         if (_sessions.isEmpty) {
           _showError('Añade al menos una sesión');
           return false;
         }
         return true;
-      case 2:
+      case 4:
         if (!_hasEffectiveCoverImage && !_hasEffectiveCoverVideo) {
           _showError('Selecciona una imagen o un video de portada');
           return false;
         }
         return true;
-      case 3:
+      case 5:
         if (_reservationChoice == null) {
           _showError('Indica si necesitas gestionar reservas');
           return false;
@@ -1470,30 +1475,29 @@ class _EventFormScreenState extends State<EventFormScreen> {
         ],
       ),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              const SizedBox(height: 16),
-              _buildStepDots(),
-              const SizedBox(height: 8),
-              Expanded(
-                child: PageView(
-                  controller: _stepController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (i) => setState(() => _currentStep = i),
-                  children: [
-                    _buildBasicInfoStep(),
-                    _buildSessionsStep(),
-                    _buildCoverStep(),
-                    _buildPacksStep(),
-                    _buildReviewStep(),
-                  ],
-                ),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            _buildStepDots(),
+            const SizedBox(height: 8),
+            Expanded(
+              child: PageView(
+                controller: _stepController,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (i) => setState(() => _currentStep = i),
+                children: [
+                  _buildBasicInfoStep(),
+                  _buildStyleStep(),
+                  _buildDescriptionStep(),
+                  _buildSessionsStep(),
+                  _buildCoverStep(),
+                  _buildPacksStep(),
+                  _buildReviewStep(),
+                ],
               ),
-              _buildStepNavBar(),
-            ],
-          ),
+            ),
+            _buildStepNavBar(),
+          ],
         ),
       ),
     );
@@ -1556,56 +1560,69 @@ class _EventFormScreenState extends State<EventFormScreen> {
   }
 
   Widget _buildBasicInfoStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Form(
+        key: _basicInfoFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _label('Nombre del evento'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _titleController,
+              decoration: const InputDecoration(hintText: 'Nombre del evento'),
+              textCapitalization: TextCapitalization.sentences,
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Requerido' : null,
+            ),
+            const SizedBox(height: 24),
+            CountryCityPicker(
+              initialCountry: _selectedCountry,
+              initialCity: _selectedCity,
+              onCountryChanged: (v) => setState(() => _selectedCountry = v),
+              onCityChanged: (v) => setState(() => _selectedCity = v),
+            ),
+            const SizedBox(height: 24),
+            _label('Categoría'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<EventType>(
+              value: _eventType,
+              items: EventType.values
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                  .toList(),
+              onChanged: (v) => setState(() {
+                if (v != null) _eventType = v;
+              }),
+            ),
+            if (_eventType == EventType.other) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _customEventTypeController,
+                decoration: const InputDecoration(
+                  hintText: '¿De qué tipo de evento se trata?',
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                validator: (v) =>
+                    _eventType == EventType.other &&
+                        (v == null || v.trim().isEmpty)
+                    ? 'Requerido'
+                    : null,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStyleStep() {
     final colorScheme = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _label('Nombre del evento'),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _titleController,
-            decoration: const InputDecoration(hintText: 'Nombre del evento'),
-            textCapitalization: TextCapitalization.sentences,
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Requerido' : null,
-          ),
-          const SizedBox(height: 24),
-          CountryCityPicker(
-            initialCountry: _selectedCountry,
-            initialCity: _selectedCity,
-            onCountryChanged: (v) => setState(() => _selectedCountry = v),
-            onCityChanged: (v) => setState(() => _selectedCity = v),
-          ),
-          const SizedBox(height: 24),
-          _label('Categoría'),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<EventType>(
-            value: _eventType,
-            items: EventType.values
-                .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
-                .toList(),
-            onChanged: (v) => setState(() {
-              if (v != null) _eventType = v;
-            }),
-          ),
-          if (_eventType == EventType.other) ...[
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _customEventTypeController,
-              decoration: const InputDecoration(
-                hintText: '¿De qué tipo de evento se trata?',
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              validator: (v) =>
-                  _eventType == EventType.other &&
-                      (v == null || v.trim().isEmpty)
-                  ? 'Requerido'
-                  : null,
-            ),
-          ],
-          const SizedBox(height: 24),
           Row(
             children: [
               _label('Estilo'),
@@ -1661,21 +1678,34 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   .toList(),
             ),
           ],
-          const SizedBox(height: 24),
-          _label('Descripción'),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _descriptionController,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: 'Describe el evento...',
-              alignLabelWithHint: true,
-            ),
-            textCapitalization: TextCapitalization.sentences,
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Requerido' : null,
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDescriptionStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Form(
+        key: _descriptionFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _label('Descripción'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descriptionController,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                hintText: 'Describe el evento...',
+                alignLabelWithHint: true,
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Requerido' : null,
+            ),
+          ],
+        ),
       ),
     );
   }
