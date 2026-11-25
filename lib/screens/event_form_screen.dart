@@ -126,6 +126,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
   bool _isSubmitting = false;
   bool _isSavingDraft = false;
 
+  final _stepController = PageController();
+  int _currentStep = 0;
+  static const _stepCount = 5;
+
   EventType _eventType = EventType.specialEvent;
   LocationType _locationType = LocationType.presential;
   EventVisibility _visibility = EventVisibility.public;
@@ -177,6 +181,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     _descriptionController.dispose();
     _styleInputController.dispose();
     _customEventTypeController.dispose();
+    _stepController.dispose();
     super.dispose();
   }
 
@@ -1389,10 +1394,63 @@ class _EventFormScreenState extends State<EventFormScreen> {
   String _formatDatetime(DateTime dt) =>
       '${dt.day}/${dt.month}/${dt.year}  ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 
+  bool _validateStep(int step) {
+    switch (step) {
+      case 0:
+        if (!_formKey.currentState!.validate()) return false;
+        if (_styles.isEmpty) {
+          _showError('Añade al menos un estilo');
+          return false;
+        }
+        return true;
+      case 1:
+        if (_sessions.isEmpty) {
+          _showError('Añade al menos una sesión');
+          return false;
+        }
+        return true;
+      case 2:
+        if (!_hasEffectiveCoverImage && !_hasEffectiveCoverVideo) {
+          _showError('Selecciona una imagen o un video de portada');
+          return false;
+        }
+        return true;
+      case 3:
+        if (_reservationChoice == null) {
+          _showError('Indica si necesitas gestionar reservas');
+          return false;
+        }
+        if (_reservationChoice == true && _packs.isEmpty) {
+          _showError('Añade al menos un pack');
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  }
+
+  void _goToNextStep() {
+    if (!_validateStep(_currentStep)) return;
+    if (_currentStep == _stepCount - 1) {
+      _submit();
+      return;
+    }
+    _stepController.nextPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _goToPreviousStep() {
+    _stepController.previousPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar evento' : 'Crear evento'),
@@ -1414,404 +1472,533 @@ class _EventFormScreenState extends State<EventFormScreen> {
       body: SafeArea(
         child: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
+          child: Column(
             children: [
-              // 1. Nombre
-              _label('Nombre del evento'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  hintText: 'Nombre del evento',
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 24),
-
-              // 2. País y ciudad
-              CountryCityPicker(
-                initialCountry: _selectedCountry,
-                initialCity: _selectedCity,
-                onCountryChanged: (v) => setState(() => _selectedCountry = v),
-                onCityChanged: (v) => setState(() => _selectedCity = v),
-              ),
-              const SizedBox(height: 24),
-
-              // 4. Categoría / modalidad / visibilidad
-              _label('Categoría'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<EventType>(
-                value: _eventType,
-                items: EventType.values
-                    .map(
-                      (t) => DropdownMenuItem(value: t, child: Text(t.label)),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  if (v != null) _eventType = v;
-                }),
-              ),
-              if (_eventType == EventType.other) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _customEventTypeController,
-                  decoration: const InputDecoration(
-                    hintText: '¿De qué tipo de evento se trata?',
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  validator: (v) =>
-                      _eventType == EventType.other &&
-                          (v == null || v.trim().isEmpty)
-                      ? 'Requerido'
-                      : null,
-                ),
-              ],
-              if (_isEditing) ...[
-                const SizedBox(height: 16),
-                _label('Estado'),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<EventStatus>(
-                  value: _status,
-                  items: EventStatus.values
-                      .map(
-                        (t) => DropdownMenuItem(value: t, child: Text(t.label)),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() {
-                    if (v != null) _status = v;
-                  }),
-                ),
-                if (_status == EventStatus.draft) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Cambia a Publicado y guarda para publicar el evento',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: colorScheme.outline),
-                  ),
-                ],
-              ],
-              const SizedBox(height: 24),
-
-              // 5. Estilo (chips)
-              Row(
-                children: [
-                  _label('Estilo'),
-                  const SizedBox(width: 8),
-                  Text(
-                    '(${_styles.length}/3)',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _styleInputController,
-                      decoration: InputDecoration(
-                        hintText: _styles.length >= 3
-                            ? 'Máximo de estilos alcanzado'
-                            : 'ej: Salsa, Bachata, Hip-hop...',
-                      ),
-                      enabled: _styles.length < 3,
-                      textCapitalization: TextCapitalization.sentences,
-                      onSubmitted: (_) => _addStyle(),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed:
-                        _styles.length < 3 &&
-                            _styleInputController.text.trim().isNotEmpty
-                        ? _addStyle
-                        : null,
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
-              ),
-              if (_styles.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: _styles
-                      .map(
-                        (s) => InputChip(
-                          label: Text(s),
-                          onDeleted: () => setState(() => _styles.remove(s)),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-              const SizedBox(height: 24),
-
-              // 6. Descripción
-              _label('Descripción'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: 'Describe el evento...',
-                  alignLabelWithHint: true,
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 24),
-
-              // 7. Sesiones
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _label('Sesiones'),
-                  if (_sessions.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () => _openSessionSheet(),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Añadir'),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (_sessions.isEmpty)
-                OutlinedButton.icon(
-                  onPressed: () => _openSessionSheet(),
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  label: const Text('Añadir sesión'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
-                )
-              else
-                ..._sessions.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final s = entry.value;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      onTap: () => _openSessionSheet(existing: s),
-                      leading: CircleAvatar(child: Text('${i + 1}')),
-                      title: Text(s.name),
-                      subtitle: Text(
-                        '${_formatDatetime(s.startDatetime)} → ${_formatDatetime(s.endDatetime)}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => _removeSession(s),
-                      ),
-                    ),
-                  );
-                }),
-              const SizedBox(height: 24),
-
-              // 8. Portada
-              _label('Portada'),
-              const SizedBox(height: 4),
-              Text(
-                'Añade una imagen, un video, o ambos',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colorScheme.outline),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: colorScheme.outlineVariant),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  children: [
-                    PageView(
-                      onPageChanged: (i) => setState(() => _coverPage = i),
-                      children: [
-                        _buildCoverSlot(
-                          hasMedia: _hasEffectiveCoverImage,
-                          preview: _coverImageFile != null
-                              ? Image.file(
-                                  _coverImageFile!,
-                                  fit: BoxFit.contain,
-                                )
-                              : (_isEditing &&
-                                        widget.event!.coverImageUrl != null
-                                    ? Image.network(
-                                        ApiConfig.mediaUrl(
-                                          widget.event!.coverImageUrl!,
-                                        ),
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(
-                                              Icons
-                                                  .image_not_supported_outlined,
-                                              size: 40,
-                                            ),
-                                      )
-                                    : const SizedBox.shrink()),
-                          addIcon: Icons.add_photo_alternate_outlined,
-                          addLabel: 'Añadir imagen',
-                          onAdd: _pickCoverImage,
-                          onChange: _pickCoverImage,
-                          onRemove: _clearCoverImage,
-                        ),
-                        _buildCoverSlot(
-                          hasMedia: _hasEffectiveCoverVideo,
-                          preview: _coverVideoFile != null
-                              ? VideoPlayerView(filePath: _coverVideoFile!.path)
-                              : (_isEditing &&
-                                        widget.event!.coverVideoUrl != null
-                                    ? VideoPlayerView(
-                                        networkUrl: ApiConfig.mediaUrl(
-                                          widget.event!.coverVideoUrl!,
-                                        ),
-                                      )
-                                    : const SizedBox.shrink()),
-                          addIcon: Icons.videocam_outlined,
-                          addLabel: 'Añadir video',
-                          onAdd: _pickCoverVideo,
-                          onChange: _pickCoverVideo,
-                          onRemove: _clearCoverVideo,
-                        ),
-                      ],
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          2,
-                          (i) => Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _coverPage == i
-                                  ? colorScheme.primary
-                                  : Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 9. Reservas
-              _label('¿Necesitas gestionar reservas?'),
-              const SizedBox(height: 12),
-              _ReservationCard(
-                label: 'No, publicar sin reservas',
-                icon: Icons.public,
-                selected: _reservationChoice == false,
-                onTap: () => _setReservationChoice(false),
-              ),
-              const SizedBox(height: 10),
-              _ReservationCard(
-                label: 'Sí, quiero gestionar reservas',
-                icon: Icons.confirmation_number_outlined,
-                selected: _reservationChoice == true,
-                onTap: () => _setReservationChoice(true),
-              ),
-              if (_reservationChoice == true) ...[
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _label('Packs'),
-                    if (_packs.isNotEmpty)
-                      TextButton.icon(
-                        onPressed: _sessions.isEmpty
-                            ? null
-                            : () => _openPackSheet(),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Añadir'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (_sessions.isEmpty)
-                  Text(
-                    'Añade al menos una sesión antes de crear un pack',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: colorScheme.error),
-                  )
-                else if (_packs.isEmpty)
-                  OutlinedButton.icon(
-                    onPressed: () => _openPackSheet(),
-                    icon: const Icon(Icons.confirmation_number_outlined),
-                    label: const Text('Añadir pack'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                  )
-                else
-                  ..._packs.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final p = entry.value;
-                    final priceLabel =
-                        '${p.price.toStringAsFixed(2)} ${p.currency} · ${p.paymentType.label}';
-                    final packTypeLabel = p.packType == PackType.customizable
-                        ? '${p.packType.label} (máx. ${p.maxSelectableSessions} sesiones)'
-                        : p.packType.label;
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        onTap: () => _openPackSheet(existing: p),
-                        leading: CircleAvatar(child: Text('${i + 1}')),
-                        title: Text(p.name),
-                        subtitle: Text(
-                          '$priceLabel · $packTypeLabel',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _removePack(p),
-                        ),
-                      ),
-                    );
-                  }),
-              ],
-              const SizedBox(height: 32),
-
-              if (_reservationChoice != null)
-                FilledButton(
-                  onPressed: _isSubmitting || _isSavingDraft ? null : _submit,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(_submitLabel),
-                ),
               const SizedBox(height: 16),
+              _buildStepDots(),
+              const SizedBox(height: 8),
+              Expanded(
+                child: PageView(
+                  controller: _stepController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (i) => setState(() => _currentStep = i),
+                  children: [
+                    _buildBasicInfoStep(),
+                    _buildSessionsStep(),
+                    _buildCoverStep(),
+                    _buildPacksStep(),
+                    _buildReviewStep(),
+                  ],
+                ),
+              ),
+              _buildStepNavBar(),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _buildStepDots() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        _stepCount,
+        (i) => Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _currentStep == i
+                ? colorScheme.primary
+                : colorScheme.outlineVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepNavBar() {
+    final isLastStep = _currentStep == _stepCount - 1;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      child: Row(
+        children: [
+          if (_currentStep > 0) ...[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _isSubmitting || _isSavingDraft
+                    ? null
+                    : _goToPreviousStep,
+                child: const Text('Atrás'),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            flex: _currentStep > 0 ? 1 : 2,
+            child: FilledButton(
+              onPressed: _isSubmitting || _isSavingDraft ? null : _goToNextStep,
+              child: _isSubmitting && isLastStep
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(isLastStep ? _submitLabel : 'Siguiente'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBasicInfoStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _label('Nombre del evento'),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _titleController,
+            decoration: const InputDecoration(hintText: 'Nombre del evento'),
+            textCapitalization: TextCapitalization.sentences,
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Requerido' : null,
+          ),
+          const SizedBox(height: 24),
+          CountryCityPicker(
+            initialCountry: _selectedCountry,
+            initialCity: _selectedCity,
+            onCountryChanged: (v) => setState(() => _selectedCountry = v),
+            onCityChanged: (v) => setState(() => _selectedCity = v),
+          ),
+          const SizedBox(height: 24),
+          _label('Categoría'),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<EventType>(
+            value: _eventType,
+            items: EventType.values
+                .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                .toList(),
+            onChanged: (v) => setState(() {
+              if (v != null) _eventType = v;
+            }),
+          ),
+          if (_eventType == EventType.other) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _customEventTypeController,
+              decoration: const InputDecoration(
+                hintText: '¿De qué tipo de evento se trata?',
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              validator: (v) =>
+                  _eventType == EventType.other &&
+                      (v == null || v.trim().isEmpty)
+                  ? 'Requerido'
+                  : null,
+            ),
+          ],
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              _label('Estilo'),
+              const SizedBox(width: 8),
+              Text(
+                '(${_styles.length}/3)',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colorScheme.outline),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _styleInputController,
+                  decoration: InputDecoration(
+                    hintText: _styles.length >= 3
+                        ? 'Máximo de estilos alcanzado'
+                        : 'ej: Salsa, Bachata, Hip-hop...',
+                  ),
+                  enabled: _styles.length < 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => _addStyle(),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed:
+                    _styles.length < 3 &&
+                        _styleInputController.text.trim().isNotEmpty
+                    ? _addStyle
+                    : null,
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          if (_styles.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: _styles
+                  .map(
+                    (s) => InputChip(
+                      label: Text(s),
+                      onDeleted: () => setState(() => _styles.remove(s)),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+          const SizedBox(height: 24),
+          _label('Descripción'),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _descriptionController,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Describe el evento...',
+              alignLabelWithHint: true,
+            ),
+            textCapitalization: TextCapitalization.sentences,
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Requerido' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionsStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _label('Sesiones'),
+              if (_sessions.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () => _openSessionSheet(),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Añadir'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_sessions.isEmpty)
+            OutlinedButton.icon(
+              onPressed: () => _openSessionSheet(),
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text('Añadir sesión'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+            )
+          else
+            ..._sessions.asMap().entries.map((entry) {
+              final i = entry.key;
+              final s = entry.value;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  onTap: () => _openSessionSheet(existing: s),
+                  leading: CircleAvatar(child: Text('${i + 1}')),
+                  title: Text(s.name),
+                  subtitle: Text(
+                    '${_formatDatetime(s.startDatetime)} → ${_formatDatetime(s.endDatetime)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _removeSession(s),
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoverStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _label('Portada'),
+          const SizedBox(height: 4),
+          Text(
+            'Añade una imagen, un video, o ambos',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colorScheme.outline),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colorScheme.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                PageView(
+                  onPageChanged: (i) => setState(() => _coverPage = i),
+                  children: [
+                    _buildCoverSlot(
+                      hasMedia: _hasEffectiveCoverImage,
+                      preview: _coverImageFile != null
+                          ? Image.file(_coverImageFile!, fit: BoxFit.contain)
+                          : (_isEditing && widget.event!.coverImageUrl != null
+                                ? Image.network(
+                                    ApiConfig.mediaUrl(
+                                      widget.event!.coverImageUrl!,
+                                    ),
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.image_not_supported_outlined,
+                                      size: 40,
+                                    ),
+                                  )
+                                : const SizedBox.shrink()),
+                      addIcon: Icons.add_photo_alternate_outlined,
+                      addLabel: 'Añadir imagen',
+                      onAdd: _pickCoverImage,
+                      onChange: _pickCoverImage,
+                      onRemove: _clearCoverImage,
+                    ),
+                    _buildCoverSlot(
+                      hasMedia: _hasEffectiveCoverVideo,
+                      preview: _coverVideoFile != null
+                          ? VideoPlayerView(filePath: _coverVideoFile!.path)
+                          : (_isEditing && widget.event!.coverVideoUrl != null
+                                ? VideoPlayerView(
+                                    networkUrl: ApiConfig.mediaUrl(
+                                      widget.event!.coverVideoUrl!,
+                                    ),
+                                  )
+                                : const SizedBox.shrink()),
+                      addIcon: Icons.videocam_outlined,
+                      addLabel: 'Añadir video',
+                      onAdd: _pickCoverVideo,
+                      onChange: _pickCoverVideo,
+                      onRemove: _clearCoverVideo,
+                    ),
+                  ],
+                ),
+                Positioned(
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      2,
+                      (i) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _coverPage == i
+                              ? colorScheme.primary
+                              : Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPacksStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _label('¿Necesitas gestionar reservas?'),
+          const SizedBox(height: 12),
+          _ReservationCard(
+            label: 'No, publicar sin reservas',
+            icon: Icons.public,
+            selected: _reservationChoice == false,
+            onTap: () => _setReservationChoice(false),
+          ),
+          const SizedBox(height: 10),
+          _ReservationCard(
+            label: 'Sí, quiero gestionar reservas',
+            icon: Icons.confirmation_number_outlined,
+            selected: _reservationChoice == true,
+            onTap: () => _setReservationChoice(true),
+          ),
+          if (_reservationChoice == true) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _label('Packs'),
+                if (_packs.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: _sessions.isEmpty
+                        ? null
+                        : () => _openPackSheet(),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Añadir'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_sessions.isEmpty)
+              Text(
+                'Añade al menos una sesión antes de crear un pack',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colorScheme.error),
+              )
+            else if (_packs.isEmpty)
+              OutlinedButton.icon(
+                onPressed: () => _openPackSheet(),
+                icon: const Icon(Icons.confirmation_number_outlined),
+                label: const Text('Añadir pack'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                ),
+              )
+            else
+              ..._packs.asMap().entries.map((entry) {
+                final i = entry.key;
+                final p = entry.value;
+                final priceLabel =
+                    '${p.price.toStringAsFixed(2)} ${p.currency} · ${p.paymentType.label}';
+                final packTypeLabel = p.packType == PackType.customizable
+                    ? '${p.packType.label} (máx. ${p.maxSelectableSessions} sesiones)'
+                    : p.packType.label;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    onTap: () => _openPackSheet(existing: p),
+                    leading: CircleAvatar(child: Text('${i + 1}')),
+                    title: Text(p.name),
+                    subtitle: Text(
+                      '$priceLabel · $packTypeLabel',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _removePack(p),
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _label('Revisar y publicar'),
+          const SizedBox(height: 16),
+          _reviewRow('Nombre', _titleController.text),
+          _reviewRow(
+            'Ubicación',
+            [
+              _selectedCity,
+              _selectedCountry,
+            ].where((s) => s.isNotEmpty).join(', '),
+          ),
+          _reviewRow('Categoría', _eventType.label),
+          _reviewRow('Estilo', _styles.join(', ')),
+          _reviewRow('Sesiones', '${_sessions.length}'),
+          _reviewRow(
+            'Reservas',
+            _reservationChoice == true
+                ? 'Sí (${_packs.length} pack${_packs.length == 1 ? '' : 's'})'
+                : _reservationChoice == false
+                ? 'No'
+                : 'Sin elegir',
+          ),
+          if (_isEditing) ...[
+            const SizedBox(height: 24),
+            _label('Estado'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<EventStatus>(
+              value: _status,
+              items: EventStatus.values
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                  .toList(),
+              onChanged: (v) => setState(() {
+                if (v != null) _status = v;
+              }),
+            ),
+            if (_status == EventStatus.draft) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Cambia a Publicado y guarda para publicar el evento',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colorScheme.outline),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _reviewRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value.isEmpty ? '—' : value,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _label(String text) =>
       Text(text, style: Theme.of(context).textTheme.titleSmall);
